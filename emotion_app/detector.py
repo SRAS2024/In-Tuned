@@ -1,6 +1,6 @@
 # advanced_detector.py
 # High fidelity local emotion detector with seven core dimensions and rich nuance.
-# (Updated: contrast-aware dominance + near-tie rules)
+# Overhauled: zero baseline scores, low signal handling, and cleaner dominance.
 
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ except Exception:  # pragma: no cover
 # =============================================================================
 
 CORE_KEYS = ("anger", "disgust", "fear", "joy", "sadness", "passion", "surprise")
+
 
 @dataclass
 class EmotionResult:
@@ -236,7 +237,7 @@ INTENSIFIERS = {
 }
 DAMPENERS = {"slightly", "somewhat", "kinda", "kind", "sort", "sorta", "a", "bit", "little", "mildly", "barely"}
 HEDGES = {"maybe", "perhaps", "possibly", "i guess", "i suppose", "i think", "sort of", "kind of", "kinda", "ish"}
-# Broadened contrast markers so we catch more real-world phrasing
+# Broadened contrast markers so we catch more real world phrasing
 CONTRASTIVE = {
     "but", "however", "though", "although", "yet",
     "nevertheless", "nonetheless", "still", "even so",
@@ -278,14 +279,17 @@ APPROX_TARGETS = set().union(JOY, SADNESS, ANGER, FEAR, DISGUST, PASSION, SURPRI
 def _normalize_elongation(text: str) -> str:
     return re.sub(r"([a-zA-Z])\1{2,}", r"\1\1", text)
 
+
 def _normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
 
 def _tokens(text: str) -> List[str]:
     text = _normalize_elongation(text)
     text = _normalize_whitespace(text)
     text = re.sub(r"\b(so|very|really)\s+\1\b", r"\1", text, flags=re.IGNORECASE)
     return [t.lower() for t in TOKEN_RE.findall(text)]
+
 
 def _stem(tok: str) -> str:
     if not tok.isalpha():
@@ -295,9 +299,11 @@ def _stem(tok: str) -> str:
             return tok[: -len(suf)]
     return tok
 
+
 def _window(tokens: List[str], i: int, size: int = 3) -> Iterable[str]:
     start = max(0, i - size)
     return tokens[start:i]
+
 
 @lru_cache(maxsize=4096)
 def _approx_correction(stem: str) -> str:
@@ -309,11 +315,20 @@ def _approx_correction(stem: str) -> str:
     return matches[0] if matches else stem
 
 
+def _meaningful_token_count(tokens: List[str]) -> int:
+    """
+    Rough signal estimate. Only count alphabetic tokens with at least
+    three characters, for example 'afraid' or 'sad', but not 'am' or 'wha'.
+    """
+    return sum(1 for t in tokens if t.isalpha() and len(t) >= 3)
+
+
 # =============================================================================
 # Sentence and clause splitting
 # =============================================================================
 
 _SENT_ENDERS = {".", "!", "?", "?!", "!?","\n"}
+
 
 def _split_sentences_from_tokens(tokens: List[str], max_sentences: int = 12) -> List[List[str]]:
     if not tokens:
@@ -323,7 +338,8 @@ def _split_sentences_from_tokens(tokens: List[str], max_sentences: int = 12) -> 
     for t in tokens:
         current.append(t)
         if t in _SENT_ENDERS or (t == ";" and len(current) >= 6):
-            sents.append(current); current = []
+            sents.append(current)
+            current = []
     if current:
         sents.append(current)
     if not sents:
@@ -369,9 +385,11 @@ def _split_clauses_in_sentence(sent_tokens: List[str]) -> List[List[str]]:
 def _blank_scores() -> Dict[str, float]:
     return {k: 0.0 for k in CORE_KEYS}
 
+
 def _merge(acc: Dict[str, float], inc: Dict[str, float], scale: float = 1.0) -> None:
     for k in CORE_KEYS:
         acc[k] += inc.get(k, 0.0) * scale
+
 
 def _emoji_boost(tok: str) -> Dict[str, float]:
     scores = _blank_scores()
@@ -380,34 +398,52 @@ def _emoji_boost(tok: str) -> Dict[str, float]:
             scores[emo] += 1.3
     return scores
 
+
 def _punctuation_emphasis(ahead: str) -> float:
     bangs = ahead.count("!")
-    if bangs >= 3: return 1.35
-    if bangs == 2: return 1.2
-    if bangs == 1: return 1.1
+    if bangs >= 3:
+        return 1.35
+    if bangs == 2:
+        return 1.2
+    if bangs == 1:
+        return 1.1
     return 1.0
 
+
 def _surprise_punctuation_bonus(text: str) -> float:
-    if re.search(r"(\?\!|\!\?)", text): return 0.15
-    if re.search(r"[?!]{2,}", text): return 0.08
+    if re.search(r"(\?\!|\!\?)", text):
+        return 0.15
+    if re.search(r"[?!]{2,}", text):
+        return 0.08
     return 0.0
 
+
 def _in_lex(target: str, bag: set[str]) -> bool:
-    if target in bag: return True
+    if target in bag:
+        return True
     if len(target) >= 4:
         return any(w.startswith(target) for w in bag)
     return False
 
+
 def _lex_hit(stem: str) -> Dict[str, float]:
     s = _blank_scores()
-    if _in_lex(stem, JOY): s["joy"] += 1.0
-    if _in_lex(stem, SADNESS): s["sadness"] += 1.0
-    if _in_lex(stem, ANGER): s["anger"] += 1.0
-    if _in_lex(stem, FEAR): s["fear"] += 1.0
-    if _in_lex(stem, DISGUST): s["disgust"] += 1.0
-    if _in_lex(stem, PASSION): s["passion"] += 1.0
-    if _in_lex(stem, SURPRISE): s["surprise"] += 1.0
+    if _in_lex(stem, JOY):
+        s["joy"] += 1.0
+    if _in_lex(stem, SADNESS):
+        s["sadness"] += 1.0
+    if _in_lex(stem, ANGER):
+        s["anger"] += 1.0
+    if _in_lex(stem, FEAR):
+        s["fear"] += 1.0
+    if _in_lex(stem, DISGUST):
+        s["disgust"] += 1.0
+    if _in_lex(stem, PASSION):
+        s["passion"] += 1.0
+    if _in_lex(stem, SURPRISE):
+        s["surprise"] += 1.0
     return s
+
 
 def _apply_phrases(text_lower: str) -> Dict[str, float]:
     out = _blank_scores()
@@ -415,6 +451,7 @@ def _apply_phrases(text_lower: str) -> Dict[str, float]:
         if phrase in text_lower:
             out[emo] += w
     return out
+
 
 def _apply_negated_pairs(tokens: List[str], scores: Dict[str, float]) -> None:
     for i in range(len(tokens) - 1):
@@ -424,6 +461,7 @@ def _apply_negated_pairs(tokens: List[str], scores: Dict[str, float]) -> None:
             scores[dst] += 0.9 * mult
             scores[src] *= 0.6
 
+
 def _rhetorical_question_boost(tokens: List[str]) -> float:
     text = " ".join(tokens)
     cues = [
@@ -432,11 +470,13 @@ def _rhetorical_question_boost(tokens: List[str]) -> float:
     ]
     return 0.25 if any(c in text for c in cues) else 0.0
 
+
 def _because_clause_dampener(tokens: List[str]) -> float:
     text = " ".join(tokens)
     if any(k in text for k in ("because", "since", "as ", "due to")):
         return 0.9
     return 1.0
+
 
 def _harvest_meta_counts(tokens: List[str]) -> Dict[str, float]:
     joined = "".join(tokens)
@@ -446,6 +486,7 @@ def _harvest_meta_counts(tokens: List[str]) -> Dict[str, float]:
         "_heart_count": float(joined.count("❤️") + joined.count("<3")),
         "_laugh_count": float(joined.count("haha") + joined.count("lol")),
     }
+
 
 def _arousal_valence_nudge(scores: Dict[str, float]) -> None:
     anger = scores.get("anger", 0.0)
@@ -479,19 +520,28 @@ def _arousal_valence_nudge(scores: Dict[str, float]) -> None:
 def _desire_commitment_bonus(text_lower: str) -> Dict[str, float]:
     out = _blank_scores()
     if any(p in text_lower for p in INTENT_COMMIT):
-        out["passion"] += 2.3; out["joy"] += 0.6; out["anger"] -= 0.4
+        out["passion"] += 2.3
+        out["joy"] += 0.6
+        out["anger"] -= 0.4
     if any(p in text_lower for p in INTENT_DESIRE):
-        out["passion"] += 1.6; out["joy"] += 0.4
+        out["passion"] += 1.6
+        out["joy"] += 0.4
     if " in love" in text_lower or text_lower.startswith("in love"):
-        out["passion"] += 2.2; out["joy"] += 0.4
+        out["passion"] += 2.2
+        out["joy"] += 0.4
     if any(p in text_lower for p in INTENT_REASSURE):
-        out["joy"] += 0.7; out["fear"] *= 0.8
+        out["joy"] += 0.7
+        out["fear"] *= 0.8
     if any(p in text_lower for p in INTENT_DEESCALATE):
-        out["anger"] *= 0.7; out["fear"] *= 0.9; out["joy"] += 0.2
+        out["anger"] *= 0.7
+        out["fear"] *= 0.9
+        out["joy"] += 0.2
     return out
+
 
 def _scope_has_negation(win_before: Iterable[str]) -> bool:
     return any(wt in NEGATIONS or wt.endswith("n't") for wt in win_before)
+
 
 def _contains_any(tokens: List[str], bag: set[str], extra: Optional[Iterable[str]] = None) -> bool:
     if extra:
@@ -503,19 +553,19 @@ def _contains_any(tokens: List[str], bag: set[str], extra: Optional[Iterable[str
             return True
     return False
 
-# Helper predicates for clause polarity
+
 def _is_positive_clause(tokens: List[str]) -> bool:
-    # Joy/Passion cues (incl. "in love")
     return _contains_any(tokens, JOY, extra=("in love",)) or _contains_any(tokens, PASSION, extra=("in love",))
 
+
 def _is_negative_clause(tokens: List[str]) -> bool:
-    # Protective/negative cues
     return (
-        _contains_any(tokens, FEAR) or
-        _contains_any(tokens, SADNESS) or
-        _contains_any(tokens, ANGER) or
-        _contains_any(tokens, DISGUST)
+        _contains_any(tokens, FEAR)
+        or _contains_any(tokens, SADNESS)
+        or _contains_any(tokens, ANGER)
+        or _contains_any(tokens, DISGUST)
     )
+
 
 def _score_clause(tokens: List[str]) -> Dict[str, float]:
     scores = _blank_scores()
@@ -540,15 +590,22 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
             weight = 1.0
             win = list(_window(tokens, i, size=3))
 
-            if any(wt in INTENSIFIERS for wt in win): weight *= 1.35
-            if any(wt in DAMPENERS for wt in win): weight *= 0.65
-            if any(wt in HEDGES for wt in win): weight *= 0.88
+            if any(wt in INTENSIFIERS for wt in win):
+                weight *= 1.35
+            if any(wt in DAMPENERS for wt in win):
+                weight *= 0.65
+            if any(wt in HEDGES for wt in win):
+                weight *= 0.88
 
-            if _scope_has_negation(win): weight *= -0.9
+            if _scope_has_negation(win):
+                weight *= -0.9
 
-            if any(wt in TEMPORAL_POS for wt in win): weight *= 1.05
-            if any(wt in TEMPORAL_NEG for wt in win): weight *= 0.95
-            if any(wt in STANCE_1P for wt in win): weight *= 1.05
+            if any(wt in TEMPORAL_POS for wt in win):
+                weight *= 1.05
+            if any(wt in TEMPORAL_NEG for wt in win):
+                weight *= 0.95
+            if any(wt in STANCE_1P for wt in win):
+                weight *= 1.05
 
             tail = "".join(tokens[i:i + 4])
             weight *= _punctuation_emphasis(tail)
@@ -560,7 +617,8 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
                     scores[k] += v * weight
 
     rq_boost = _rhetorical_question_boost(tokens)
-    if rq_boost: scores["fear"] += rq_boost
+    if rq_boost:
+        scores["fear"] += rq_boost
 
     s_damp = _because_clause_dampener(tokens)
     scores["surprise"] *= s_damp
@@ -618,6 +676,7 @@ def _sarcasm_cue(tokens: List[str]) -> bool:
     ]
     return any(c in text for c in cues)
 
+
 def _sentence_emphasis_weight(tokens: List[str], idx: int, n_sent: int) -> float:
     text = "".join(tokens)
     bangs = text.count("!")
@@ -638,38 +697,57 @@ def _sentence_emphasis_weight(tokens: List[str], idx: int, n_sent: int) -> float
 # =============================================================================
 
 def _squash(x: float) -> float:
-    return 1.0 / (1.0 + math.exp(-4.0 * x))
+    """
+    Saturating transform with a true zero baseline.
+
+    Zero or negative evidence stays exactly at 0.  
+    Positive evidence approaches 1 as it grows, but never crosses it.
+    """
+    if x <= 0.0:
+        return 0.0
+    return 1.0 - math.exp(-x)
+
 
 def _clamp_scores(raw: Dict[str, float]) -> Dict[str, float]:
-    out = {}
+    """
+    Clamp raw scores into [0, 1] using the zero baseline squash.
+
+    Very tiny values are snapped back to 0 so that emotions with no
+    real lexical support do not appear in the chart.
+    """
+    out: Dict[str, float] = {}
     for k, v in raw.items():
-        out[k] = max(0.0, min(_squash(v), 1.0))
+        val = _squash(v)
+        if val < 0.005:
+            val = 0.0
+        if val > 1.0:
+            val = 1.0
+        out[k] = val
     return out
 
-# --- generalized contrast-aware reweighting inside a sentence ---
-def _apply_contrast_bias_if_any(sent_tokens: List[str],
-                                clauses: List[List[str]],
-                                per_clause_scores: List[Dict[str, float]],
-                                out: Dict[str, float]) -> None:
+
+def _apply_contrast_bias_if_any(
+    sent_tokens: List[str],
+    clauses: List[List[str]],
+    per_clause_scores: List[Dict[str, float]],
+    out: Dict[str, float],
+) -> None:
     """
-    If a sentence contains a clear contrast (e.g., '... but ...', 'however', 'although', 'even though'),
-    nudge dominance toward protective/negative cores when there is a near balance between
-    negative (fear/sadness/anger/disgust) and positive (joy/passion) clauses.
-    Works for both left-neg→right-pos and left-pos→right-neg.
+    If a sentence contains a clear contrast, such as '... but ...' or 'however',
+    nudge dominance toward protective or negative cores when there is a near
+    balance between negative and positive clauses.
     """
     if not any(c in sent_tokens for c in CONTRASTIVE):
         return
     if len(clauses) < 2:
         return
 
-    # Find the first contrast token index to decide left vs right groups
     toks = sent_tokens
     try:
         first_contrast_idx = min(i for i, t in enumerate(toks) if t in CONTRASTIVE)
     except ValueError:
         return
 
-    # Aggregate scores by side of the first contrast
     left_idx_last = 0
     running_len = 0
     for ci, cl in enumerate(clauses):
@@ -680,19 +758,18 @@ def _apply_contrast_bias_if_any(sent_tokens: List[str],
     left_clauses = clauses[:left_idx_last + 1] or [clauses[0]]
     right_clauses = clauses[left_idx_last + 1:] or [clauses[-1]]
 
-    # Polarity detection (lexical): if either side has clear positive vs negative cues
     left_pos = any(_is_positive_clause(c) for c in left_clauses)
     left_neg = any(_is_negative_clause(c) for c in left_clauses)
     right_pos = any(_is_positive_clause(c) for c in right_clauses)
     right_neg = any(_is_negative_clause(c) for c in right_clauses)
 
-    # Also look at numeric mixtures we already computed per clause
     def mix_sum(cl_idxs, keys):
         s = 0.0
         for i in cl_idxs:
             sc = per_clause_scores[i]
             s += sum(sc.get(k, 0.0) for k in keys)
         return s
+
     left_ids = list(range(0, left_idx_last + 1))
     right_ids = list(range(left_idx_last + 1, len(clauses)))
     neg_keys = ("fear", "sadness", "anger", "disgust")
@@ -702,16 +779,13 @@ def _apply_contrast_bias_if_any(sent_tokens: List[str],
     left_pos_num = mix_sum(left_ids, pos_keys)
     right_neg_num = mix_sum(right_ids, neg_keys)
 
-    # Apply bias if we have a clear contrast pattern
-    # Case A: negative → but → positive
     if (left_neg or left_neg_num > 0) and (right_pos or right_pos_num > 0):
-        # Favor protective cores slightly; dampen positive just a bit
         for k in ("fear", "sadness", "anger", "disgust"):
             out[k] *= 1.08
         for k in ("joy", "passion"):
             out[k] *= 0.985
         return
-    # Case B: positive → but → negative (negativity as the conclusion is stronger)
+
     if (left_pos or left_pos_num > 0) and (right_neg or right_neg_num > 0):
         for k in ("fear", "sadness", "anger", "disgust"):
             out[k] *= 1.12
@@ -742,7 +816,6 @@ def _aggregate_sentence(sent_tokens: List[str]) -> Dict[str, float]:
         for k in CORE_KEYS:
             out[k] += sc[k] * (w / total_w)
 
-    # Generalized contrast bias (covers fear/sadness/anger/disgust vs joy/passion, both orders)
     _apply_contrast_bias_if_any(sent_tokens, clauses, numeric_by_clause, out)
     return out
 
@@ -786,12 +859,10 @@ def _choose_dominant(scores: Dict[str, float]) -> str:
 
     gap = top_val - second_val
     if gap < 0.06:
-        # Prefer protective/negative cores over appetitive ones on near-ties
         negative = {"fear", "sadness", "anger", "disgust"}
         appetitive = {"passion", "joy"}
         inter = (negative & {top_key, second_key}, appetitive & {top_key, second_key})
         if inter[0] and inter[1]:
-            # Return the one that is in the negative set
             return next(iter(inter[0]))
 
     return top_key
@@ -814,31 +885,49 @@ def _augment_watson_with_two(text: str, five: Dict[str, float]) -> Dict[str, flo
 # =============================================================================
 
 def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionResult:
-    if text is None or not str(text).strip():
+    """
+    Main detector entry point.
+
+    Local scoring now uses a true zero baseline. Emotions that have
+    no lexical or structural evidence stay at 0. Very short or
+    incomplete inputs such as 'am' or 'wha' are treated as low signal
+    and return all zeros with dominant 'N/A'.
+    """
+    if text is None:
+        raise ValueError("Input text is required")
+
+    text_str = str(text)
+    if not text_str.strip():
         raise ValueError("Input text is required")
 
     if use_watson_if_available and _has_watson_credentials():
-        five = _call_watson(text)
-        scores = _augment_watson_with_two(text, five)
+        five = _call_watson(text_str)
+        scores: Dict[str, float] = _augment_watson_with_two(text_str, five)
     else:
-        tokens = _tokens(text)
+        tokens = _tokens(text_str)
         if not tokens:
             scores = _blank_scores()
         else:
-            sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
-            raw = _aggregate_sentences(sentences)
-            raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-            scores = _clamp_scores(raw)
+            # Low signal short text. Example: 'am', 'ok', 'wha'.
+            if _meaningful_token_count(tokens) == 0:
+                scores = _blank_scores()
+            else:
+                sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
+                raw = _aggregate_sentences(sentences)
+                raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
+                scores = _clamp_scores(raw)
+
+    dominant = _choose_dominant(scores)
 
     result = EmotionResult(
-        anger=float(scores["anger"]),
-        disgust=float(scores["disgust"]),
-        fear=float(scores["fear"]),
-        joy=float(scores["joy"]),
-        sadness=float(scores["sadness"]),
-        passion=float(scores["passion"]),
-        surprise=float(scores["surprise"]),
-        dominant_emotion=_choose_dominant(scores),
+        anger=float(scores.get("anger", 0.0)),
+        disgust=float(scores.get("disgust", 0.0)),
+        fear=float(scores.get("fear", 0.0)),
+        joy=float(scores.get("joy", 0.0)),
+        sadness=float(scores.get("sadness", 0.0)),
+        passion=float(scores.get("passion", 0.0)),
+        surprise=float(scores.get("surprise", 0.0)),
+        dominant_emotion=dominant,
     )
     return result
 
@@ -880,5 +969,6 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
         "dominant": _choose_dominant(final),
     }
 
-# Back-compat alias if anything imports `emotion_detector` directly from here.
+
+# Back compat alias if anything imports `emotion_detector` directly from here.
 emotion_detector = detect_emotions
