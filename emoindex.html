@@ -110,6 +110,12 @@
       }
       textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 4px rgba(59,130,246,.2)}
 
+      /* low signal / invalid input highlight */
+      textarea.input-error{
+        border-color:#f97373;
+        box-shadow:0 0 0 4px rgba(248,113,113,.45);
+      }
+
       /* Button row: button on left, emoji tray on right, status beneath */
       .row{
         display:grid;align-items:center;gap:.9rem;margin-top:1rem;
@@ -271,6 +277,7 @@
       };
 
       const emojiTray = $('emojiTray');
+      const textArea = $('text');
 
       const titleCase = (s) => {
         if (!s || typeof s !== 'string') return 'N/A';
@@ -322,7 +329,10 @@
         let sum = 0;
         const out = {};
         keys.forEach(k => { out[k] = Math.max(0, Number(m[k] ?? 0)); sum += out[k]; });
-        if (sum <= 0){ keys.forEach(k => out[k] = 1/keys.length); return out; }
+        if (sum <= 0){
+          keys.forEach(k => out[k] = 0);
+          return out;
+        }
         keys.forEach(k => out[k] = out[k]/sum);
         return out;
       }
@@ -389,7 +399,6 @@
 
       // Single tray on the right; shows 1 emoji if same, 2 if different.
       function renderEmojis({emoji_emotion, emoji_dominant, same_label, dominant_label, emotion_label, mixture_for_fallback}){
-        // compute labels
         let dominant = titleCase(dominant_label || 'N/A');
         let emotion  = emotion_label && emotion_label !== 'N/A'
           ? titleCase(emotion_label)
@@ -404,15 +413,62 @@
           ? emoji_emotion
           : emojiForLabel(emotion);
 
-        emojiTray.title = same ? 'Dominant and blended match' : 'Dominant • Blended';
+        emojiTray.title = same ? 'Dominant and blended match' : 'Dominant and blended';
         emojiTray.textContent = same ? (emoArr[0] || '🤔') : `${domArr[0] || '🤔'} ${emoArr[0] || '🤔'}`;
+      }
+
+      function resetToZero(){
+        for (const k of Object.keys(fields)) {
+          if (k === 'dominant_emotion' || k === 'emotion') {
+            fields[k].textContent = 'N/A';
+          } else {
+            fields[k].textContent = '0.000';
+          }
+        }
+        emojiTray.textContent = '🤔';
+        renderBars({
+          anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
+        });
+      }
+
+      function handleLowSignal(data){
+        // All cores should already be zero, but make sure UI reflects that
+        fields.anger.textContent    = fmt(data.anger ?? 0);
+        fields.disgust.textContent  = fmt(data.disgust ?? 0);
+        fields.fear.textContent     = fmt(data.fear ?? 0);
+        fields.joy.textContent      = fmt(data.joy ?? 0);
+        fields.sadness.textContent  = fmt(data.sadness ?? 0);
+        fields.passion.textContent  = fmt(data.passion ?? 0);
+        fields.surprise.textContent = fmt(data.surprise ?? 0);
+
+        fields.dominant_emotion.textContent = 'N/A';
+        fields.emotion.textContent = 'N/A';
+
+        const primary = data.emoji_primary
+          || (Array.isArray(data.emoji_emotion) && data.emoji_emotion[0])
+          || '❌';
+        emojiTray.textContent = primary;
+        emojiTray.title = 'Not enough information';
+
+        renderBars({
+          anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
+        });
+
+        textArea.classList.add('input-error');
+        setStatus('Too little text to understand how you feel. Try adding a bit more detail.', true);
       }
 
       // Analyze click
       $('analyze').addEventListener('click', async ()=>{
-        const text = $('text').value.trim();
-        if (!text) { setStatus('Please enter some text.'); return; }
+        const text = textArea.value.trim();
+        if (!text) {
+          setStatus('Please enter some text.');
+          textArea.classList.add('input-error');
+          resetToZero();
+          return;
+        }
         setStatus('Analyzing...');
+        textArea.classList.remove('input-error');
         try{
           const res = await fetch('/emotionDetector', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -421,7 +477,12 @@
           const data = await res.json();
           if(!res.ok) throw new Error(data?.error || 'Request failed');
 
-          // Scores
+          if (data.low_signal) {
+            handleLowSignal(data);
+            return;
+          }
+
+          // Normal path
           fields.anger.textContent    = fmt(data.anger);
           fields.disgust.textContent  = fmt(data.disgust);
           fields.fear.textContent     = fmt(data.fear);
@@ -430,7 +491,6 @@
           fields.passion.textContent  = fmt(data.passion ?? 0);
           fields.surprise.textContent = fmt(data.surprise ?? 0);
 
-          // Labels
           const domLabel = titleCase(data.dominant_emotion || 'N/A');
           const mix = data.mixture || {
             anger:data.anger, disgust:data.disgust, fear:data.fear, joy:data.joy,
@@ -442,7 +502,6 @@
           fields.dominant_emotion.textContent = domLabel;
           fields.emotion.textContent          = emoLabel;
 
-          // Emojis
           renderEmojis({
             emoji_emotion:  data.emoji_emotion || data.emoji || [],
             emoji_dominant: data.emoji_dominant || [],
@@ -452,23 +511,23 @@
             mixture_for_fallback: mix
           });
 
-          // Chart
           renderBars(normalizeMix(mix));
 
           setStatus('');
         }catch(err){
           setStatus(err?.message || 'Unexpected error', true);
-          for (const k of Object.keys(fields)) {
-            if (k === 'dominant_emotion' || k === 'emotion') {
-              fields[k].textContent = 'N/A';
-            } else {
-              fields[k].textContent = '0.000';
-            }
-          }
-          emojiTray.textContent = '🤔';
-          renderBars({
-            anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
-          });
+          textArea.classList.add('input-error');
+          resetToZero();
+        }
+      });
+
+      // Clear error styling when user edits
+      textArea.addEventListener('input', ()=>{
+        if (textArea.classList.contains('input-error')) {
+          textArea.classList.remove('input-error');
+        }
+        if ($('status').textContent) {
+          setStatus('');
         }
       });
 
@@ -489,7 +548,6 @@
       };
       modeDot.addEventListener('click', toggleTheme);
       modeDot.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTheme(); }});
-      // restore last theme
       try {
         const saved = localStorage.getItem('in-tuned-theme');
         if (saved) setTheme(saved);
