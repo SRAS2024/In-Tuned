@@ -31,10 +31,32 @@ def health() -> tuple[str, int]:
     return "ok", 200
 
 
+def _clip_text_words(text: str, max_words: int = 250) -> str:
+    """Limit processing to at most `max_words` words while accepting longer input.
+
+    This keeps the detector focused on a concise segment while still letting
+    users paste bigger paragraphs without raising errors.
+    """
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return " ".join(words[:max_words])
+
+
 @app.post("/emotionDetector")
-def detect() -> tuple[Dict[str, Any], int]:
+def detect() -> Any:
     payload = request.get_json(silent=True) or {}
-    text = payload.get("text", "")
+    raw_text = payload.get("text", "")
+
+    # Coerce to string to be robust to unexpected payload types
+    if raw_text is None:
+        text = ""
+    else:
+        text = str(raw_text)
+
+    # Clip to the target processing window
+    text = _clip_text_words(text, max_words=250)
+
     try:
         result = emotion_detector(text)
         formatted = format_emotions(result)
