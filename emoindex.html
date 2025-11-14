@@ -116,10 +116,10 @@
         box-shadow:0 0 0 4px rgba(248,113,113,.45);
       }
 
-      /* Button row: button on left, emoji tray on right, status beneath */
+      /* Button row: button, word counter, emoji tray, status under */
       .row{
         display:grid;align-items:center;gap:.9rem;margin-top:1rem;
-        grid-template-columns:auto 1fr auto;
+        grid-template-columns:auto auto 1fr auto;
       }
       .btn{
         appearance:none;border:none;cursor:pointer;padding:.85rem 1.15rem;border-radius:12px;
@@ -129,6 +129,13 @@
       .status.err{color:#f43f5e}
       .emojiInline{font-size:1.6rem;display:flex;gap:.35rem;align-items:center;min-height:1.6rem}
       #emojiTray{justify-content:flex-end;min-width:3rem}
+
+      #wordInfo{
+        font-size:.9rem;
+        color:var(--muted);
+        padding-left:.5rem;
+        white-space:nowrap;
+      }
 
       /* ===================== PANELS ===================== */
       .panelTitle{margin:.25rem 0 1rem 0;font-weight:800;letter-spacing:.15px}
@@ -198,10 +205,10 @@
           <label for="text">Text</label>
           <textarea id="text" placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."></textarea>
 
-          <!-- Button with emojis on the RIGHT only -->
+          <!-- Button with word counter and emojis on the right -->
           <div class="row">
             <button id="analyze" class="btn">Analyze</button>
-            <span class="spacer"></span>
+            <span id="wordInfo">250 word maximum</span>
             <span id="emojiTray" class="emojiInline" aria-live="polite" title="Emotion">🤔</span>
             <span id="status" class="status" aria-live="polite"></span>
           </div>
@@ -247,13 +254,7 @@
         <h2 id="modalTitle">About In tuned</h2>
         <p class="muted">Description:</p>
         <p>
-          A reflection tool to help you process how you feel in the moment.
-          Write your thoughts; treat the output as a prompt for self-awareness,
-          not advice.
-        </p>
-        <p class="muted" style="margin-top:.65rem">How it works:</p>
-        <p>
-          Your text is analyzed across seven core emotions. We show the dominant core and a single blended label that best fits the mixture.
+          In tuned is a reflection tool that helps you process how you feel in the moment by analyzing any passage of up to 250 words and turning it into a clear emotional snapshot. It reads your text and scores seven core emotions anger, disgust, fear, joy, sadness, passion, and surprise, then normalizes them into a core mixture that drives a live bar chart and detailed numeric readout. The app identifies a dominant core emotion, generates a blended rich label that reflects the overall mix, and shows matching emojis for both the dominant and blended emotion so you can quickly sense the tone. Behind the scenes it uses nuanced rules for contrast, intensity, and mixed feelings, and it reports a confidence score plus a short rationale that explains the top components. When there is too little usable text it safely treats the entry as low signal, keeps all scores at zero, and shows an X state so you know to write a bit more, while the rest of the time it always returns a best fit emotional reading for self awareness, not advice.
         </p>
         <div class="actions">
           <button id="closeModal" class="ghost">Done</button>
@@ -278,6 +279,9 @@
 
       const emojiTray = $('emojiTray');
       const textArea = $('text');
+      const wordInfo = $('wordInfo');
+
+      let lastAcceptedText = textArea.value || '';
 
       const titleCase = (s) => {
         if (!s || typeof s !== 'string') return 'N/A';
@@ -292,6 +296,42 @@
       }
 
       const fmt = v => typeof v === 'number' ? v.toFixed(3) : String(v ?? '');
+
+      function wordCountAndLimit(){
+        let value = textArea.value;
+        if (!value) {
+          lastAcceptedText = '';
+          if (wordInfo) wordInfo.textContent = '250 word maximum';
+          return;
+        }
+
+        let tokens = value.trim().split(/\s+/).filter(Boolean);
+        if (tokens.length > 250) {
+          const prev = lastAcceptedText || '';
+          const candidate = value;
+
+          const justPeriodAllowed =
+            candidate.length === prev.length + 1 &&
+            candidate.endsWith('.') &&
+            !prev.trim().endsWith('.');
+
+          if (justPeriodAllowed) {
+            lastAcceptedText = candidate;
+          } else {
+            textArea.value = prev;
+          }
+
+          value = textArea.value;
+          tokens = value.trim() ? value.trim().split(/\s+/).filter(Boolean) : [];
+        } else {
+          lastAcceptedText = value;
+        }
+
+        const count = tokens.length;
+        if (wordInfo) {
+          wordInfo.textContent = count === 0 ? '250 word maximum' : `${count}/250 words`;
+        }
+      }
 
       // Chart helpers
       const CORE_ORDER = ["anger","disgust","fear","joy","sadness","passion","surprise"];
@@ -521,8 +561,9 @@
         }
       });
 
-      // Clear error styling when user edits
+      // Clear error styling and enforce word limit when user edits
       textArea.addEventListener('input', ()=>{
+        wordCountAndLimit();
         if (textArea.classList.contains('input-error')) {
           textArea.classList.remove('input-error');
         }
@@ -553,11 +594,13 @@
         if (saved) setTheme(saved);
       } catch {}
 
-      // Build empty chart on load
+      // Build empty chart on load and initialize word counter
       function renderBarsZero(){ renderBars({
         anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
       }); }
-      initBars(); renderBarsZero();
+      initBars();
+      renderBarsZero();
+      wordCountAndLimit();
     </script>
   </body>
 </html>
