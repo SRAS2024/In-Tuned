@@ -33,78 +33,92 @@ TRIAD_NAMES = {
     tuple(sorted(["joy", "sadness", "disgust"])): "Embarrassed amusement",
 }
 
-# Prototypes for nuanced blends
+# Prototypes for nuanced blends across all cores
 PROTOTYPES = {
-    **{
-        "Gentle sadness":    [0.00, 0.00, 0.05, 0.10, 0.55, 0.00, 0.05],
-        "Reflective sorrow": [0.00, 0.00, 0.10, 0.15, 0.70, 0.00, 0.05],
-        "Hopeful grief":     [0.00, 0.00, 0.15, 0.25, 0.60, 0.10, 0.05],
-        "Soft affection":    [0.00, 0.00, 0.05, 0.55, 0.05, 0.60, 0.10],
-        "Romantic yearning": [0.00, 0.00, 0.10, 0.20, 0.40, 0.85, 0.10],
-    }
+    # Sadness and grief family
+    "Gentle sadness":    [0.00, 0.00, 0.05, 0.10, 0.55, 0.00, 0.05],
+    "Reflective sorrow": [0.00, 0.00, 0.10, 0.15, 0.70, 0.00, 0.05],
+    "Hopeful grief":     [0.00, 0.00, 0.15, 0.25, 0.60, 0.10, 0.05],
+    "Grief":             [0.05, 0.00, 0.05, 0.05, 0.70, 0.10, 0.05],
+    "Mourning":          [0.05, 0.00, 0.05, 0.03, 0.80, 0.05, 0.02],
+    "Heartbroken":       [0.20, 0.00, 0.02, 0.03, 0.55, 0.20, 0.00],
+
+    # Romantic and affection spectrum
+    "Soft affection":    [0.00, 0.00, 0.05, 0.55, 0.05, 0.60, 0.10],
+    "Romantic yearning": [0.00, 0.00, 0.10, 0.20, 0.40, 0.85, 0.10],
+    "In love":           [0.00, 0.00, 0.05, 0.55, 0.05, 0.75, 0.10],
+    "Infatuated":        [0.05, 0.00, 0.05, 0.45, 0.05, 0.80, 0.10],
+
+    # Anger family
+    "Frustrated":        [0.45, 0.05, 0.05, 0.05, 0.30, 0.10, 0.00],
+    "Outrage":           [0.60, 0.05, 0.15, 0.02, 0.12, 0.06, 0.00],
+    "Contempt":          [0.40, 0.30, 0.05, 0.05, 0.15, 0.05, 0.00],
+
+    # Fear and anxiety family
+    "Anxious":           [0.05, 0.00, 0.60, 0.05, 0.20, 0.05, 0.05],
+    "Panicked":          [0.10, 0.00, 0.65, 0.00, 0.15, 0.05, 0.05],
+    "Terrified":         [0.15, 0.00, 0.70, 0.00, 0.10, 0.00, 0.05],
+
+    # Joy and calm family
+    "Joyful":            [0.02, 0.00, 0.02, 0.80, 0.05, 0.09, 0.02],
+    "Bittersweet":       [0.00, 0.00, 0.05, 0.45, 0.40, 0.05, 0.05],
+    "Calm":              [0.00, 0.00, 0.05, 0.60, 0.10, 0.15, 0.10],
 }
 
 # Expanded emoji set with deeper nuance and more richness
 EMOJI_SUGGEST = {
     # Subtle and nuanced labels
-    **{
-        "Gentle sadness": ["🥹", "😢"],
-        "Reflective sorrow": ["😔", "🥹"],
-        # For hopeful grief the current label emoji is 🥲
-        "Hopeful grief": ["🥲"],
-        "Romantic yearning": ["💘"],
-        "Soft affection": ["🤍", "🤗"],
-    },
-    # Rich blended labels
-    **{
-        "Angry": ["😠"],
-        "Disgusted": ["🤢"],
-        "Anxious": ["😨"],
-        "Joyful": ["😊"],
-        "Sad": ["😢"],
-        "In love": ["😍"],
-        "Shocked": ["😱"],
-        "Awe": ["😮", "✨"],
-        "Nostalgia": ["🕰️", "🙂"],
-        "Contempt": ["😒"],
-        "Outrage": ["😡"],
-        "Bittersweet": ["🥲"],
-        # Grief family always shows sadness plus a mourning cue
-        "Mourning": ["😢", "🖤"],
-        "Heartbroken": ["💔", "😢"],
-        "Infatuated": ["🥰"],
-        "Committed": ["💍"],
-        "Relief": ["😮‍💨"],
-        "Calm": ["😌"],
-        "Appalled": ["😧"],
-        "Uneasy": ["😬"],
-        "Apprehensive": ["😟"],
-        "Delighted surprise": ["🤩"],
-        "Indignant shock": ["😤", "😳"],
-        "Moral outrage": ["😤"],
-        "Schadenfreude": ["😏"],
-        "Embarrassed amusement": ["😅"],
-        "Melancholy": ["🎻"],
-        "Grief": ["😢", "💐"],
-        "Frustrated": ["😤"],
-        "Irritated": ["😒"],
-        "Resentful": ["😠"],
-        "Terrified": ["😱"],
-        "Panicked": ["😰"],
-        "Affectionate": ["🤗"],
-        "Hopeful": ["🌟"],
-        "N/A": ["❌"],
-    },
+    "Gentle sadness": ["🥹", "😢"],
+    "Reflective sorrow": ["😔", "🥹"],
+    "Hopeful grief": ["🥲"],
+    "Grief": ["😢", "💐"],
+    "Mourning": ["😢", "🖤"],
+    "Heartbroken": ["💔", "😢"],
+    "Soft affection": ["🤍", "🤗"],
+    "Romantic yearning": ["💘"],
+    "In love": ["😍"],
+    "Infatuated": ["🥰"],
+
+    # Rich blended labels and cores
+    "Angry": ["😠"],
+    "Disgusted": ["🤢"],
+    "Anxious": ["😨"],
+    "Panicked": ["😰"],
+    "Terrified": ["😱"],
+    "Joyful": ["😊"],
+    "Bittersweet": ["🥲"],
+    "Calm": ["😌"],
+    "Sad": ["😢"],
+    "Shocked": ["😱"],
+    "Awe": ["😮", "✨"],
+    "Nostalgia": ["🕰️", "🙂"],
+    "Contempt": ["😒"],
+    "Outrage": ["😡"],
+    "Melancholy": ["🎻"],
+    "Frustrated": ["😤"],
+    "Irritated": ["😒"],
+    "Resentful": ["😠"],
+    "Appalled": ["😧"],
+    "Uneasy": ["😬"],
+    "Apprehensive": ["😟"],
+    "Relief": ["😮‍💨"],
+    "Delighted surprise": ["🤩"],
+    "Indignant shock": ["😤", "😳"],
+    "Moral outrage": ["😤"],
+    "Schadenfreude": ["😏"],
+    "Embarrassed amusement": ["😅"],
+    "Affectionate": ["🤗"],
+    "Hopeful": ["🌟"],
+    "N/A": ["❌"],
+
     # Direct mappings for the seven core names so dominant emojis always resolve
-    **{
-        "Anger": ["😠"],
-        "Disgust": ["🤢"],
-        "Fear": ["😨"],
-        "Joy": ["😊"],
-        "Sadness": ["😢"],
-        "Passion": ["😍"],
-        "Surprise": ["😱"],
-    },
+    "Anger": ["😠"],
+    "Disgust": ["🤢"],
+    "Fear": ["😨"],
+    "Joy": ["😊"],
+    "Sadness": ["😢"],
+    "Passion": ["😍"],
+    "Surprise": ["😱"],
 }
 
 # Helper numeric routines
@@ -149,12 +163,24 @@ def _vector(p: Dict[str, float]) -> List[float]:
     return [p[k] for k in EMOTIONS]
 
 
-# ---------------- Enhanced single state rules ----------------
+# ---------------- Enhanced single state and blend overrides ----------------
 
 def _single_state_overrides(p: Dict[str, float]) -> Optional[str]:
+    ranked = _top_components(p)
+    k1, v1 = ranked[0]
+    k2, v2 = ranked[1]
+
+    ang = p["anger"]
     sad = p["sadness"]
     joy = p["joy"]
     pas = p["passion"]
+    fear = p["fear"]
+    sur = p["surprise"]
+    disg = p["disgust"]
+
+    # Heartbreak: strong sadness with betrayal tone from anger or passion
+    if sad >= 0.40 and joy <= 0.12 and (ang >= 0.15 or pas >= 0.18):
+        return "Heartbroken"
 
     # Grief family
     if sad >= 0.55 and joy <= 0.20:
@@ -170,16 +196,52 @@ def _single_state_overrides(p: Dict[str, float]) -> Optional[str]:
     if pas >= 0.55 and sad >= 0.25:
         return "Romantic yearning"
     if pas >= 0.50 and joy >= 0.40:
-        return "Affectionate"
+        return "Soft affection"
 
     # Gentle sadness
-    if sad >= 0.40 and joy >= 0.10:
+    if sad >= 0.40 and joy >= 0.10 and pas < 0.18:
         return "Gentle sadness"
+
+    # Anger family patterns
+    if k1 == "anger" and v1 >= 0.45:
+        if sad >= 0.25:
+            return "Frustrated"
+        if disg >= 0.20:
+            return "Contempt"
+        if fear >= 0.20:
+            return "Outrage"
+
+    # Fear family patterns
+    if k1 == "fear" and v1 >= 0.45:
+        if sur >= 0.25:
+            return "Panicked"
+        if joy <= 0.12 and sad <= 0.30:
+            return "Anxious"
+
+    # Joy family patterns
+    if k1 == "joy" and v1 >= 0.50:
+        if pas >= 0.30:
+            return "In love"
+        if sad >= 0.20:
+            return "Bittersweet"
+        if ang <= 0.10 and fear <= 0.10 and sad <= 0.15:
+            return "Joyful"
+
+    # Surprise family
+    if k1 == "surprise" and v1 >= 0.50:
+        if fear >= 0.25:
+            return "Shocked"
+        if joy >= 0.25:
+            return "Delighted surprise"
+
+    # Calm mixed positive
+    if joy >= 0.40 and pas >= 0.15 and sad <= 0.20 and ang <= 0.15 and fear <= 0.15:
+        return "Calm"
 
     return None
 
 
-# ---------------- Blended label logic enhanced ----------------
+# ---------------- Blended label logic ----------------
 
 def _blend_name(p: Dict[str, float]) -> str:
     ranked = _top_components(p)
@@ -249,7 +311,7 @@ def _final_emotion_label(p: Dict[str, float]) -> str:
     return _title(k1)
 
 
-# ---------------- Emoji ----------------
+# ---------------- Emoji helpers ----------------
 
 def _emoji_for(label: str) -> List[str]:
     if label in EMOJI_SUGGEST:
@@ -261,6 +323,25 @@ def _emoji_for(label: str) -> List[str]:
 
 def _emoji_core(core: str) -> List[str]:
     return _emoji_for(_title(core))
+
+def _resolve_emoji_pair(emoji_dom: List[str], emoji_em: List[str]) -> Tuple[List[str], List[str]]:
+    """Ensure dominant emoji appears first and avoid duplication when possible."""
+    if not emoji_dom:
+        emoji_dom = ["❌"]
+    if not emoji_em:
+        emoji_em = ["❌"]
+
+    dom = emoji_dom[0]
+    cur = emoji_em[0]
+
+    if dom == cur:
+        # Try alternate for current label first
+        if len(emoji_em) > 1 and emoji_em[1] != dom:
+            cur = emoji_em[1]
+        elif len(emoji_dom) > 1 and emoji_dom[1] != cur:
+            dom = emoji_dom[1]
+
+    return [dom], [cur]
 
 
 # ---------------- Public formatter ----------------
@@ -321,22 +402,25 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     secondary = base.get("secondary_emotion", "N/A")
     mixed_state = bool(base.get("mixed_state", False))
 
-    # Base emojis
+    # Base emojis for current label and dominant core
     emoji_em = _emoji_for(final_single)
     emoji_dom = _emoji_core(dominant) if dominant != "N/A" else ["❌"]
 
-    # Grief specific override so the two icons express contrast instead of duplication
+    # Special tuning for sadness based families so icons show nuance not duplication
     if dominant == "sadness":
-        grief_dom_override = {
-            # dominant core icon first (😢), then current label (🥲)
+        sadness_override = {
             "Hopeful grief": ["😢"],
             "Gentle sadness": ["🥹"],
             "Reflective sorrow": ["😔"],
             "Grief": ["😢"],
-            "Mourning": ["🖤"],
+            "Mourning": ["😢"],
+            "Heartbroken": ["😢"],
         }
-        if final_single in grief_dom_override:
-            emoji_dom = grief_dom_override[final_single]
+        if final_single in sadness_override:
+            emoji_dom = sadness_override[final_single]
+
+    # Final pass to ensure dominant then current and avoid duplicate faces
+    emoji_dom, emoji_em = _resolve_emoji_pair(emoji_dom, emoji_em)
 
     mixture = {k: _round3(v) for k, v in p.items()}
     components = [[k, _round3(v)] for k, v in sorted(p.items(), key=lambda x: -x[1])]
@@ -369,5 +453,5 @@ def format_emotions(result: Any) -> Dict[str, Any]:
         "rationale": rationale,
         "low_signal": False,
         "emoji": emoji_em,
-        "emoji_primary": emoji_em[0] if emoji_em else "❌",
+        "emoji_primary": emoji_dom[0] if emoji_dom else "❌",
     }
