@@ -33,8 +33,7 @@ TRIAD_NAMES = {
     tuple(sorted(["joy", "sadness", "disgust"])): "Embarrassed amusement",
 }
 
-# Prototypes fully preserved from your base, kept rich and complete
-# Added prototypes for gentle sadness, calm grief, reflective sorrow etc.
+# Prototypes for nuanced blends
 PROTOTYPES = {
     **{
         "Gentle sadness":    [0.00, 0.00, 0.05, 0.10, 0.55, 0.00, 0.05],
@@ -51,7 +50,7 @@ EMOJI_SUGGEST = {
     **{
         "Gentle sadness": ["🥹", "😢"],
         "Reflective sorrow": ["😔", "🥹"],
-        # Updated to sad + bittersweet for “hopeful grief”
+        # Key mapping for the hopeful grief blend
         "Hopeful grief": ["😢", "🥲"],
         "Romantic yearning": ["💘"],
         "Soft affection": ["🤍", "🤗"],
@@ -108,7 +107,7 @@ EMOJI_SUGGEST = {
     },
 }
 
-# Helper numeric routines identical to your base
+# Helper numeric routines
 def _normalize(scores: Dict[str, float]) -> Dict[str, float]:
     total = sum(max(0, scores.get(k, 0)) for k in EMOTIONS)
     if total <= 0:
@@ -322,8 +321,21 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     secondary = base.get("secondary_emotion", "N/A")
     mixed_state = bool(base.get("mixed_state", False))
 
+    # Base emojis
     emoji_em = _emoji_for(final_single)
     emoji_dom = _emoji_core(dominant) if dominant != "N/A" else ["❌"]
+
+    # Grief specific override so the two icons express contrast instead of duplication
+    if dominant == "sadness":
+        grief_dom_override = {
+            "Hopeful grief": ["🥲"],          # primary 😢 from label, dominant 🥲
+            "Gentle sadness": ["🥹"],
+            "Reflective sorrow": ["😔"],
+            "Grief": ["😢"],
+            "Mourning": ["🖤"],
+        }
+        if final_single in grief_dom_override:
+            emoji_dom = grief_dom_override[final_single]
 
     mixture = {k: _round3(v) for k, v in p.items()}
     components = [[k, _round3(v)] for k, v in sorted(p.items(), key=lambda x: -x[1])]
