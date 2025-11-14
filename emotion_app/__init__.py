@@ -32,6 +32,9 @@ if _emotion_fn is None or not callable(_emotion_fn):
         "Define def detect_emotions(text: str) -> EmotionResult (or emotion_detector)."
     )
 
+# Optional rich explanation function
+_explain_fn = getattr(_det, "explain_emotions", None)
+
 # --- Errors (primary definitions or fallbacks) ---
 try:
     _err = importlib.import_module(".errors", __name__)
@@ -81,6 +84,28 @@ def emotion_detector(text: Any) -> EmotionResult:
         raise ServiceUnavailableError(str(exc)) from exc
 
 
+def explain_emotions(text: Any) -> Any:
+    """Optional rich explanation entry point.
+
+    Returns a detailed structure from detector.explain_emotions if available.
+    """
+    if _explain_fn is None:
+        raise ServiceUnavailableError("Explain mode is not available in this build.")
+
+    s = _normalize_text(text)
+    if not s.strip():
+        raise InvalidTextError("Input text is required and cannot be blank.")
+
+    try:
+        return _explain_fn(s)  # type: ignore[misc]
+    except InvalidTextError:
+        raise
+    except ValueError as exc:
+        raise InvalidTextError(str(exc)) from exc
+    except RuntimeError as exc:
+        raise ServiceUnavailableError(str(exc)) from exc
+
+
 # --- Formatter (optional but recommended) ---
 try:
     _fmt = importlib.import_module(".formatter", __name__)
@@ -97,6 +122,7 @@ except Exception:
 __all__ = [
     "EmotionResult",
     "emotion_detector",
+    "explain_emotions",
     "format_emotions",
     "InvalidTextError",
     "ServiceUnavailableError",
