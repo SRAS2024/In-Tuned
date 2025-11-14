@@ -12,7 +12,7 @@ This module converts detector scores into:
 - a concise rationale string for UI captions
 - backward-compatible fields for existing callers
 
-Compatible with detector.py (zero-baseline / contrast-aware dominance).
+Compatible with detector.py (zero-baseline, contrast-aware dominance, low_signal flag).
 """
 from __future__ import annotations
 
@@ -190,7 +190,8 @@ def _single_state_overrides(p: Dict[str, float]) -> Optional[str]:
     if sad >= 0.65 and joy <= 0.20:
         return "Mourning"
     # Passion plus joy override for clear romantic language
-    if (pas >= 0.50 and joy >= 0.22) or ((pas + joy) >= 0.70 and abs(pas - joy) <= 0.08):
+    if ((pas >= 0.50 and joy >= 0.22) or
+        ((pas + joy) >= 0.75 and abs(pas - joy) <= 0.10)):
         return "In love"
     if pas >= 0.65 and sad >= 0.25 and joy <= 0.25:
         return "Longing"
@@ -261,8 +262,6 @@ def _final_emotion_label(p: Dict[str, float]) -> str:
     ranked = _top_components(p)
     (k1, v1), (k2, v2) = ranked[0], ranked[1]
 
-    # Clear frustrated or grief style shadows will come via prototypes
-
     # If top two are Passion and Joy and reasonably strong, call it In love
     if {"passion", "joy"} == {k1, k2} and (v1 + v2) >= 0.60 and abs(v1 - v2) <= 0.20:
         return "In love"
@@ -307,17 +306,28 @@ def _result_to_dict(result: Any) -> Dict[str, Any]:
     if isinstance(result, dict):
         return dict(result)
     # Last resort: try attribute access (duck-typing)
-    out = {}
-    for k in ["anger", "disgust", "fear", "joy", "sadness", "passion", "surprise", "dominant_emotion"]:
-        out[k] = float(getattr(result, k)) if hasattr(result, k) else 0.0
-    if "dominant_emotion" not in out:
-        out["dominant_emotion"] = ""
+    out: Dict[str, Any] = {}
+    for k in [
+        "anger",
+        "disgust",
+        "fear",
+        "joy",
+        "sadness",
+        "passion",
+        "surprise",
+        "dominant_emotion",
+        "low_signal",
+    ]:
+        if hasattr(result, k):
+            out[k] = getattr(result, k)
     return out
 
 def _ensure_score_keys(base: Dict[str, Any]) -> Dict[str, Any]:
     for k in EMOTIONS:
         base[k] = float(base.get(k, 0.0) or 0.0)
-    base["dominant_emotion"] = (base.get("dominant_emotion") or "") if isinstance(base.get("dominant_emotion"), str) else ""
+    dom = base.get("dominant_emotion", "")
+    base["dominant_emotion"] = dom if isinstance(dom, str) else ""
+    base["low_signal"] = bool(base.get("low_signal", False))
     return base
 
 def _fallback_dominant_if_missing(raw: Dict[str, float], existing: str) -> str:
@@ -336,16 +346,28 @@ def _fallback_dominant_if_missing(raw: Dict[str, float], existing: str) -> str:
 
 # ------------------------- rationale -------------------------
 
-def _rationale(p: Dict[str, float], dominant_lower: str, emotion_label: str, blended_label: str, low_signal: bool) -> str:
+def _rationale(
+    p: Dict[str, float],
+    dominant_lower: str,
+    emotion_label: str,
+    blended_label: str,
+    low_signal: bool,
+) -> str:
     if low_signal:
-        return "Input contained too little usable language to infer an emotion. All core scores are zero."
+        return (
+            "Input contained too little usable language to infer an emotion. "
+            "All core scores are effectively zero and no dominant label is chosen."
+        )
     ranked = _top_components(p)[:3]
     parts = [f"{_title(k)} {_round3(v)}" for k, v in ranked]
     if _title(dominant_lower) == emotion_label:
         why = f"Dominant and rich emotion match as {_title(dominant_lower)}."
     else:
-        why = f"Dominant is {_title(dominant_lower)}. Rich label reflects blend as {emotion_label}."
-    return f"Top mix: {', '.join(parts)}. {why} Blended context: {blended_label}."
+        why = (
+            f"Dominant core is {_title(dominant_lower)}. "
+            f"Rich label {emotion_label} reflects the overall blend."
+        )
+    return f"Top mix: {', '.join(parts)}. {why} Blended context label: {blended_label}."
 
 # ------------------------- public formatter -------------------------
 
@@ -360,14 +382,14 @@ def format_emotions(result: EmotionResult | Dict[str, Any]) -> Dict[str, object]
       confidence
       mixture
       present
-      components
+      components        # list of [name, weight] pairs
       emoji_emotion
       emoji_dominant
       same_label
       rationale
-      low_signal       # new: True when all core scores are zero
-      emoji            # alias of emoji_emotion for backward compatibility
-      emoji_primary    # first item of emoji_emotion for backward compatibility
+      low_signal        # True only when detector flagged low signal or scores are zero
+      emoji             # alias of emoji_emotion for backward compatibility
+      emoji_primary     # first item of emoji_emotion for backward compatibility
     """
     base = _result_to_dict(result)
     base = _ensure_score_keys(base)
@@ -375,23 +397,28 @@ def format_emotions(result: EmotionResult | Dict[str, Any]) -> Dict[str, object]
     # Raw scores from detector (already in [0, 1])
     raw = {k: float(max(0.0, base.get(k, 0.0))) for k in EMOTIONS}
     total_signal = sum(raw.values())
-    low_signal = total_signal <= 0.0
+    detector_low_signal = bool(base.get("low_signal", False))
 
-    # If low signal, return an explicit "no emotion" state
+    # Trust detector's low_signal flag first; fall back to numeric check
+    low_signal = detector_low_signal or total_signal <= 0.0
+
     if low_signal:
+        # True low signal: no emotional chart, explicit X state
         p = {k: 0.0 for k in EMOTIONS}
         blended = "N/A"
         final_single = "N/A"
         conf = 0.0
         dominant_lower = "N/A"
         dominant_title = "N/A"
-        emoji_emotion = _emoji_for("N/A")          # "❌"
-        emoji_dominant = _emoji_for("N/A")         # "❌"
+        emoji_emotion = _emoji_for("N/A")
+        emoji_dominant = _emoji_for("N/A")
         mixture = {k: 0.0 for k in EMOTIONS}
-        components: List[Dict[str, object]] = []
+        components: List[List[object]] = []
         present: Dict[str, float] = {}
         same_label = True
-        rationale = _rationale(p, dominant_lower, final_single, blended, low_signal=True)
+        rationale = _rationale(
+            p, dominant_lower, final_single, blended, low_signal=True
+        )
     else:
         # Normalize to a probability-like mixture for charting
         p = _normalize(raw)
@@ -402,7 +429,9 @@ def format_emotions(result: EmotionResult | Dict[str, Any]) -> Dict[str, object]
         conf = _confidence(p)
 
         # Dominant core from detector is lowercase; fall back if missing
-        dominant_lower = _fallback_dominant_if_missing(raw, base.get("dominant_emotion", "") or "")
+        dominant_lower = _fallback_dominant_if_missing(
+            raw, base.get("dominant_emotion", "") or ""
+        )
         dominant_title = _title(dominant_lower) if dominant_lower else "N/A"
 
         # Emojis
@@ -411,11 +440,13 @@ def format_emotions(result: EmotionResult | Dict[str, Any]) -> Dict[str, object]
 
         # Charting and components
         mixture = {k: _round3(v) for k, v in p.items()}
-        components = [{"name": k, "weight": _round3(v)} for k, v in _top_components(p)]
+        components = [[k, _round3(v)] for k, v in _top_components(p)]
         present = _present_subset(p, eps=0.03)
 
         same_label = dominant_title == final_single
-        rationale = _rationale(p, dominant_lower, final_single, blended, low_signal=False)
+        rationale = _rationale(
+            p, dominant_lower, final_single, blended, low_signal=False
+        )
 
     # Assemble output
     base.update(
@@ -438,7 +469,7 @@ def format_emotions(result: EmotionResult | Dict[str, Any]) -> Dict[str, object]
             # Charting
             "mixture": mixture,                      # normalized seven-way for bars
             "present": present,                      # nontrivial components only
-            "components": components,                # sorted list for debugging or tables
+            "components": components,                # list of [name, weight] pairs
 
             # Emojis
             "emoji_emotion": emoji_emotion,          # for rich label
