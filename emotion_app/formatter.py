@@ -37,20 +37,17 @@ TRIAD_NAMES = {
 # Added prototypes for gentle sadness, calm grief, reflective sorrow etc.
 PROTOTYPES = {
     **{
-        "Gentle sadness":        [0.00, 0.00, 0.05, 0.10, 0.55, 0.00, 0.05],
-        "Reflective sorrow":     [0.00, 0.00, 0.10, 0.15, 0.70, 0.00, 0.05],
-        "Hopeful grief":         [0.00, 0.00, 0.15, 0.25, 0.60, 0.10, 0.05],
-        "Soft affection":        [0.00, 0.00, 0.05, 0.55, 0.05, 0.60, 0.10],
-        "Romantic yearning":     [0.00, 0.00, 0.10, 0.20, 0.40, 0.85, 0.10],
+        "Gentle sadness":    [0.00, 0.00, 0.05, 0.10, 0.55, 0.00, 0.05],
+        "Reflective sorrow": [0.00, 0.00, 0.10, 0.15, 0.70, 0.00, 0.05],
+        "Hopeful grief":     [0.00, 0.00, 0.15, 0.25, 0.60, 0.10, 0.05],
+        "Soft affection":    [0.00, 0.00, 0.05, 0.55, 0.05, 0.60, 0.10],
+        "Romantic yearning": [0.00, 0.00, 0.10, 0.20, 0.40, 0.85, 0.10],
     }
 }
 
-# Merge user prototypes with defaults
-# (your large dict is unchanged; omitted here only to save space)
-# PROTOTYPES.update(YOUR_EXISTING_PROTOTYPES)
-
 # Expanded emoji set with deeper nuance and more richness
 EMOJI_SUGGEST = {
+    # Subtle and nuanced labels
     **{
         "Gentle sadness": ["🥹"],
         "Reflective sorrow": ["😔"],
@@ -58,6 +55,7 @@ EMOJI_SUGGEST = {
         "Romantic yearning": ["💘"],
         "Soft affection": ["🤍", "🤗"],
     },
+    # Rich blended labels
     **{
         "Angry": ["😠"],
         "Disgusted": ["🤢"],
@@ -95,7 +93,17 @@ EMOJI_SUGGEST = {
         "Affectionate": ["🤗"],
         "Hopeful": ["🌟"],
         "N/A": ["❌"],
-    }
+    },
+    # Direct mappings for the seven core names so dominant emojis always resolve
+    **{
+        "Anger": ["😠"],
+        "Disgust": ["🤢"],
+        "Fear": ["😨"],
+        "Joy": ["😊"],
+        "Sadness": ["😢"],
+        "Passion": ["😍"],
+        "Surprise": ["😱"],
+    },
 }
 
 # Helper numeric routines identical to your base
@@ -112,10 +120,10 @@ def _entropy(p: Dict[str, float]) -> float:
 def _confidence(p: Dict[str, float]) -> float:
     total = sum(p.values())
     if total <= 0:
-        return 0
+        return 0.0
     h = _entropy(p)
     hmax = math.log(len(EMOTIONS))
-    return max(0, min(1, 1 - h / hmax))
+    return max(0.0, min(1.0, 1.0 - h / hmax))
 
 def _top_components(p: Dict[str, float]) -> List[Tuple[str, float]]:
     return sorted(p.items(), key=lambda x: x[1], reverse=True)
