@@ -1,6 +1,6 @@
 # advanced_detector.py
 # High fidelity local emotion detector with seven core dimensions and rich nuance.
-# Overhauled: zero baseline scores, low signal handling, smarter dominance and mixed state.
+# Overhauled: richer lexicons, strong phrase coverage, safer low signal handling.
 
 from __future__ import annotations
 
@@ -132,12 +132,17 @@ JOY = {
     "pleased",
     "smile",
     "laugh",
+    "laughing",
+    "laughed",
     "awesome",
     "amazing",
     "wonderful",
     "fantastic",
     "great",
     "good",
+    "fine",
+    "ok",
+    "okay",
     "proud",
     "success",
     "win",
@@ -170,6 +175,7 @@ JOY = {
     "woohoo",
     "blessed",
     "secure",
+    "reassured",
 }
 
 SADNESS = {
@@ -230,7 +236,6 @@ SADNESS = {
     "overwhelmed",
     "burnout",
     "burnedout",
-    # hardship and suffering language
     "suffer",
     "suffering",
     "suffers",
@@ -243,6 +248,8 @@ SADNESS = {
     "struggling",
     "difficult",
     "difficulty",
+    "disappointed",
+    "disappointing",
 }
 
 ANGER = {
@@ -254,6 +261,7 @@ ANGER = {
     "rage",
     "raging",
     "irritated",
+    "irritating",
     "annoyed",
     "annoying",
     "upset",
@@ -265,8 +273,10 @@ ANGER = {
     "resentful",
     "hostile",
     "fume",
+    "fuming",
     "yell",
     "shout",
+    "shouting",
     "scream",
     "screaming",
     "frustrated",
@@ -292,6 +302,14 @@ ANGER = {
     "ticked",
     "tickedoff",
     "ragequit",
+    "pissed",
+    "pissedoff",
+    "pissing",
+    "pisses",
+    "piss",
+    "enraged",
+    "fedup",
+    "fed",
 }
 
 FEAR = {
@@ -302,6 +320,7 @@ FEAR = {
     "fearful",
     "terrified",
     "terrify",
+    "terrifying",
     "anxious",
     "anxiety",
     "worry",
@@ -309,6 +328,7 @@ FEAR = {
     "worrying",
     "panic",
     "panicked",
+    "panicking",
     "nervous",
     "phobia",
     "frighten",
@@ -347,14 +367,13 @@ FEAR = {
     "test",
     "difficult",
     "difficulty",
-    "hardtime",
-    "struggling",
-    "struggle",
+    "worrier",
 }
 
 DISGUST = {
     "disgust",
     "disgusted",
+    "disgusting",
     "gross",
     "nasty",
     "revolting",
@@ -362,6 +381,7 @@ DISGUST = {
     "repulsive",
     "sicken",
     "sickened",
+    "sickening",
     "vile",
     "filthy",
     "dirty",
@@ -377,11 +397,14 @@ DISGUST = {
     "abhorrent",
     "appalling",
     "offensive",
+    "repugnant",
     "foul",
     "toxic",
     "contaminated",
     "putrid",
     "icky",
+    "revolting",
+    "repulsive",
 }
 
 # Passion for romantic desire, devotion, attachment.
@@ -441,6 +464,11 @@ PASSION = {
     "partner",
     "girlfriend",
     "boyfriend",
+    "care",
+    "cares",
+    "caring",
+    "devoted",
+    "beloved",
 }
 
 SURPRISE = {
@@ -468,13 +496,10 @@ SURPRISE = {
     "no way",
     "what",
     "holy",
-    "plot twist",
-    "didnt expect",
-    "didn't expect",
-    "never thought",
-    "never expected",
-    "out of nowhere",
-    "came out of nowhere",
+    "plot",
+    "twist",
+    "didnt",
+    "didn't",
 }
 
 INTENT_COMMIT = {
@@ -542,22 +567,44 @@ INTENT_DEESCALATE = {
 }
 
 PHRASES: List[Tuple[str, str, float]] = [
+    # Joy and gratitude
     ("over the moon", "joy", 1.8),
     ("on cloud nine", "joy", 1.6),
     ("could not be happier", "joy", 1.9),
     ("couldn't be happier", "joy", 1.9),
     ("walking on air", "joy", 1.6),
+    ("choosing joy", "joy", 1.2),
+    ("deciding to be grateful", "joy", 1.1),
+    # Sadness and grief
     ("in tears", "sadness", 1.4),
     ("cry my eyes out", "sadness", 1.9),
     ("heart is broken", "sadness", 1.9),
+    ("broke my heart", "sadness", 2.0),
+    ("it broke my heart", "sadness", 2.0),
     ("i feel empty", "sadness", 1.6),
+    ("despite the suffering", "sadness", 1.6),
+    ("despite everything", "sadness", 1.0),
+    ("in spite of the pain", "sadness", 1.6),
+    # Anger
     ("boiling with rage", "anger", 2.0),
     ("lost my temper", "anger", 1.7),
     ("at my wits end", "anger", 1.5),
+    ("pisses me off", "anger", 2.3),
+    ("pissed me off", "anger", 2.3),
+    ("really pisses me off", "anger", 2.4),
+    ("he pisses me off", "anger", 2.4),
+    ("she pisses me off", "anger", 2.4),
+    ("makes me so mad", "anger", 2.0),
+    ("he drives me crazy", "anger", 1.9),
+    ("she drives me crazy", "anger", 1.9),
+    # Fear
     ("out of my mind with worry", "fear", 1.9),
+    # Disgust
     ("sick to my stomach", "disgust", 1.7),
     ("gives me the creeps", "disgust", 1.7),
     ("creeps me out", "disgust", 1.7),
+    ("offensive and repulsive", "disgust", 1.7),
+    # Passion
     ("head over heels", "passion", 2.0),
     ("butterflies in my stomach", "passion", 1.6),
     ("madly in love", "passion", 2.0),
@@ -568,22 +615,18 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("in love with", "passion", 2.3),
     ("falling in love", "passion", 2.1),
     ("fell in love", "passion", 2.1),
-    ("i could not believe", "surprise", 1.7),
-    ("i can't believe", "surprise", 1.7),
-    ("could not believe", "surprise", 1.7),
-    ("never thought this would happen", "surprise", 1.8),
-    ("out of nowhere", "surprise", 1.7),
-    ("came out of nowhere", "surprise", 1.7),
     ("i want to marry", "passion", 2.0),
     ("i want to marry you", "passion", 2.2),
     ("i want to marry her", "passion", 2.2),
     ("i want to marry him", "passion", 2.2),
-    # bittersweet or resilient language
-    ("despite the suffering", "sadness", 1.6),
-    ("despite everything", "sadness", 1.0),
-    ("in spite of the pain", "sadness", 1.6),
-    ("choosing joy", "joy", 1.2),
-    ("deciding to be grateful", "joy", 1.1),
+    # Surprise and incredulity
+    ("i could not believe", "surprise", 1.7),
+    ("i can't believe", "surprise", 1.7),
+    ("i cannot believe", "surprise", 1.7),
+    ("could not believe", "surprise", 1.7),
+    ("never thought this would happen", "surprise", 1.8),
+    ("out of nowhere", "surprise", 1.7),
+    ("came out of nowhere", "surprise", 1.7),
 ]
 
 EMOJI = {
@@ -721,7 +764,6 @@ HEDGES = {
     "kinda",
     "ish",
 }
-# Broadened contrast markers so we catch more real world phrasing
 CONTRASTIVE = {
     "but",
     "however",
@@ -749,7 +791,7 @@ NEGATED_PAIRS = {
     ("not", "angry"): ("anger", "fear", 0.8),
     ("no", "love"): ("passion", "sadness", 1.0),
     ("not", "inlove"): ("passion", "sadness", 1.0),
-    ("not", "in"): ("passion", "sadness", 0.9),  # handles "not in love"
+    ("not", "in"): ("passion", "sadness", 0.9),
 }
 
 TOKEN_RE = re.compile(r"[a-zA-Z']+|[^\w\s]", re.UNICODE)
@@ -823,10 +865,6 @@ def _approx_correction(stem: str) -> str:
 
 
 def _meaningful_token_count(tokens: List[str]) -> int:
-    """
-    Rough signal estimate. Only count alphabetic tokens with at least
-    three characters, for example "afraid" or "sad", but not "am" or "wha".
-    """
     return sum(1 for t in tokens if t.isalpha() and len(t) >= 3)
 
 
@@ -1035,11 +1073,6 @@ def _arousal_valence_nudge(scores: Dict[str, float]) -> None:
 
 
 def _desire_commitment_bonus(text_lower: str) -> Dict[str, float]:
-    """
-    Pure additive bonuses for desire and commitment language.
-    Any damping of earlier negative emotion happens later, after
-    the main lexical pass, so that mixed profiles can survive.
-    """
     out = _blank_scores()
     if any(p in text_lower for p in INTENT_COMMIT):
         out["passion"] += 2.3
@@ -1056,11 +1089,6 @@ def _desire_commitment_bonus(text_lower: str) -> Dict[str, float]:
 def _apply_reassurance_and_deescalation(
     text_lower: str, scores: Dict[str, float]
 ) -> None:
-    """
-    Reassurance and de escalation cues soften earlier negative emotion
-    and gently increase hopeful or calm components, without erasing
-    coexisting feelings.
-    """
     has_reassure = any(p in text_lower for p in INTENT_REASSURE)
     has_deesc = any(p in text_lower for p in INTENT_DEESCALATE)
 
@@ -1115,6 +1143,7 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     n_alpha = 0
 
     text_lower = " ".join(tokens)
+
     _merge(scores, _apply_phrases(text_lower))
     _merge(scores, _desire_commitment_bonus(text_lower), 1.0)
 
@@ -1166,8 +1195,6 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     s_damp = _because_clause_dampener(tokens)
     scores["surprise"] *= s_damp
 
-    # Map negative evidence into the opposite pole instead of letting
-    # it drive scores below zero.
     for emo, opp in [
         ("joy", "sadness"),
         ("fear", "anger"),
@@ -1181,7 +1208,6 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
             scores[opp] += abs(scores[emo]) * 0.6
             scores[emo] = 0.0
 
-    # Gentle punctuation based nudges only, to avoid exaggeration.
     if "?" in tokens:
         scores["fear"] += 0.1
         scores["joy"] *= 0.985
@@ -1200,7 +1226,6 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
         scores["anger"] *= 1.05
         scores["joy"] *= 1.03
 
-    # Normalize by clause length so longer clauses do not explode.
     denom = max(n_alpha, 1)
     for k in CORE_KEYS:
         scores[k] = scores[k] / denom
@@ -1257,24 +1282,12 @@ def _sentence_emphasis_weight(
 
 
 def _squash(x: float) -> float:
-    """
-    Saturating transform with a true zero baseline.
-
-    Zero or negative evidence stays exactly at 0.
-    Positive evidence grows smoothly toward 1 but never reaches it.
-    """
     if x <= 0.0:
         return 0.0
     return x / (1.0 + x)
 
 
 def _clamp_scores(raw: Dict[str, float]) -> Dict[str, float]:
-    """
-    Clamp raw scores into [0, 1] using the zero baseline squash.
-
-    Very tiny values are snapped back to 0 so that emotions with no
-    real lexical support do not appear in the chart.
-    """
     out: Dict[str, float] = {}
     for k, v in raw.items():
         val = _squash(v)
@@ -1287,12 +1300,6 @@ def _clamp_scores(raw: Dict[str, float]) -> Dict[str, float]:
 
 
 def _normalize_for_mixture(scores: Dict[str, float]) -> Dict[str, float]:
-    """
-    Convert scores into a probability style mixture for dominance logic.
-
-    This leaves EmotionResult scores untouched, but lets the thresholds in
-    _choose_dominant and _dominance_profile operate on a consistent scale.
-    """
     total = sum(max(0.0, scores.get(k, 0.0)) for k in CORE_KEYS)
     if total <= 0.0:
         return {k: 0.0 for k in CORE_KEYS}
@@ -1305,12 +1312,6 @@ def _apply_contrast_bias_if_any(
     per_clause_scores: List[Dict[str, float]],
     out: Dict[str, float],
 ) -> None:
-    """
-    If a sentence contains a clear contrast, such as "... but ..." or "however",
-    nudge dominance toward protective or negative cores when there is a near
-    balance between negative and positive clauses, while keeping secondary
-    emotions present.
-    """
     if not any(c in sent_tokens for c in CONTRASTIVE):
         return
     if len(clauses) < 2:
@@ -1427,13 +1428,18 @@ def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
     """
     Decide whether the input is truly low signal.
 
-    This is based on word count and diversity of cues, not just numeric
-    magnitude, so that calm but meaningful entries still receive a
-    proper mixture and label.
+    Short but emotionally clear entries, such as "He really pisses me off",
+    are treated as valid as soon as there is a strong peak, even if the
+    total word count is small.
     """
     meaningful = _meaningful_token_count(tokens)
     if meaningful == 0:
         return True
+
+    # Strong evidence anywhere in the vector always cancels low signal.
+    peak = max((v for v in raw_scores.values()), default=0.0)
+    if peak >= 0.05:
+        return False
 
     total = sum(max(v, 0.0) for v in raw_scores.values())
     distinct = sum(1 for v in raw_scores.values() if v > 0.06)
@@ -1448,14 +1454,6 @@ def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
 
 
 def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
-    """
-    Choose a dominant core.
-
-    For mixed cases where strong positive and negative emotion coexist,
-    we sometimes let a protective negative be the dominant core even when
-    joy or passion are slightly higher numerically. This assumes scores
-    are already normalized into a mixture for threshold checks.
-    """
     if low_signal:
         return "N/A"
 
@@ -1499,13 +1497,6 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
 def _dominance_profile(
     scores: Dict[str, float], low_signal: bool = False
 ) -> Tuple[str, str, bool]:
-    """
-    Compute dominant and secondary cores and a mixed state flag.
-
-    mixed_state becomes True when there is a meaningful second pole that
-    belongs to the opposite valence cluster or forms a classic bittersweet
-    blend, for example joy plus sadness or passion plus sadness.
-    """
     if low_signal:
         return "N/A", "N/A", False
 
@@ -1559,10 +1550,6 @@ def _dominance_profile(
 def _augment_watson_with_local(
     text: str, five: Dict[str, float]
 ) -> Tuple[Dict[str, float], List[str]]:
-    """
-    Blend Watson document scores with local lexical passion and surprise
-    so that we still get the full seven dimensional raw vector.
-    """
     tokens = _tokens(text)
     if not tokens:
         return dict(five), tokens
@@ -1589,10 +1576,9 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
 
     Local scoring uses a true zero baseline. Emotions that have
     no lexical or structural evidence stay at 0. Very short or
-    incomplete inputs such as "am" are treated as low signal and
-    return all zeros with dominant "N/A", while short but clear
-    cues like "terrified" or "grateful" still receive a valid
-    emotional profile.
+    incomplete inputs such as "am" are treated as low signal, while
+    short but clear cues like "pisses me off" or "terrified" still
+    receive a valid emotional profile.
     """
     if text is None:
         raise InvalidTextError("Input text is required")
@@ -1626,7 +1612,6 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
                 low_signal = _is_low_signal(tokens, raw)
                 scores = _clamp_scores(raw)
 
-    # Normalize a copy for dominance logic so thresholds work as intended
     mix_for_dominance = _normalize_for_mixture(scores)
     dominant, secondary, mixed = _dominance_profile(
         mix_for_dominance, low_signal=low_signal
@@ -1681,7 +1666,6 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
     low_signal = _is_low_signal(tokens, agg) if tokens else True
     final = _clamp_scores(agg)
 
-    # Use normalized mixture for dominance decisions, keep final as raw output
     mix_for_dominance = _normalize_for_mixture(final)
     dominant, secondary, mixed = _dominance_profile(
         mix_for_dominance, low_signal=low_signal
@@ -1702,5 +1686,4 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
     }
 
 
-# Back compat alias if anything imports `emotion_detector` directly from here.
 emotion_detector = detect_emotions
