@@ -45,7 +45,7 @@ def _clip_text_words(text: str, max_words: int = 250) -> str:
 
 @app.post("/emotionDetector")
 def detect() -> Any:
-    payload = request.get_json(silent=True) or {}
+    payload: Dict[str, Any] = request.get_json(silent=True) or {}
     raw_text = payload.get("text", "")
 
     # Coerce to string to be robust to unexpected payload types
@@ -54,10 +54,16 @@ def detect() -> Any:
     else:
         text = str(raw_text)
 
-    # Clip to the target processing window
-    text = _clip_text_words(text, max_words=250)
+    # Strip outer whitespace so pure blanks are treated as invalid text
+    text = text.strip()
 
     try:
+        if not text:
+            raise InvalidTextError("Input text is required")
+
+        # Clip to the target processing window that the UI advertises
+        text = _clip_text_words(text, max_words=250)
+
         result = emotion_detector(text)
         formatted = format_emotions(result)
         return jsonify(formatted), 200
