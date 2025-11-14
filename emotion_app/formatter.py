@@ -49,9 +49,10 @@ PROTOTYPES = {
 EMOJI_SUGGEST = {
     # Subtle and nuanced labels
     **{
-        "Gentle sadness": ["🥹"],
-        "Reflective sorrow": ["😔"],
-        "Hopeful grief": ["🌅", "🥀"],
+        "Gentle sadness": ["🥹", "😢"],
+        "Reflective sorrow": ["😔", "🥹"],
+        # Updated to sad + bittersweet for “hopeful grief”
+        "Hopeful grief": ["😢", "🥲"],
         "Romantic yearning": ["💘"],
         "Soft affection": ["🤍", "🤗"],
     },
@@ -69,8 +70,9 @@ EMOJI_SUGGEST = {
         "Contempt": ["😒"],
         "Outrage": ["😡"],
         "Bittersweet": ["🥲"],
-        "Mourning": ["🖤"],
-        "Heartbroken": ["💔"],
+        # Grief family always shows sadness plus a mourning cue
+        "Mourning": ["😢", "🖤"],
+        "Heartbroken": ["💔", "😢"],
         "Infatuated": ["🥰"],
         "Committed": ["💍"],
         "Relief": ["😮‍💨"],
@@ -84,7 +86,7 @@ EMOJI_SUGGEST = {
         "Schadenfreude": ["😏"],
         "Embarrassed amusement": ["😅"],
         "Melancholy": ["🎻"],
-        "Grief": ["💐"],
+        "Grief": ["😢", "💐"],
         "Frustrated": ["😤"],
         "Irritated": ["😒"],
         "Resentful": ["😠"],
