@@ -58,7 +58,7 @@
 
       /* ===================== LAYOUT ===================== */
       .wrap{max-width:1128px;margin:0 auto;padding:2.25rem 1.25rem 3.25rem}
-      .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem}
+      .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;gap:.75rem}
       .brand{display:flex;align-items:center;gap:.7rem}
       .logo{
         width:36px;height:36px;border-radius:11px;
@@ -123,7 +123,8 @@
       }
       .btn{
         appearance:none;border:none;cursor:pointer;padding:.85rem 1.15rem;border-radius:12px;
-        font-weight:800;background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0b1220
+        font-weight:800;background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0b1220;
+        text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
       }
       .status{grid-column:1/-1;font-size:.95rem}
       .status.err{color:#f43f5e}
@@ -162,7 +163,7 @@
 
       footer{margin-top:2.2rem;color:var(--muted);text-align:center;font-size:.9rem}
 
-      /* ===================== MODAL ===================== */
+      /* ===================== MODALS ===================== */
       .overlay{
         position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
         align-items:center;justify-content:center;padding:1rem;z-index:40
@@ -179,6 +180,76 @@
       .ghost{
         appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--ink);
         padding:.6rem .9rem;border-radius:10px;cursor:pointer
+      }
+
+      /* Crisis modal specific */
+      .alertRow{
+        display:flex;
+        align-items:flex-start;
+        gap:.9rem;
+      }
+      .alertIcon{
+        width:42px;height:42px;border-radius:14px;
+        display:flex;align-items:center;justify-content:center;
+        background:rgba(248,113,113,.12);
+        color:#f97373;font-size:1.4rem;
+        flex-shrink:0;
+      }
+      .crisisActions{
+        display:flex;
+        flex-direction:column;
+        gap:.6rem;
+        margin-top:.75rem;
+      }
+      .btnLink{
+        text-decoration:none;
+        text-align:center;
+        padding:.8rem 1rem;
+        border-radius:12px;
+        font-weight:700;
+        background:linear-gradient(135deg, #f97373, #fb7185);
+        color:#0b1220;
+      }
+      .ghostLink{
+        text-decoration:none;
+        text-align:center;
+        padding:.75rem 1rem;
+        border-radius:12px;
+        border:1px solid var(--border);
+        background:var(--surface);
+        color:var(--ink);
+        font-weight:600;
+      }
+      .crisisNote{
+        font-size:.9rem;
+        color:var(--muted);
+        margin-top:.4rem;
+      }
+
+      /* ===================== RESPONSIVE TWEAKS ===================== */
+      @media (max-width: 720px){
+        .wrap{padding:1.75rem 1rem 2.5rem}
+        .row{
+          grid-template-columns:1fr;
+          align-items:flex-start;
+        }
+        .row .btn{
+          width:100%;
+        }
+        #wordInfo{
+          padding-left:0;
+          text-align:left;
+        }
+        #emojiTray{
+          justify-content:flex-start;
+        }
+        .topbar{
+          flex-direction:column;
+          align-items:flex-start;
+        }
+        textarea{
+          min-height:180px;
+        }
       }
     </style>
   </head>
@@ -203,7 +274,7 @@
         <!-- Left: Input and Chart -->
         <div class="card">
           <label for="text">Text</label>
-          <textarea id="text" placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."></textarea>
+          <textarea id="text" placeholder="Type a short passage. For example: I am grateful and excited to begin something new today." aria-label="Text to analyze"></textarea>
 
           <!-- Button with word counter and emojis on the right -->
           <div class="row">
@@ -248,16 +319,41 @@
       <footer>© 2025 In tuned. All rights reserved.</footer>
     </div>
 
-    <!-- Modal -->
+    <!-- About Modal -->
     <div id="overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal">
         <h2 id="modalTitle">About In tuned</h2>
         <p class="muted">Description:</p>
         <p>
-          In tuned is a reflection tool that helps you process how you feel in the moment by analyzing any passage of up to 250 words and turning it into a clear emotional snapshot. It reads your text and scores seven core emotions anger, disgust, fear, joy, sadness, passion, and surprise, then normalizes them into a core mixture that drives a live bar chart and detailed numeric readout. The app identifies a dominant core emotion, generates a blended rich label that reflects the overall mix, and shows matching emojis for both the dominant and blended emotion so you can quickly sense the tone. Behind the scenes it uses nuanced rules for contrast, intensity, and mixed feelings, and it reports a confidence score plus a short rationale that explains the top components. When there is too little usable text it safely treats the entry as low signal, keeps all scores at zero, and shows an X state so you know to write a bit more, while the rest of the time it always returns a best fit emotional reading for self awareness, not advice.
+          In tuned is an intuitive reflection tool that helps you understand what you are feeling in the moment. You write a short passage of up to 250 words and the app highlights a blend of seven core emotions anger, disgust, fear, joy, sadness, passion, and surprise so you can see a simple emotional snapshot of your text. The goal is to support self awareness and healthy reflection only. It is not therapy and it is not a substitute for professional mental health care or medical advice.
         </p>
         <div class="actions">
           <button id="closeModal" class="ghost">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crisis Modal -->
+    <div id="crisisOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="crisisTitle">
+      <div class="modal">
+        <div class="alertRow">
+          <div class="alertIcon" aria-hidden="true">⚠️</div>
+          <div>
+            <h2 id="crisisTitle">Wait! You are priceless and important.</h2>
+            <p>
+              If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.
+            </p>
+          </div>
+        </div>
+        <p class="crisisNote">
+          This app cannot provide crisis support. If you are in immediate danger, please contact emergency services or a trusted crisis hotline right away.
+        </p>
+        <div class="crisisActions">
+          <a href="sms:988" class="btnLink">Contact Suicide Hotline · 988</a>
+          <a href="tel:911" class="ghostLink">Contact Emergency Services · 911</a>
+        </div>
+        <div class="actions" style="justify-content:flex-start;margin-top:1rem;">
+          <button id="closeCrisis" class="ghost">Close</button>
         </div>
       </div>
     </div>
@@ -333,6 +429,53 @@
         }
       }
 
+      // Crisis language detection
+      const CRISIS_PATTERNS = [
+        "suicide",
+        "suicidal",
+        "kill myself",
+        "killing myself",
+        "end my life",
+        "end my own life",
+        "end it all",
+        "take my life",
+        "taking my life",
+        "do not want to live",
+        "don't want to live",
+        "no reason to live",
+        "better off dead",
+        "self harm",
+        "self-harm",
+        "hurt myself",
+        "hurting myself on purpose",
+        "want to die",
+        "wish i were dead",
+        "wish i was dead"
+      ];
+
+      function containsCrisisLanguage(text){
+        if (!text) return false;
+        const lower = text.toLowerCase();
+        return CRISIS_PATTERNS.some(p => lower.indexOf(p) !== -1);
+      }
+
+      const crisisOverlay = $('crisisOverlay');
+      const closeCrisis = $('closeCrisis');
+      function showCrisisModal(){
+        if (crisisOverlay) crisisOverlay.classList.add('show');
+      }
+      function hideCrisisModal(){
+        if (crisisOverlay) crisisOverlay.classList.remove('show');
+      }
+      if (closeCrisis){
+        closeCrisis.addEventListener('click', hideCrisisModal);
+      }
+      if (crisisOverlay){
+        crisisOverlay.addEventListener('click', (e)=>{
+          if (e.target === crisisOverlay) hideCrisisModal();
+        });
+      }
+
       // Chart helpers
       const CORE_ORDER = ["anger","disgust","fear","joy","sadness","passion","surprise"];
       const CORE_LABEL = {
@@ -349,7 +492,7 @@
         surprise:"var(--c-surprise)"
       };
 
-      // Emoji maps (client-side fallback)
+      // Emoji maps (client side fallback)
       const EMOJI_SUGGEST = {
         "Anger":["😠"], "Disgust":["🤢"], "Fear":["😨"], "Joy":["😊"],
         "Sadness":["😢"], "Passion":["😍"], "Surprise":["😮"], "N/A":["🤔"],
@@ -363,7 +506,7 @@
       };
       const emojiForLabel = (label) => EMOJI_SUGGEST[titleCase(label || 'N/A')] || ["🤔"];
 
-      // ---- Fallback rich-emotion selection (mirrors server rules) ----
+      // Fallback rich emotion selection
       function normalizeMix(m){
         const keys = ["anger","disgust","fear","joy","sadness","passion","surprise"];
         let sum = 0;
@@ -437,7 +580,7 @@
         });
       }
 
-      // Single tray on the right; shows 1 emoji if same, 2 if different.
+      // Single tray on the right
       function renderEmojis({emoji_emotion, emoji_dominant, same_label, dominant_label, emotion_label, mixture_for_fallback}){
         let dominant = titleCase(dominant_label || 'N/A');
         let emotion  = emotion_label && emotion_label !== 'N/A'
@@ -472,7 +615,6 @@
       }
 
       function handleLowSignal(data){
-        // All cores should already be zero, but make sure UI reflects that
         fields.anger.textContent    = fmt(data.anger ?? 0);
         fields.disgust.textContent  = fmt(data.disgust ?? 0);
         fields.fear.textContent     = fmt(data.fear ?? 0);
@@ -507,6 +649,11 @@
           resetToZero();
           return;
         }
+
+        if (containsCrisisLanguage(text)) {
+          showCrisisModal();
+        }
+
         setStatus('Analyzing...');
         textArea.classList.remove('input-error');
         try{
