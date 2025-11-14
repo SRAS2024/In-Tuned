@@ -1,6 +1,6 @@
 # advanced_detector.py
 # High fidelity local emotion detector with seven core dimensions and rich nuance.
-# Overhauled: zero baseline scores, low signal handling, and cleaner dominance.
+# Overhauled: zero baseline scores, low signal handling, smarter dominance and mixed state.
 
 from __future__ import annotations
 
@@ -51,6 +51,8 @@ class EmotionResult:
     surprise: float
     dominant_emotion: str
     low_signal: bool = False
+    secondary_emotion: str = "N/A"
+    mixed_state: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -1067,7 +1069,6 @@ def _apply_reassurance_and_deescalation(
 
     neg_keys = ("fear", "anger", "sadness")
     if has_reassure:
-        # Ease fear and sadness, add calm hope.
         for k in neg_keys:
             scores[k] *= 0.9
         scores["joy"] += 0.25
@@ -1424,11 +1425,9 @@ def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
     total = sum(max(v, 0.0) for v in raw_scores.values())
     distinct = sum(1 for v in raw_scores.values() if v > 0.06)
 
-    # Single short words like "ok" or "fine" with almost no evidence.
     if meaningful == 1 and total < 0.04 and distinct <= 1:
         return True
 
-    # Very short fragments with almost no emotional signal.
     if meaningful <= 3 and total < 0.025 and distinct <= 1:
         return True
 
@@ -1440,11 +1439,10 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
     Choose a dominant core.
 
     For mixed cases where strong positive and negative emotion coexist,
-    we sometimes let a protective negative (often sadness or fear) be
-    the dominant core even when joy or passion are slightly higher.
-    This lets the formatter surface rich labels like Joyful or
-    Bittersweet while still acknowledging the underlying pain in the
-    "dominant" field.
+    we sometimes let a protective negative be the dominant core even when
+    joy or passion are slightly higher numerically. This lets the formatter
+    surface rich labels like Joyful or Bittersweet while still acknowledging
+    the underlying pain in the "dominant" field.
     """
     if low_signal:
         return "N/A"
@@ -1456,7 +1454,6 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
     if top_val < 0.05:
         return "N/A"
 
-    # Cross valence reweighting when both sides are strong
     neg_keys = {"fear", "sadness", "anger", "disgust"}
     pos_keys = {"joy", "passion"}
 
@@ -1472,12 +1469,9 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
         and neg_total >= 0.30
         and neg_peak >= pos_peak * 0.5
     ):
-        # In resilient suffering, grief and fear often dominate the felt state
-        # even when the person is actively choosing hope or joy.
         dominant_neg = max(neg_keys, key=lambda k: scores[k])
         return dominant_neg
 
-    # Small gap between top two, favor negative when mixed.
     gap = top_val - second_val
     if gap < 0.06:
         negative = neg_keys
@@ -1488,6 +1482,66 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
             return next(iter(inter_neg))
 
     return top_key
+
+
+def _dominance_profile(
+    scores: Dict[str, float], low_signal: bool = False
+) -> Tuple[str, str, bool]:
+    """
+    Compute dominant and secondary cores and a mixed state flag.
+
+    mixed_state becomes True when there is a meaningful second pole that
+    belongs to the opposite valence cluster or forms a classic bittersweet
+    blend, for example joy plus sadness or passion plus sadness.
+    """
+    if low_signal:
+        return "N/A", "N/A", False
+
+    ordered = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    if not ordered:
+        return "N/A", "N/A", False
+
+    top_key, top_val = ordered[0]
+    second_key, second_val = ordered[1] if len(ordered) > 1 else ("N/A", 0.0)
+
+    if top_val < 0.05:
+        return "N/A", "N/A", False
+
+    numeric_top_key = top_key
+    numeric_second_key = second_key
+
+    dominant = _choose_dominant(scores, low_signal=False)
+
+    if dominant != numeric_top_key:
+        candidate_key = numeric_top_key
+        candidate_val = scores.get(numeric_top_key, top_val)
+    else:
+        candidate_key = numeric_second_key
+        candidate_val = scores.get(numeric_second_key, second_val)
+
+    if candidate_val < 0.04:
+        return dominant, "N/A", False
+
+    pos = {"joy", "passion"}
+    neg = {"sadness", "fear", "anger", "disgust"}
+
+    mixed = (
+        (dominant in pos and candidate_key in neg)
+        or (dominant in neg and candidate_key in pos)
+    )
+
+    pair = {dominant, candidate_key}
+    min_pair_val = min(scores.get(dominant, 0.0), scores.get(candidate_key, 0.0))
+
+    if not mixed:
+        if pair == {"joy", "sadness"} and min_pair_val >= 0.18:
+            mixed = True
+        elif pair == {"joy", "fear"} and min_pair_val >= 0.18:
+            mixed = True
+        elif "passion" in pair and "sadness" in pair and min_pair_val >= 0.18:
+            mixed = True
+
+    return dominant, candidate_key, mixed
 
 
 def _augment_watson_with_local(
@@ -1560,7 +1614,7 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
                 low_signal = _is_low_signal(tokens, raw)
                 scores = _clamp_scores(raw)
 
-    dominant = _choose_dominant(scores, low_signal=low_signal)
+    dominant, secondary, mixed = _dominance_profile(scores, low_signal=low_signal)
 
     result = EmotionResult(
         anger=float(scores.get("anger", 0.0)),
@@ -1572,6 +1626,8 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
         surprise=float(scores.get("surprise", 0.0)),
         dominant_emotion=dominant,
         low_signal=low_signal,
+        secondary_emotion=secondary,
+        mixed_state=mixed,
     )
     return result
 
@@ -1608,7 +1664,7 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
     agg["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
     low_signal = _is_low_signal(tokens, agg) if tokens else True
     final = _clamp_scores(agg)
-    dominant = _choose_dominant(final, low_signal=low_signal)
+    dominant, secondary, mixed = _dominance_profile(final, low_signal=low_signal)
 
     return {
         "text": text,
@@ -1619,6 +1675,8 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
         "aggregate_scores": agg,
         "final_scores": final,
         "dominant": dominant,
+        "secondary": secondary,
+        "mixed_state": mixed,
         "low_signal": low_signal,
     }
 
