@@ -834,7 +834,7 @@ def _meaningful_token_count(tokens: List[str]) -> int:
 # Sentence and clause splitting
 # =============================================================================
 
-_SENT_ENDERS = {".", "!", "?", "?!", "!?","\n"}
+_SENT_ENDERS = {".", "!", "?", "?!", "!?", "\n"}
 
 
 def _split_sentences_from_tokens(
@@ -1704,13 +1704,3 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
 
 # Back compat alias if anything imports `emotion_detector` directly from here.
 emotion_detector = detect_emotions
-Tiny formatter tweak for completeness
-Your current formatter.py already treats the dominant core from the detector as authoritative. With the detector change above, the dominance and emojis should now match what you expect for bittersweet texts.
-If you want the downstream JSON to expose the extra info for future UI work, you can also add these two lines inside format_emotions when you base.update({...}):
-
-        {
-            ...
-            "mixed_state": bool(base.get("mixed_state", False)),
-            "secondary_emotion": base.get("secondary_emotion", "N/A"),
-            ...
-        }
