@@ -578,7 +578,7 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("i want to marry you", "passion", 2.2),
     ("i want to marry her", "passion", 2.2),
     ("i want to marry him", "passion", 2.2),
-    # bittersweet / resilient language
+    # bittersweet or resilient language
     ("despite the suffering", "sadness", 1.6),
     ("despite everything", "sadness", 1.0),
     ("in spite of the pain", "sadness", 1.6),
@@ -1286,6 +1286,19 @@ def _clamp_scores(raw: Dict[str, float]) -> Dict[str, float]:
     return out
 
 
+def _normalize_for_mixture(scores: Dict[str, float]) -> Dict[str, float]:
+    """
+    Convert scores into a probability style mixture for dominance logic.
+
+    This leaves EmotionResult scores untouched, but lets the thresholds in
+    _choose_dominant and _dominance_profile operate on a consistent scale.
+    """
+    total = sum(max(0.0, scores.get(k, 0.0)) for k in CORE_KEYS)
+    if total <= 0.0:
+        return {k: 0.0 for k in CORE_KEYS}
+    return {k: max(0.0, scores.get(k, 0.0)) / total for k in CORE_KEYS}
+
+
 def _apply_contrast_bias_if_any(
     sent_tokens: List[str],
     clauses: List[List[str]],
@@ -1440,9 +1453,8 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
 
     For mixed cases where strong positive and negative emotion coexist,
     we sometimes let a protective negative be the dominant core even when
-    joy or passion are slightly higher numerically. This lets the formatter
-    surface rich labels like Joyful or Bittersweet while still acknowledging
-    the underlying pain in the "dominant" field.
+    joy or passion are slightly higher numerically. This assumes scores
+    are already normalized into a mixture for threshold checks.
     """
     if low_signal:
         return "N/A"
@@ -1614,7 +1626,11 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
                 low_signal = _is_low_signal(tokens, raw)
                 scores = _clamp_scores(raw)
 
-    dominant, secondary, mixed = _dominance_profile(scores, low_signal=low_signal)
+    # Normalize a copy for dominance logic so thresholds work as intended
+    mix_for_dominance = _normalize_for_mixture(scores)
+    dominant, secondary, mixed = _dominance_profile(
+        mix_for_dominance, low_signal=low_signal
+    )
 
     result = EmotionResult(
         anger=float(scores.get("anger", 0.0)),
@@ -1664,7 +1680,12 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
     agg["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
     low_signal = _is_low_signal(tokens, agg) if tokens else True
     final = _clamp_scores(agg)
-    dominant, secondary, mixed = _dominance_profile(final, low_signal=low_signal)
+
+    # Use normalized mixture for dominance decisions, keep final as raw output
+    mix_for_dominance = _normalize_for_mixture(final)
+    dominant, secondary, mixed = _dominance_profile(
+        mix_for_dominance, low_signal=low_signal
+    )
 
     return {
         "text": text,
@@ -1683,3 +1704,13 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
 
 # Back compat alias if anything imports `emotion_detector` directly from here.
 emotion_detector = detect_emotions
+Tiny formatter tweak for completeness
+Your current formatter.py already treats the dominant core from the detector as authoritative. With the detector change above, the dominance and emojis should now match what you expect for bittersweet texts.
+If you want the downstream JSON to expose the extra info for future UI work, you can also add these two lines inside format_emotions when you base.update({...}):
+
+        {
+            ...
+            "mixed_state": bool(base.get("mixed_state", False)),
+            "secondary_emotion": base.get("secondary_emotion", "N/A"),
+            ...
+        }
