@@ -187,20 +187,32 @@ def _single_state_overrides(p: Dict[str, float]) -> Optional[str]:
     if v1 >= 0.60 and (v1 - ranked[1][1]) >= 0.15:
         return _title(k1)
 
-    if sad >= 0.65 and joy <= 0.20:
+    # Strong grief and loss with little positive signal
+    if sad >= 0.65 and joy <= 0.20 and pas <= 0.25:
         return "Mourning"
+
+    # Mixed joy and sadness for resilient or bittersweet states
+    if joy >= 0.35 and sad >= 0.35:
+        if sad >= 0.60 and joy <= 0.40:
+            return "Grief"
+        # Joy and sadness both meaningful, use Bittersweet
+        return "Bittersweet"
+
     # Passion plus joy override for clear romantic language
     if ((pas >= 0.50 and joy >= 0.22) or
         ((pas + joy) >= 0.75 and abs(pas - joy) <= 0.10)):
         return "In love"
+
     if pas >= 0.65 and sad >= 0.25 and joy <= 0.25:
         return "Longing"
+
     if sup >= 0.50 and fear >= 0.25:
         return "Shocked"
     if sup >= 0.45 and joy >= 0.25:
         return "Awe"
     if sup >= 0.45 and ang >= 0.25:
         return "Outrage"
+
     if joy >= 0.55 and sad >= 0.25:
         return "Nostalgia"
 
@@ -360,6 +372,7 @@ def _rationale(
         )
     ranked = _top_components(p)[:3]
     parts = [f"{_title(k)} {_round3(v)}" for k, v in ranked]
+
     if _title(dominant_lower) == emotion_label:
         why = f"Dominant and rich emotion match as {_title(dominant_lower)}."
     else:
