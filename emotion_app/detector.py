@@ -192,6 +192,9 @@ SADNESS = {
     "broken",
     "sorrow",
     "grief",
+    "grieving",
+    "grieve",
+    "grieved",
     "mourning",
     "bereaved",
     "remorse",
@@ -210,6 +213,8 @@ SADNESS = {
     "aching",
     "pain",
     "hurt",
+    "hurtful",
+    "painful",
     "forlorn",
     "downcast",
     "somber",
@@ -223,6 +228,19 @@ SADNESS = {
     "overwhelmed",
     "burnout",
     "burnedout",
+    # hardship and suffering language
+    "suffer",
+    "suffering",
+    "suffers",
+    "hard",
+    "harder",
+    "hardest",
+    "hardship",
+    "struggle",
+    "struggled",
+    "struggling",
+    "difficult",
+    "difficulty",
 }
 
 ANGER = {
@@ -558,16 +576,86 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("i want to marry you", "passion", 2.2),
     ("i want to marry her", "passion", 2.2),
     ("i want to marry him", "passion", 2.2),
+    # bittersweet / resilient language
+    ("despite the suffering", "sadness", 1.6),
+    ("despite everything", "sadness", 1.0),
+    ("in spite of the pain", "sadness", 1.6),
+    ("choosing joy", "joy", 1.2),
+    ("deciding to be grateful", "joy", 1.1),
 ]
 
 EMOJI = {
-    "joy": {"😀", "😄", "😁", "😊", "🥳", "😌", "🙂", ":)", ":-)", ":D", ":-D"},
-    "sadness": {"😢", "😭", "☹️", "🙁", "😞", "😔", ":(", ":-(", ":'(", "T_T"},
-    "anger": {"😠", "😡", ">:(", "!!1"},
-    "fear": {"😨", "😰", "😱", "😬"},
-    "disgust": {"🤢", "🤮"},
-    "passion": {"😍", "😘", "🥰", "❤️", "💖", "💘", "<3"},
-    "surprise": {"😲", "😳", "😮", "🤯", "😦", "😧", "😯", "😵"},
+    "joy": {
+        "😀",
+        "😄",
+        "😁",
+        "😃",
+        "😊",
+        "☺️",
+        "🙂",
+        "🥳",
+        "😌",
+        "😅",
+        ":)",
+        ":-)",
+        ":D",
+        ":-D",
+    },
+    "sadness": {
+        "😢",
+        "😭",
+        "☹️",
+        "🙁",
+        "😞",
+        "😔",
+        "🥹",
+        ":(",
+        ":-(",
+        ":'(",
+        "T_T",
+    },
+    "anger": {
+        "😠",
+        "😡",
+        "😤",
+        ">:(",
+        "!!1",
+    },
+    "fear": {
+        "😨",
+        "😰",
+        "😱",
+        "😬",
+        "🥺",
+    },
+    "disgust": {
+        "🤢",
+        "🤮",
+    },
+    "passion": {
+        "😍",
+        "😘",
+        "🥰",
+        "❤️",
+        "💖",
+        "💘",
+        "💗",
+        "💓",
+        "💞",
+        "💕",
+        "💝",
+        "<3",
+    },
+    "surprise": {
+        "😲",
+        "😳",
+        "😮",
+        "😯",
+        "🤯",
+        "😦",
+        "😧",
+        "😵",
+    },
 }
 
 NEGATIONS = {
@@ -735,7 +823,7 @@ def _approx_correction(stem: str) -> str:
 def _meaningful_token_count(tokens: List[str]) -> int:
     """
     Rough signal estimate. Only count alphabetic tokens with at least
-    three characters, for example 'afraid' or 'sad', but not 'am' or 'wha'.
+    three characters, for example "afraid" or "sad", but not "am" or "wha".
     """
     return sum(1 for t in tokens if t.isalpha() and len(t) >= 3)
 
@@ -1204,7 +1292,7 @@ def _apply_contrast_bias_if_any(
     out: Dict[str, float],
 ) -> None:
     """
-    If a sentence contains a clear contrast, such as '... but ...' or 'however',
+    If a sentence contains a clear contrast, such as "... but ..." or "however",
     nudge dominance toward protective or negative cores when there is a near
     balance between negative and positive clauses, while keeping secondary
     emotions present.
@@ -1348,6 +1436,16 @@ def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
 
 
 def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
+    """
+    Choose a dominant core.
+
+    For mixed cases where strong positive and negative emotion coexist,
+    we sometimes let a protective negative (often sadness or fear) be
+    the dominant core even when joy or passion are slightly higher.
+    This lets the formatter surface rich labels like Joyful or
+    Bittersweet while still acknowledging the underlying pain in the
+    "dominant" field.
+    """
     if low_signal:
         return "N/A"
 
@@ -1355,20 +1453,38 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
     top_key, top_val = ordered[0]
     second_key, second_val = ordered[1]
 
-    # For non low signal text, accept a modest top probability as enough
-    # to name a dominant emotion.
     if top_val < 0.05:
         return "N/A"
 
+    # Cross valence reweighting when both sides are strong
+    neg_keys = {"fear", "sadness", "anger", "disgust"}
+    pos_keys = {"joy", "passion"}
+
+    pos_peak = max(scores[k] for k in pos_keys)
+    neg_peak = max(scores[k] for k in neg_keys)
+    pos_total = sum(scores[k] for k in pos_keys)
+    neg_total = sum(scores[k] for k in neg_keys)
+
+    if (
+        pos_peak >= 0.35
+        and neg_peak >= 0.25
+        and pos_total >= 0.40
+        and neg_total >= 0.30
+        and neg_peak >= pos_peak * 0.5
+    ):
+        # In resilient suffering, grief and fear often dominate the felt state
+        # even when the person is actively choosing hope or joy.
+        dominant_neg = max(neg_keys, key=lambda k: scores[k])
+        return dominant_neg
+
+    # Small gap between top two, favor negative when mixed.
     gap = top_val - second_val
     if gap < 0.06:
-        negative = {"fear", "sadness", "anger", "disgust"}
-        appetitive = {"passion", "joy"}
+        negative = neg_keys
+        appetitive = pos_keys
         inter_neg = negative & {top_key, second_key}
         inter_pos = appetitive & {top_key, second_key}
         if inter_neg and inter_pos:
-            # If positive and negative are nearly tied, prefer the
-            # protective negative pole to keep mixed states honest.
             return next(iter(inter_neg))
 
     return top_key
