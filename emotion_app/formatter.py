@@ -50,8 +50,8 @@ EMOJI_SUGGEST = {
     **{
         "Gentle sadness": ["🥹", "😢"],
         "Reflective sorrow": ["😔", "🥹"],
-        # Key mapping for the hopeful grief blend
-        "Hopeful grief": ["😢", "🥲"],
+        # For hopeful grief the current label emoji is 🥲
+        "Hopeful grief": ["🥲"],
         "Romantic yearning": ["💘"],
         "Soft affection": ["🤍", "🤗"],
     },
@@ -328,7 +328,8 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     # Grief specific override so the two icons express contrast instead of duplication
     if dominant == "sadness":
         grief_dom_override = {
-            "Hopeful grief": ["🥲"],          # primary 😢 from label, dominant 🥲
+            # dominant core icon first (😢), then current label (🥲)
+            "Hopeful grief": ["😢"],
             "Gentle sadness": ["🥹"],
             "Reflective sorrow": ["😔"],
             "Grief": ["😢"],
