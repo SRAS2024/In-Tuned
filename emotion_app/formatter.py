@@ -99,17 +99,17 @@ EMOJI_SUGGEST = {
 }
 
 # Helper numeric routines identical to your base
-def _normalize(scores):
+def _normalize(scores: Dict[str, float]) -> Dict[str, float]:
     total = sum(max(0, scores.get(k, 0)) for k in EMOTIONS)
     if total <= 0:
         return {k: 0 for k in EMOTIONS}
     return {k: max(0, scores.get(k, 0)) / total for k in EMOTIONS}
 
-def _entropy(p):
+def _entropy(p: Dict[str, float]) -> float:
     eps = 1e-12
     return -sum(pi * math.log(pi + eps) for pi in p.values() if pi > 0)
 
-def _confidence(p):
+def _confidence(p: Dict[str, float]) -> float:
     total = sum(p.values())
     if total <= 0:
         return 0
@@ -117,32 +117,32 @@ def _confidence(p):
     hmax = math.log(len(EMOTIONS))
     return max(0, min(1, 1 - h / hmax))
 
-def _top_components(p):
+def _top_components(p: Dict[str, float]) -> List[Tuple[str, float]]:
     return sorted(p.items(), key=lambda x: x[1], reverse=True)
 
-def _title(s):
+def _title(s: str) -> str:
     return s[:1].upper() + s[1:] if s else s
 
-def _round3(x):
+def _round3(x: float) -> float:
     return float(f"{x:.3f}")
 
-def _dot(a, b):
+def _dot(a: List[float], b: List[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
 
-def _norm(v):
+def _norm(v: List[float]) -> float:
     n = math.sqrt(sum(x * x for x in v))
-    return n if n > 0 else 1
+    return n if n > 0 else 1.0
 
-def _cos(a, b):
+def _cos(a: List[float], b: List[float]) -> float:
     return _dot(a, b) / (_norm(a) * _norm(b))
 
-def _vector(p):
+def _vector(p: Dict[str, float]) -> List[float]:
     return [p[k] for k in EMOTIONS]
 
 
 # ---------------- Enhanced single state rules ----------------
 
-def _single_state_overrides(p):
+def _single_state_overrides(p: Dict[str, float]) -> Optional[str]:
     sad = p["sadness"]
     joy = p["joy"]
     pas = p["passion"]
@@ -172,7 +172,7 @@ def _single_state_overrides(p):
 
 # ---------------- Blended label logic enhanced ----------------
 
-def _blend_name(p):
+def _blend_name(p: Dict[str, float]) -> str:
     ranked = _top_components(p)
     k1, v1 = ranked[0]
     k2, v2 = ranked[1]
@@ -201,10 +201,10 @@ def _blend_name(p):
 
 # ---------------- Rich label selection ----------------
 
-def _best_prototype(p):
+def _best_prototype(p: Dict[str, float]) -> Tuple[str, float]:
     v = _vector(p)
     best = "N/A"
-    bestsim = -1
+    bestsim = -1.0
     for label, proto in PROTOTYPES.items():
         sim = _cos(v, proto)
         if sim > bestsim:
@@ -212,7 +212,7 @@ def _best_prototype(p):
             best = label
     return best, bestsim
 
-def _final_emotion_label(p):
+def _final_emotion_label(p: Dict[str, float]) -> str:
     total = sum(p.values())
     if total <= 0:
         return "N/A"
@@ -242,20 +242,21 @@ def _final_emotion_label(p):
 
 # ---------------- Emoji ----------------
 
-def _emoji_for(label):
+def _emoji_for(label: str) -> List[str]:
     if label in EMOJI_SUGGEST:
         return EMOJI_SUGGEST[label]
-    if _title(label) in EMOJI_SUGGEST:
-        return EMOJI_SUGGEST[_title(label)]
+    titled = _title(label)
+    if titled in EMOJI_SUGGEST:
+        return EMOJI_SUGGEST[titled]
     return ["❌"]
 
-def _emoji_core(core):
+def _emoji_core(core: str) -> List[str]:
     return _emoji_for(_title(core))
 
 
 # ---------------- Public formatter ----------------
 
-def format_emotions(result):
+def format_emotions(result: Any) -> Dict[str, Any]:
     if is_dataclass(result):
         base = asdict(result)
     elif isinstance(result, dict):
@@ -263,18 +264,21 @@ def format_emotions(result):
     else:
         base = {}
 
+    # Ensure all seven core scores are present as floats
     for k in EMOTIONS:
         base[k] = float(base.get(k, 0.0))
 
     raw = {k: base[k] for k in EMOTIONS}
     total_signal = sum(raw.values())
-    low_signal = bool(base.get("low_signal", False)) or total_signal <= 0
+    low_signal_flag = bool(base.get("low_signal", False)) or total_signal <= 0.0
 
-    if low_signal:
+    if low_signal_flag:
         out = {k: 0.0 for k in EMOTIONS}
         return {
             **raw,
             "dominant_emotion": "N/A",
+            "secondary_emotion": "N/A",
+            "mixed_state": False,
             "blended_emotion": "N/A",
             "emotion": "N/A",
             "confidence": 0.0,
@@ -290,26 +294,46 @@ def format_emotions(result):
             "emoji_primary": "❌",
         }
 
+    # Normalized mixture for prototype and blend logic
     p = _normalize(raw)
     blended = _blend_name(p)
     final_single = _final_emotion_label(p)
     conf = _confidence(p)
 
     ranked = _top_components(raw)
-    dominant = ranked[0][0] if ranked else "N/A"
+
+    # Use detector supplied dominance when available so UI and backend agree
+    detector_dom = base.get("dominant_emotion") or "N/A"
+    if detector_dom in EMOTIONS:
+        dominant = detector_dom
+    else:
+        dominant = ranked[0][0] if ranked else "N/A"
+
+    secondary = base.get("secondary_emotion", "N/A")
+    mixed_state = bool(base.get("mixed_state", False))
 
     emoji_em = _emoji_for(final_single)
-    emoji_dom = _emoji_core(dominant)
+    emoji_dom = _emoji_core(dominant) if dominant != "N/A" else ["❌"]
 
     mixture = {k: _round3(v) for k, v in p.items()}
     components = [[k, _round3(v)] for k, v in sorted(p.items(), key=lambda x: -x[1])]
 
-    top3 = ", ".join(f"{_title(k)} {_round3(v)}" for k, v in _top_components(p)[:3])
-    rationale = f"Top components: {top3}. Dominant core is {_title(dominant)}. Rich label reflects blended meaning: {final_single}. Context blend: {blended}."
+    top3 = ", ".join(
+        f"{_title(k)} {_round3(v)}" for k, v in _top_components(p)[:3]
+    )
+    rationale = (
+        f"Top components: {top3}. "
+        f"Dominant core is {_title(dominant)}. "
+        f"Secondary core is {_title(secondary) if secondary != 'N/A' else 'none'}. "
+        f"Rich label reflects blended meaning: {final_single}. "
+        f"Context blend: {blended}."
+    )
 
     return {
         **raw,
         "dominant_emotion": dominant,
+        "secondary_emotion": secondary,
+        "mixed_state": mixed_state,
         "blended_emotion": blended,
         "emotion": final_single,
         "confidence": _round3(conf),
