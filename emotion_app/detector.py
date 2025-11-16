@@ -1,5 +1,5 @@
 # advanced_detector.py
-# High fidelity local emotion detector v5.0, multilingual.
+# High fidelity local emotion detector v6.0, multilingual.
 # Seven core dimensions with richer nuance.
 # Purely local engine with support for:
 # English, Spanish, Portuguese, French, Italian, German, Dutch, Polish
@@ -44,7 +44,7 @@ class EmotionResult:
     low_signal: bool = False
     secondary_emotion: str = "N/A"
     mixed_state: bool = False
-    # v5 meta metrics
+    # v6 meta metrics
     valence: float = 0.0
     arousal: float = 0.0
     confidence: float = 0.0
@@ -331,6 +331,43 @@ JOY: Set[str] = {
     "blogoslawiona",
     "błogosławiona",
 }
+
+# v6: regional joyful slang and colloquialisms
+JOY.update(
+    {
+        # Latin American Spanish
+        "chévere",
+        "chevere",
+        "bacán",
+        "bacan",
+        "chido",
+        "padre",
+        "genial",
+        "copado",
+        "rebueno",
+        "rebien",
+        # Brazilian Portuguese
+        "legal",
+        "massa",
+        "maneiro",
+        "top",
+        "topzera",
+        "daora",
+        "da hora",
+        "show",
+        "showdebola",
+        # European Portuguese
+        "porreiro",
+        "fixe",
+        # French casual
+        "cool",
+        "tropbien",
+        "tropbon",
+        # Italian casual
+        "fico",
+        "fighissimo",
+    }
+)
 
 SADNESS: Set[str] = {
     # English base
@@ -656,6 +693,61 @@ ANGER: Set[str] = {
     "zlosc",
 }
 
+# v6: stronger anger slang, profanity and regional expressions
+ANGER.update(
+    {
+        # English profanity / insults
+        "fuck",
+        "fucking",
+        "fuckin",
+        "fuckyou",
+        "bitch",
+        "bitches",
+        "asshole",
+        "bastard",
+        "dumbass",
+        "loser",
+        "bullshit",
+        "shit",
+        "sucks",
+        "suck",
+        # Spanish anger slang
+        "mierda",
+        "cabron",
+        "cabrón",
+        "maldito",
+        "maldita",
+        "harto",
+        "harta",
+        "hartode",
+        "hartade",
+        "enfadado",
+        "enfadada",
+        # Portuguese anger slang (Brazil and Portugal)
+        "merda",
+        "droga",
+        "porra",
+        "raivoso",
+        "raivosa",
+        "chateado",
+        "chateada",
+        # French anger slang
+        "merde",
+        "putain",
+        # Italian anger slang
+        "incazzato",
+        "incazzata",
+        # German anger slang
+        "scheisse",
+        "scheiße",
+        # Dutch anger slang
+        "kut",
+        "klote",
+        # Polish anger slang
+        "kurwa",
+    }
+)
+
 FEAR: Set[str] = {
     # English base
     "scare",
@@ -887,6 +979,19 @@ DISGUST: Set[str] = {
     "odpychający",
     "odpychajacy",
 }
+
+# v6: disgust slang that often overlaps with anger
+DISGUST.update(
+    {
+        "shit",
+        "mierda",
+        "merda",
+        "merde",
+        "scheisse",
+        "scheiße",
+        "nojera",
+    }
+)
 
 PASSION: Set[str] = {
     # English base
@@ -1479,6 +1584,90 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("헐", "surprise", 1.7),
     ("진짜요", "surprise", 1.7),
 ]
+
+# v6: additional colloquial and dialect specific phrases
+PHRASES.extend(
+    [
+        # English short negative life evaluations
+        ("life's a bitch", "sadness", 2.1),
+        ("lifes a bitch", "sadness", 2.1),
+        ("life is a bitch", "sadness", 2.1),
+        ("life sucks", "sadness", 2.0),
+        ("my life sucks", "sadness", 2.1),
+        ("fuck my life", "sadness", 2.1),
+        ("fml", "sadness", 1.9),
+        # English short insults and high anger
+        ("fuck you", "anger", 2.4),
+        ("go fuck yourself", "anger", 2.6),
+        ("screw you", "anger", 2.1),
+        ("you suck", "anger", 1.9),
+        ("shut up", "anger", 1.6),
+        # English casual positive slang
+        ("im so hyped", "joy", 1.8),
+        ("so hyped", "joy", 1.6),
+        ("thats awesome", "joy", 1.4),
+        ("thats fire", "joy", 1.4),
+        ("thats lit", "joy", 1.5),
+        # Latin American Spanish frustration and sadness
+        ("estoy harto de", "anger", 2.0),
+        ("estoy harta de", "anger", 2.0),
+        ("ya basta", "anger", 2.0),
+        ("mi vida es una mierda", "sadness", 2.2),
+        ("mi vida es una porquería", "sadness", 2.2),
+        ("mi vida es una porqueria", "sadness", 2.2),
+        ("mi vida apesta", "sadness", 2.1),
+        ("ando mal", "sadness", 1.7),
+        ("ando muy mal", "sadness", 1.9),
+        ("re mal", "sadness", 1.8),
+        ("estoy hecho mierda", "sadness", 2.1),
+        ("estoy hecha mierda", "sadness", 2.1),
+        # Latin American Spanish joy slang
+        ("esta re bien", "joy", 1.7),
+        ("esta re bueno", "joy", 1.7),
+        ("esta rebueno", "joy", 1.7),
+        ("esta chido", "joy", 1.6),
+        ("esta muy chido", "joy", 1.8),
+        ("esta muy padre", "joy", 1.7),
+        ("esta chevere", "joy", 1.7),
+        ("está chévere", "joy", 1.7),
+        # Brazilian Portuguese frustration and sadness
+        ("tô de saco cheio", "anger", 2.1),
+        ("to de saco cheio", "anger", 2.1),
+        ("não aguento mais isso", "sadness", 2.2),
+        ("nao aguento mais isso", "sadness", 2.2),
+        ("minha vida é uma merda", "sadness", 2.3),
+        ("minha vida e uma merda", "sadness", 2.3),
+        ("tô mal", "sadness", 1.8),
+        ("to mal", "sadness", 1.8),
+        ("tô péssimo", "sadness", 1.9),
+        ("tô pessimo", "sadness", 1.9),
+        ("to pessimo", "sadness", 1.9),
+        ("to péssimo", "sadness", 1.9),
+        # Brazilian Portuguese joy slang
+        ("tô de boa", "joy", 1.5),
+        ("to de boa", "joy", 1.5),
+        ("tá de boa", "joy", 1.5),
+        ("ta de boa", "joy", 1.5),
+        ("tá tudo certo", "joy", 1.4),
+        ("ta tudo certo", "joy", 1.4),
+        ("tá top", "joy", 1.6),
+        ("ta top", "joy", 1.6),
+        ("arrasou", "joy", 1.7),
+        # European Portuguese frustration
+        ("estou farto disto", "anger", 2.0),
+        ("estou farta disto", "anger", 2.0),
+        # French sadness and frustration
+        ("ma vie est nulle", "sadness", 2.1),
+        ("ma vie est de la merde", "sadness", 2.3),
+        ("j'en ai marre", "anger", 1.9),
+        ("jen ai marre", "anger", 1.9),
+        # Italian sadness
+        ("la mia vita fa schifo", "sadness", 2.3),
+        # German sadness
+        ("mein leben ist scheiße", "sadness", 2.3),
+        ("mein leben ist scheisse", "sadness", 2.3),
+    ]
+)
 
 # Mixed emotion patterns English, plus a couple of Romance examples
 MIXED_PATTERNS: List[Tuple[str, Dict[str, float]]] = [
@@ -2593,7 +2782,8 @@ def _apply_short_text_rules(
     Additional handling for ultra short inputs.
 
     This focuses on common ambiguous replies like "im fine", "ok",
-    "estoy bien", "tudo bem" and their near equivalents.
+    short insults like "fuck you", and compact crisis phrases
+    in all supported languages.
     """
     total_tokens = len(tokens)
     alpha_tokens = sum(1 for t in tokens if t.isalpha())
@@ -2608,6 +2798,86 @@ def _apply_short_text_rules(
     # If we have emoji heavy content, fall back on normal emoji logic
     if alpha_tokens == 0:
         return
+
+    # High intensity short insults that usually express strong anger
+    strong_anger_patterns = [
+        # English
+        "fuck you",
+        "f you",
+        "f u",
+        "go fuck yourself",
+        "screw you",
+        "you suck",
+        "shut up",
+        "i hate you",
+        "hate you",
+        # Spanish
+        "vete a la mierda",
+        "andate a la mierda",
+        "vete al carajo",
+        # Portuguese
+        "vai se foder",
+        "vai se ferrar",
+        "vai tomar no cu",
+        "vai para o inferno",
+        "vai pro inferno",
+        # French
+        "va te faire foutre",
+        # Italian
+        "vai a fanculo",
+        # German
+        "leck mich",
+        # Dutch
+        "rot op",
+        # Polish
+        "spierdalaj",
+    ]
+    if any(simple == p or simple.startswith(p + " ") for p in strong_anger_patterns):
+        scores["anger"] += 2.2
+        scores["disgust"] += 0.5
+        scores["sadness"] += 0.3
+        scores["joy"] *= 0.3
+
+    # Short crisis statements where sadness and fear dominate
+    crisis_patterns = [
+        # English
+        "i want to die",
+        "i wanna die",
+        "want to die",
+        "want die",
+        "wish i was dead",
+        "wish i were dead",
+        "kill myself",
+        "end my life",
+        # Spanish
+        "quiero morir",
+        "quisiera morir",
+        "tengo ganas de morir",
+        "matarme",
+        # Portuguese
+        "quero morrer",
+        "queria morrer",
+        "tenho vontade de morrer",
+        "me matar",
+        # French
+        "je veux mourir",
+        "j'en peux plus de vivre",
+        # Italian
+        "voglio morire",
+        # German
+        "ich will sterben",
+        # Dutch
+        "ik wil dood",
+        # Polish
+        "chcę umrzeć",
+        "chce umrzeć",
+        "chce umrzec",
+    ]
+    if any(simple.startswith(p) for p in crisis_patterns):
+        scores["sadness"] += 2.5
+        scores["fear"] += 1.3
+        scores["anger"] += 0.4
+        scores["joy"] *= 0.2
 
     # English style "im fine", "its fine", "ok then", etc
     base_fine_patterns = {
@@ -2629,10 +2899,8 @@ def _apply_short_text_rules(
         exclam = "!" in simple
         neg_emoji = any(e in simple for e in ("😢", "😭", "🙁", "😞", "😔", "🥺"))
         if exclam and not neg_emoji:
-            # More sincerely positive
             scores["joy"] += 0.8
         else:
-            # Mildly resigned or masking distress
             scores["sadness"] += 1.0
             scores["anger"] += 0.25
             scores["joy"] *= 0.6
@@ -2651,8 +2919,10 @@ def _apply_short_text_rules(
             for phrase in (
                 "estoy bien",
                 "todo bien",
+                "estoy re bien",
                 "estou bem",
                 "to bem",
+                "tô bem",
                 "tudo bem",
                 "tá bem",
                 "ta bem",
@@ -3420,7 +3690,7 @@ def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
     """
     Decide whether the signal is too weak to trust.
 
-    For v5 this considers phrase-only CJK text, emoji only, and short texts.
+    For v6 this considers phrase-only CJK text, emoji only, and short texts.
     """
     meaningful = _meaningful_token_count(tokens)
     peak = max((v for v in raw_scores.values()), default=0.0)
