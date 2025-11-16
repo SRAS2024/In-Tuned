@@ -1,38 +1,21 @@
 # advanced_detector.py
-# High fidelity local emotion detector v2 with seven core dimensions and richer nuance.
-# Upgraded: more slang/colloquialisms, mixed emotion patterns, intensity tiers,
-# and improved exclamation and "I feel" handling.
-# Hardened: safer Watson detection, and defensive fallback so the app does not crash.
+# High fidelity local emotion detector v3 with seven core dimensions and richer nuance.
+# Purely local engine: no external APIs, no Watson. Safe fallback so the app will not crash.
 
 from __future__ import annotations
 
-import math
-import os
 import re
 import difflib
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, Iterable, List, Tuple, Optional
+from typing import Any, Dict, Iterable, List, Tuple, Optional, Set
 from functools import lru_cache
 
 try:  # pragma: no cover
-    from .errors import InvalidTextError
+    from .errors import InvalidTextError  # type: ignore
 except Exception:  # pragma: no cover
     # Fallback so the module can still be imported in isolation
     class InvalidTextError(ValueError):
         pass
-
-try:  # pragma: no cover
-    from ibm_watson import NaturalLanguageUnderstandingV1
-    from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
-    from ibm_watson.natural_language_understanding_v1 import (
-        Features,
-        EmotionOptions,
-    )
-except Exception:  # pragma: no cover
-    NaturalLanguageUnderstandingV1 = None  # type: ignore
-    IAMAuthenticator = None  # type: ignore
-    Features = None  # type: ignore
-    EmotionOptions = None  # type: ignore
 
 
 # =============================================================================
@@ -58,49 +41,6 @@ class EmotionResult:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
-
-
-# =============================================================================
-# Credentials and external pathway
-# =============================================================================
-
-
-def _has_watson_credentials() -> bool:
-    """
-    Only claim Watson is available if both credentials and the SDK are present.
-    This prevents runtime crashes when env vars exist but the SDK is not installed.
-    """
-    if NaturalLanguageUnderstandingV1 is None:
-        return False
-    return bool(os.getenv("WATSON_NLU_APIKEY")) and bool(os.getenv("WATSON_NLU_URL"))
-
-
-def _call_watson(text: str) -> Dict[str, float]:
-    """Return five classical emotions from IBM Watson NLU if available."""
-    if NaturalLanguageUnderstandingV1 is None:
-        raise RuntimeError("Watson SDK not available")
-
-    apikey = os.getenv("WATSON_NLU_APIKEY")
-    url = os.getenv("WATSON_NLU_URL")
-    if not apikey or not url:
-        raise RuntimeError("Watson credentials missing")
-
-    authenticator = IAMAuthenticator(apikey)
-    nlu = NaturalLanguageUnderstandingV1(
-        version="2022-04-07", authenticator=authenticator
-    )
-    nlu.set_service_url(url)
-    result = nlu.analyze(
-        text=text, features=Features(emotion=EmotionOptions(document=True))
-    ).get_result()
-    e = result["emotion"]["document"]["emotion"]
-    return {
-        "anger": float(e.get("anger", 0.0)),
-        "disgust": float(e.get("disgust", 0.0)),
-        "fear": float(e.get("fear", 0.0)),
-        "joy": float(e.get("joy", 0.0)),
-        "sadness": float(e.get("sadness", 0.0)),
-    }
 
 
 # =============================================================================
@@ -1059,7 +999,7 @@ def _meaningful_token_count(tokens: List[str]) -> int:
 # Sentence and clause splitting
 # =============================================================================
 
-_SENT_ENDERS = {".", "!", "?", "?!", "!?", "\n"}
+_SENT_ENDERS = {".", "!", "?", "?!", "!?"}
 
 
 def _split_sentences_from_tokens(
@@ -1153,7 +1093,7 @@ def _surprise_punctuation_bonus(text: str) -> float:
     return 0.0
 
 
-def _in_lex(target: str, bag: set[str]) -> bool:
+def _in_lex(target: str, bag: Set[str]) -> bool:
     if target in bag:
         return True
     if len(target) >= 4:
@@ -1161,7 +1101,7 @@ def _in_lex(target: str, bag: set[str]) -> bool:
     return False
 
 
-def _is_strong(stem: str, bag: set[str]) -> bool:
+def _is_strong(stem: str, bag: Set[str]) -> bool:
     if stem in bag:
         return True
     if len(stem) >= 4:
@@ -1390,7 +1330,7 @@ def _scope_has_negation(win_before: Iterable[str]) -> bool:
 
 
 def _contains_any(
-    tokens: List[str], bag: set[str], extra: Optional[Iterable[str]] = None
+    tokens: List[str], bag: Set[str], extra: Optional[Iterable[str]] = None
 ) -> bool:
     if extra:
         if any(x in " ".join(tokens) for x in extra):
@@ -1928,6 +1868,10 @@ def _dominance_profile(
             mixed = True
         elif "passion" in pair and "sadness" in pair and min_pair_val >= 0.15:
             mixed = True
+        elif pair == {"fear", "sadness"} and min_pair_val >= 0.16:
+            mixed = True
+        elif pair == {"anger", "disgust"} and min_pair_val >= 0.16:
+            mixed = True
 
     # If two emotions are close and both reasonably strong,
     # treat as a mixed state even without special pairing.
@@ -1942,34 +1886,16 @@ def _dominance_profile(
     return dominant, candidate_key, mixed
 
 
-def _augment_watson_with_local(
-    text: str, five: Dict[str, float]
-) -> Tuple[Dict[str, float], List[str]]:
-    tokens = _tokens(text)
-    if not tokens:
-        return dict(five), tokens
-    sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
-    local_raw = _aggregate_sentences(sentences)
-    local_raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-
-    raw = _blank_scores()
-    for k in ("anger", "disgust", "fear", "joy", "sadness"):
-        raw[k] = float(five.get(k, 0.0))
-    raw["passion"] = max(local_raw.get("passion", 0.0), 0.0)
-    raw["surprise"] = max(local_raw.get("surprise", 0.0), 0.0)
-    return raw, tokens
-
-
 # =============================================================================
 # Public API
 # =============================================================================
 
 
-def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionResult:
+def detect_emotions(text: str, use_watson_if_available: bool = False) -> EmotionResult:
     """
     Main detector entry point.
 
-    Local scoring uses a true zero baseline. Emotions that have
+    Purely local scoring with a true zero baseline. Emotions that have
     no lexical or structural evidence stay at 0. Very short or
     incomplete inputs such as "am" are treated as low signal, while
     short but clear cues like "pisses me off" or "terrified" still
@@ -1977,6 +1903,9 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
 
     Hardened so that any unexpected internal error falls back to a safe
     low signal zero profile instead of crashing the application.
+
+    The parameter use_watson_if_available is kept for API compatibility
+    but is ignored in this v3 local detector.
     """
     if text is None:
         raise InvalidTextError("Input text is required")
@@ -1989,44 +1918,22 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
     scores: Dict[str, float]
 
     try:
-        if use_watson_if_available and _has_watson_credentials():
-            # Watson path with safe fallback to local if the API fails
-            try:
-                five = _call_watson(text_str)
-                raw, tokens = _augment_watson_with_local(text_str, five)
-                low_signal = _is_low_signal(tokens, raw) if tokens else True
-                scores = _clamp_scores(raw)
-            except Exception:
-                # If Watson fails for any reason, fall back to local scoring
-                tokens = _tokens(text_str)
-                if not tokens or _meaningful_token_count(tokens) == 0:
-                    scores = _blank_scores()
-                    low_signal = True
-                else:
-                    sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
-                    raw = _aggregate_sentences(sentences)
-                    raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-                    low_signal = _is_low_signal(tokens, raw)
-                    scores = _clamp_scores(raw)
+        tokens = _tokens(text_str)
+        if not tokens:
+            scores = _blank_scores()
+            low_signal = True
         else:
-            # Pure local path
-            tokens = _tokens(text_str)
-            if not tokens:
+            meaningful = _meaningful_token_count(tokens)
+            if meaningful == 0:
                 scores = _blank_scores()
                 low_signal = True
             else:
-                meaningful = _meaningful_token_count(tokens)
-                if meaningful == 0:
-                    scores = _blank_scores()
-                    low_signal = True
-                else:
-                    sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
-                    raw = _aggregate_sentences(sentences)
-                    raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-                    low_signal = _is_low_signal(tokens, raw)
-                    scores = _clamp_scores(raw)
+                sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
+                raw = _aggregate_sentences(sentences)
+                raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
+                low_signal = _is_low_signal(tokens, raw)
+                scores = _clamp_scores(raw)
     except Exception:
-        # Last resort safety net so the app never crashes due to detector issues
         low_signal = True
         scores = _blank_scores()
 
@@ -2052,6 +1959,16 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
 
 
 def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[str, Any]:
+    """
+    Developer facing introspection helper.
+
+    Returns intermediate tokens, per sentence breakdown, raw aggregate
+    scores and the final clamped scores, together with the dominant and
+    secondary emotions and mixed state flag.
+
+    The parameter use_watson_if_available is kept for API compatibility
+    but is ignored in this v3 local detector.
+    """
     if text is None or not str(text).strip():
         raise InvalidTextError("Input text is required")
 
