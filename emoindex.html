@@ -4,11 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>In tuned</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <style>
-      /* ===================== THEME TOKENS ===================== */
       :root{
         --ink:#e5e7eb; --muted:#9ca3af;
         --bg-1:#0f172a; --bg-2:#111827;
@@ -19,7 +18,6 @@
         --shadow:0 10px 30px rgba(2,6,23,.35);
         --radius:16px;
 
-        /* chart palette */
         --c-anger:#f87171;
         --c-disgust:#34d399;
         --c-fear:#60a5fa;
@@ -56,7 +54,6 @@
           linear-gradient(180deg, var(--bg-1), var(--bg-2));
       }
 
-      /* ===================== LAYOUT ===================== */
       .wrap{max-width:1128px;margin:0 auto;padding:2.25rem 1.25rem 3.25rem}
       .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;gap:.75rem}
       .brand{display:flex;align-items:center;gap:.7rem}
@@ -75,6 +72,7 @@
       }
       .title{font-size:1.38rem;font-weight:800;letter-spacing:.2px}
       .actions{display:flex;align-items:center;gap:.6rem}
+
       .help{
         appearance:none;border:1px solid var(--border);background:var(--surface);
         color:var(--ink);width:36px;height:36px;border-radius:10px;cursor:pointer;
@@ -89,7 +87,86 @@
         background:#0b1a3a; box-shadow:0 0 14px 2px rgba(2,6,23,.22);
       }
 
+      .langControl{
+        position:relative;
+      }
+      .langToggle{
+        appearance:none;
+        border:1px solid var(--border);
+        background:var(--surface);
+        color:var(--ink);
+        height:36px;
+        border-radius:999px;
+        padding:0 .8rem;
+        display:flex;
+        align-items:center;
+        gap:.35rem;
+        cursor:pointer;
+        box-shadow:var(--shadow);
+        font-size:.85rem;
+        font-weight:600;
+      }
+      .langIcon{
+        font-size:1.1rem;
+      }
+      .langCurrentLabel{
+        font-variant:small-caps;
+        letter-spacing:.08em;
+      }
+      .langMenu{
+        position:absolute;
+        top:calc(100% + .4rem);
+        right:0;
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:12px;
+        box-shadow:var(--shadow);
+        padding:.35rem 0;
+        min-width:160px;
+        display:none;
+        z-index:32;
+      }
+      .langMenu.open{
+        display:block;
+      }
+      .langHeading{
+        padding:.35rem .9rem;
+        font-size:.78rem;
+        text-transform:uppercase;
+        letter-spacing:.08em;
+        color:var(--muted);
+      }
+      .langOption{
+        appearance:none;
+        border:none;
+        background:transparent;
+        color:var(--ink);
+        width:100%;
+        text-align:left;
+        padding:.45rem .9rem;
+        font-size:.85rem;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+      }
+      .langOption span{
+        pointer-events:none;
+      }
+      .langOption[aria-checked="true"]{
+        background:rgba(148,163,184,.18);
+        font-weight:700;
+      }
+      .langOption:hover{
+        background:rgba(148,163,184,.28);
+      }
+
       h1{font-size:1.9rem;margin:.25rem 0 1.1rem 0}
+      .subtitle{
+        margin:-.75rem 0 1.5rem 0;
+        color:var(--muted);
+        font-size:.95rem;
+      }
       .grid{display:grid;gap:1.25rem;grid-template-columns:1fr 1fr}
       @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
 
@@ -102,7 +179,6 @@
         padding:1.25rem;
       }
 
-      /* ===================== FORM ===================== */
       label{display:block;font-weight:700;margin-bottom:.6rem}
       textarea{
         width:100%;min-height:220px;resize:vertical;background:var(--surface);color:var(--ink);
@@ -110,13 +186,11 @@
       }
       textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 4px rgba(59,130,246,.2)}
 
-      /* low signal / invalid input highlight */
       textarea.input-error{
         border-color:#f97373;
         box-shadow:0 0 0 4px rgba(248,113,113,.45);
       }
 
-      /* Button row: button, word counter, emoji tray, status under */
       .row{
         display:grid;align-items:center;gap:.9rem;margin-top:1rem;
         grid-template-columns:auto auto 1fr auto;
@@ -138,7 +212,6 @@
         white-space:nowrap;
       }
 
-      /* ===================== PANELS ===================== */
       .panelTitle{margin:.25rem 0 1rem 0;font-weight:800;letter-spacing:.15px}
       .kv{display:grid;grid-template-columns:1fr auto;gap:.55rem 1rem}
       .pill{padding:.55rem .7rem;border:1px solid var(--border);border-radius:12px;background:var(--surface);font-weight:700}
@@ -146,7 +219,6 @@
       .meta{display:grid;grid-template-columns:1fr auto;gap:.55rem 1rem}
       .meta .label{color:var(--muted);font-weight:600}
 
-      /* ===================== BAR CHART ===================== */
       .chartCard{margin-top:1rem}
       .barRow{
         display:grid;grid-template-columns:110px 1fr 64px;gap:.6rem;align-items:center;margin:.35rem 0;
@@ -163,7 +235,6 @@
 
       footer{margin-top:2.2rem;color:var(--muted);text-align:center;font-size:.9rem}
 
-      /* ===================== MODALS ===================== */
       .overlay{
         position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;
         align-items:center;justify-content:center;padding:1rem;z-index:40
@@ -182,7 +253,6 @@
         padding:.6rem .9rem;border-radius:10px;cursor:pointer
       }
 
-      /* Crisis modal specific */
       .alertRow{
         display:flex;
         align-items:flex-start;
@@ -226,7 +296,6 @@
         margin-top:.4rem;
       }
 
-      /* ===================== RESPONSIVE TWEAKS ===================== */
       @media (max-width: 720px){
         .wrap{padding:1.75rem 1rem 2.5rem}
         .row{
@@ -246,114 +315,177 @@
         .topbar{
           flex-direction:column;
           align-items:flex-start;
+          gap:.9rem;
         }
         textarea{
           min-height:180px;
+        }
+        .actions{
+          width:100%;
+          justify-content:flex-start;
+          gap:.5rem;
         }
       }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <!-- Top bar -->
       <div class="topbar">
         <div class="brand" aria-label="In tuned home">
           <div class="logo" aria-hidden="true"><div class="mark" aria-hidden="true"></div></div>
-          <div class="title">In tuned</div>
+          <div class="title" data-i18n="appTitle">In tuned</div>
         </div>
         <div class="actions">
-          <span id="modeDot" class="modeDot" title="Toggle light/dark mode" aria-label="Toggle theme" role="button" tabindex="0"></span>
-          <button id="helpBtn" class="help" aria-label="About In tuned">?</button>
+          <div class="langControl">
+            <button
+              id="langToggle"
+              class="langToggle"
+              type="button"
+              data-i18n-aria-label="langSwitchTooltip"
+              aria-haspopup="true"
+              aria-expanded="false"
+            >
+              <span class="langIcon" aria-hidden="true">🌐</span>
+              <span id="langCurrentLabel" class="langCurrentLabel">EN</span>
+            </button>
+            <div
+              id="langMenu"
+              class="langMenu"
+              role="menu"
+              data-i18n-aria-label="langMenuLabel"
+              aria-label="Language"
+            ></div>
+          </div>
+          <span
+            id="modeDot"
+            class="modeDot"
+            title="Toggle light or dark mode"
+            data-i18n-aria-label="themeToggleLabel"
+            aria-label="Toggle theme"
+            role="button"
+            tabindex="0"
+          ></span>
+          <button
+            id="helpBtn"
+            class="help"
+            data-i18n-aria-label="helpButtonLabel"
+            aria-label="About In tuned"
+          >?</button>
         </div>
       </div>
 
-      <h1>Emotion Detector</h1>
+      <h1 data-i18n="headline">Emotion detector</h1>
+      <p class="subtitle" data-i18n="subtitle">
+        A simple space to notice what you are feeling across seven core emotions.
+      </p>
 
-      <!-- Symmetrical two-column grid -->
       <section class="grid">
-        <!-- Left: Input and Chart -->
         <div class="card">
-          <label for="text">Text</label>
-          <textarea id="text" placeholder="Type a short passage. For example: I am grateful and excited to begin something new today." aria-label="Text to analyze"></textarea>
+          <label for="text" data-i18n="inputLabel">Text</label>
+          <textarea
+            id="text"
+            aria-label="Text to analyze"
+            data-i18n-placeholder="inputPlaceholder"
+            placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."
+          ></textarea>
 
-          <!-- Button with word counter and emojis on the right -->
           <div class="row">
-            <button id="analyze" class="btn">Analyze</button>
-            <span id="wordInfo">250 word maximum</span>
+            <button id="analyze" class="btn" data-i18n="analyzeButton">Analyze</button>
+            <span id="wordInfo" data-i18n="wordInfoDefault">250 word maximum</span>
             <span id="emojiTray" class="emojiInline" aria-live="polite" title="Emotion">🤔</span>
             <span id="status" class="status" aria-live="polite"></span>
           </div>
 
-          <!-- Chart -->
           <div class="card chartCard" aria-label="Core mixture bar chart">
-            <div class="panelTitle">Core mixture</div>
+            <div class="panelTitle" data-i18n="coreMixtureTitle">Core mixture</div>
             <div id="bars"></div>
           </div>
         </div>
 
-        <!-- Right: Analysis + Results stacked -->
         <div class="stack">
           <div class="card">
-            <div class="panelTitle">Analysis</div>
+            <div class="panelTitle" data-i18n="analysisTitle">Analysis</div>
             <div class="kv">
-              <div class="pill">Anger</div>    <div class="value" id="v-anger">0.000</div>
-              <div class="pill">Disgust</div>  <div class="value" id="v-disgust">0.000</div>
-              <div class="pill">Fear</div>     <div class="value" id="v-fear">0.000</div>
-              <div class="pill">Joy</div>      <div class="value" id="v-joy">0.000</div>
-              <div class="pill">Sadness</div>  <div class="value" id="v-sadness">0.000</div>
-              <div class="pill">Passion</div>  <div class="value" id="v-passion">0.000</div>
-              <div class="pill">Surprise</div> <div class="value" id="v-surprise">0.000</div>
+              <div class="pill" data-emotion-label="anger">Anger</div>      <div class="value" id="v-anger">0.000</div>
+              <div class="pill" data-emotion-label="disgust">Disgust</div>  <div class="value" id="v-disgust">0.000</div>
+              <div class="pill" data-emotion-label="fear">Fear</div>        <div class="value" id="v-fear">0.000</div>
+              <div class="pill" data-emotion-label="joy">Joy</div>          <div class="value" id="v-joy">0.000</div>
+              <div class="pill" data-emotion-label="sadness">Sadness</div>  <div class="value" id="v-sadness">0.000</div>
+              <div class="pill" data-emotion-label="passion">Passion</div>  <div class="value" id="v-passion">0.000</div>
+              <div class="pill" data-emotion-label="surprise">Surprise</div><div class="value" id="v-surprise">0.000</div>
             </div>
           </div>
 
           <div class="card">
-            <div class="panelTitle">Results</div>
+            <div class="panelTitle" data-i18n="resultsTitle">Results</div>
             <div class="meta">
-              <div class="label">Dominant</div> <div class="value" id="v-dominant">N/A</div>
-              <div class="label">Emotion</div>  <div class="value" id="v-emotion">N/A</div>
+              <div class="label" data-i18n="resultsDominantLabel">Dominant</div>
+              <div class="value" id="v-dominant">N/A</div>
+
+              <div class="label" data-i18n="resultsEmotionLabel">Blended</div>
+              <div class="value" id="v-emotion">N/A</div>
+
+              <div class="label" data-i18n="resultsSecondaryLabel">Secondary</div>
+              <div class="value" id="v-secondary">N/A</div>
+
+              <div class="label" data-i18n="resultsMixedLabel">Mixed state</div>
+              <div class="value" id="v-mixed">N/A</div>
             </div>
           </div>
         </div>
       </section>
 
-      <footer>© 2025 In tuned. All rights reserved.</footer>
+      <footer data-i18n="footer">© 2025 In tuned. All rights reserved.</footer>
     </div>
 
-    <!-- About Modal -->
     <div id="overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal">
-        <h2 id="modalTitle">About In tuned</h2>
-        <p class="muted">Description:</p>
-        <p>
-          In tuned is an intuitive reflection tool that helps you understand what you are feeling in the moment. You write a short passage of up to 250 words and the app highlights a blend of seven core emotions anger, disgust, fear, joy, sadness, passion, and surprise so you can see a simple emotional snapshot of your text. The goal is to support self awareness and healthy reflection only. It is not therapy and it is not a substitute for professional mental health care or medical advice.
+        <h2 id="modalTitle" data-i18n="aboutTitle">About In tuned</h2>
+        <p class="muted" data-i18n="aboutDescriptionLabel">Description:</p>
+        <p data-i18n="aboutBody">
+          In tuned is an intuitive reflection tool that helps you understand what you are feeling in the moment.
+          You write a short passage of up to 250 words and the app highlights a blend of seven core emotions
+          anger, disgust, fear, joy, sadness, passion, and surprise so you can see a simple emotional snapshot
+          of your text. The goal is to support self awareness and healthy reflection only. It is not therapy and
+          it is not a substitute for professional mental health care or medical advice.
         </p>
         <div class="actions">
-          <button id="closeModal" class="ghost">Done</button>
+          <button id="closeModal" class="ghost" data-i18n="aboutDone">Done</button>
         </div>
       </div>
     </div>
 
-    <!-- Crisis Modal -->
     <div id="crisisOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="crisisTitle">
       <div class="modal">
         <div class="alertRow">
           <div class="alertIcon" aria-hidden="true">⚠️</div>
           <div>
-            <h2 id="crisisTitle">Wait! You are priceless and important.</h2>
-            <p>
-              If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.
+            <h2 id="crisisTitle" data-i18n="crisisTitle">Wait! You are priceless and important.</h2>
+            <p data-i18n="crisisBody">
+              If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you.
+              This world needs you in it.
             </p>
           </div>
         </div>
-        <p class="crisisNote">
-          This app cannot provide crisis support. If you are in immediate danger, please contact emergency services or a trusted crisis hotline right away.
+        <p class="crisisNote" data-i18n="crisisNote">
+          This app cannot provide crisis support. The numbers shown are based on common services in your region and may not
+          be complete. If they do not work or you are in immediate danger, please contact any local emergency service or a
+          trusted crisis hotline right away.
         </p>
         <div class="crisisActions">
-          <a href="sms:988" class="btnLink">Contact Suicide Hotline · 988</a>
-          <a href="tel:911" class="ghostLink">Contact Emergency Services · 911</a>
+          <a href="sms:988" id="crisisHotline" class="btnLink">
+            <span data-i18n="crisisHotlineCta">Contact suicide hotline</span>
+            ·
+            <span id="crisisHotlineNumber">988</span>
+          </a>
+          <a href="tel:911" id="crisisEmergency" class="ghostLink">
+            <span data-i18n="crisisEmergencyCta">Contact emergency services</span>
+            ·
+            <span id="crisisEmergencyNumber">911</span>
+          </a>
         </div>
         <div class="actions" style="justify-content:flex-start;margin-top:1rem;">
-          <button id="closeCrisis" class="ghost">Close</button>
+          <button id="closeCrisis" class="ghost" data-i18n="crisisClose">Close</button>
         </div>
       </div>
     </div>
@@ -361,55 +493,663 @@
     <script>
       const $ = (id)=>document.getElementById(id);
 
-      const fields = {
-        anger: $('v-anger'),
-        disgust: $('v-disgust'),
-        fear: $('v-fear'),
-        joy: $('v-joy'),
-        sadness: $('v-sadness'),
-        passion: $('v-passion'),
-        surprise: $('v-surprise'),
-        dominant_emotion: $('v-dominant'),
-        emotion: $('v-emotion'),
+      const LOCALES = {
+        en: {
+          name: "English",
+          short: "EN",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Emotion detector",
+            subtitle: "A simple space to notice what you are feeling across seven core emotions.",
+            inputLabel: "Text",
+            inputPlaceholder: "Type a short passage. For example: I am grateful and excited to begin something new today.",
+            wordInfoDefault: "250 word maximum",
+            wordsLabel: "words",
+            analyzeButton: "Analyze",
+            coreMixtureTitle: "Core mixture",
+            analysisTitle: "Analysis",
+            resultsTitle: "Results",
+            resultsDominantLabel: "Dominant",
+            resultsEmotionLabel: "Blended",
+            resultsSecondaryLabel: "Secondary",
+            resultsMixedLabel: "Mixed state",
+            resultsMixedYes: "Yes",
+            resultsMixedNo: "No",
+            footer: "© 2025 In tuned. All rights reserved.",
+            aboutTitle: "About In tuned",
+            aboutDescriptionLabel: "Description:",
+            aboutBody: "In tuned is an intuitive reflection tool that helps you understand what you are feeling in the moment. You write a short passage of up to 250 words and the app highlights a blend of seven core emotions anger, disgust, fear, joy, sadness, passion, and surprise so you can see a simple emotional snapshot of your text. The goal is to support self awareness and healthy reflection only. It is not therapy and it is not a substitute for professional mental health care or medical advice.",
+            aboutDone: "Done",
+            statusEnterText: "Please enter some text.",
+            statusAnalyzing: "Analyzing...",
+            statusLowSignal: "Too little text to understand how you feel. Try adding a bit more detail.",
+            crisisTitle: "Wait! You are priceless and important.",
+            crisisBody: "If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.",
+            crisisNote: "This app cannot provide crisis support. The numbers shown are based on common services in your region and may not be complete. If they do not work or you are in immediate danger, please contact any local emergency service or a trusted crisis hotline right away.",
+            crisisHotlineCta: "Contact suicide hotline",
+            crisisEmergencyCta: "Contact emergency services",
+            crisisClose: "Close",
+            langMenuLabel: "Language",
+            langSwitchTooltip: "Change language",
+            helpButtonLabel: "About In tuned",
+            themeToggleLabel: "Toggle light or dark theme"
+          },
+          emotions: {
+            anger: "Anger",
+            disgust: "Disgust",
+            fear: "Fear",
+            joy: "Joy",
+            sadness: "Sadness",
+            passion: "Passion",
+            surprise: "Surprise"
+          }
+        },
+        es: {
+          name: "Español",
+          short: "ES",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Detector de emociones",
+            subtitle: "Un espacio sencillo para notar lo que sientes en siete emociones básicas.",
+            inputLabel: "Texto",
+            inputPlaceholder: "Escribe un texto corto. Por ejemplo: Estoy agradecido y emocionado por empezar algo nuevo hoy.",
+            wordInfoDefault: "Máximo 250 palabras",
+            wordsLabel: "palabras",
+            analyzeButton: "Analizar",
+            coreMixtureTitle: "Mezcla principal",
+            analysisTitle: "Análisis",
+            resultsTitle: "Resultados",
+            resultsDominantLabel: "Principal",
+            resultsEmotionLabel: "Combinada",
+            resultsSecondaryLabel: "Secundaria",
+            resultsMixedLabel: "Estado mixto",
+            resultsMixedYes: "Sí",
+            resultsMixedNo: "No",
+            footer: "© 2025 In tuned. Todos los derechos reservados.",
+            aboutTitle: "Acerca de In tuned",
+            aboutDescriptionLabel: "Descripción:",
+            aboutBody: "In tuned es una herramienta de reflexión intuitiva que te ayuda a entender lo que sientes en este momento. Escribes un texto de hasta 250 palabras y la aplicación resalta una mezcla de siete emociones básicas ira, asco, miedo, alegría, tristeza, pasión y sorpresa para que puedas ver una imagen simple de tu tono emocional. Su objetivo es apoyar la conciencia de uno mismo y una reflexión saludable. No es terapia ni sustituye la atención profesional de salud mental o médica.",
+            aboutDone: "Listo",
+            statusEnterText: "Por favor, escribe algún texto.",
+            statusAnalyzing: "Analizando...",
+            statusLowSignal: "Hay muy poco texto para comprender cómo te sientes. Intenta añadir un poco más de detalle.",
+            crisisTitle: "Espera, tu vida es muy valiosa.",
+            crisisBody: "Si tú o alguien cercano tiene pensamientos de hacerse daño o de suicidio, siempre hay ayuda disponible. El mundo te necesita aquí.",
+            crisisNote: "Esta aplicación no puede ofrecer apoyo en crisis. Los números mostrados se basan en servicios comunes de tu región y pueden no ser completos. Si no funcionan o estás en peligro inmediato, contacta a cualquier servicio de emergencia local o a una línea de ayuda de confianza.",
+            crisisHotlineCta: "Contactar línea de ayuda",
+            crisisEmergencyCta: "Contactar servicios de emergencia",
+            crisisClose: "Cerrar",
+            langMenuLabel: "Idioma",
+            langSwitchTooltip: "Cambiar idioma",
+            helpButtonLabel: "Acerca de In tuned",
+            themeToggleLabel: "Cambiar entre modo claro y oscuro"
+          },
+          emotions: {
+            anger: "Ira",
+            disgust: "Asco",
+            fear: "Miedo",
+            joy: "Alegría",
+            sadness: "Tristeza",
+            passion: "Pasión",
+            surprise: "Sorpresa"
+          }
+        },
+        pt: {
+          name: "Português",
+          short: "PT",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Detector de emoções",
+            subtitle: "Um espaço simples para perceber o que você está sentindo em sete emoções centrais.",
+            inputLabel: "Texto",
+            inputPlaceholder: "Escreva um pequeno texto. Por exemplo: Estou grato e animado para começar algo novo hoje.",
+            wordInfoDefault: "Máximo de 250 palavras",
+            wordsLabel: "palavras",
+            analyzeButton: "Analisar",
+            coreMixtureTitle: "Mistura principal",
+            analysisTitle: "Análise",
+            resultsTitle: "Resultados",
+            resultsDominantLabel: "Principal",
+            resultsEmotionLabel: "Combinada",
+            resultsSecondaryLabel: "Secundária",
+            resultsMixedLabel: "Estado misto",
+            resultsMixedYes: "Sim",
+            resultsMixedNo: "Não",
+            footer: "© 2025 In tuned. Todos os direitos reservados.",
+            aboutTitle: "Sobre o In tuned",
+            aboutDescriptionLabel: "Descrição:",
+            aboutBody: "In tuned é uma ferramenta intuitiva de reflexão que ajuda você a entender o que está sentindo no momento. Você escreve um pequeno texto de até 250 palavras e o aplicativo destaca uma mistura de sete emoções centrais raiva, nojo, medo, alegria, tristeza, paixão e surpresa para mostrar um retrato simples do seu tom emocional. O objetivo é apoiar a autoconsciência e uma reflexão saudável. Não é terapia e não substitui atendimento profissional em saúde mental ou médico.",
+            aboutDone: "Concluir",
+            statusEnterText: "Por favor, escreva algum texto.",
+            statusAnalyzing: "Analisando...",
+            statusLowSignal: "Há texto insuficiente para entender como você se sente. Tente acrescentar um pouco mais de detalhes.",
+            crisisTitle: "Espere, a sua vida é preciosa.",
+            crisisBody: "Se você ou alguém próximo está tendo pensamentos de autoagressão ou suicídio, sempre existe ajuda disponível. O mundo precisa de você aqui.",
+            crisisNote: "Este aplicativo não oferece apoio em situações de crise. Os números mostrados usam serviços comuns na sua região e podem não ser completos. Se não funcionarem ou se houver perigo imediato, procure qualquer serviço de emergência local ou um canal de ajuda de confiança.",
+            crisisHotlineCta: "Contato linha de apoio",
+            crisisEmergencyCta: "Contato serviços de emergência",
+            crisisClose: "Fechar",
+            langMenuLabel: "Idioma",
+            langSwitchTooltip: "Alterar idioma",
+            helpButtonLabel: "Sobre o In tuned",
+            themeToggleLabel: "Alternar entre tema claro e escuro"
+          },
+          emotions: {
+            anger: "Raiva",
+            disgust: "Nojo",
+            fear: "Medo",
+            joy: "Alegria",
+            sadness: "Tristeza",
+            passion: "Paixão",
+            surprise: "Surpresa"
+          }
+        },
+        fr: {
+          name: "Français",
+          short: "FR",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Détecteur d émotions",
+            subtitle: "Un espace simple pour observer ce que vous ressentez selon sept émotions clés.",
+            inputLabel: "Texte",
+            inputPlaceholder: "Écrivez un court texte. Par exemple: Je suis reconnaissant et enthousiaste à l idée de commencer quelque chose de nouveau aujourd hui.",
+            wordInfoDefault: "Maximum 250 mots",
+            wordsLabel: "mots",
+            analyzeButton: "Analyser",
+            coreMixtureTitle: "Mélange principal",
+            analysisTitle: "Analyse",
+            resultsTitle: "Résultats",
+            resultsDominantLabel: "Dominante",
+            resultsEmotionLabel: "Combinée",
+            resultsSecondaryLabel: "Secondaire",
+            resultsMixedLabel: "État mixte",
+            resultsMixedYes: "Oui",
+            resultsMixedNo: "Non",
+            footer: "© 2025 In tuned. Tous droits réservés.",
+            aboutTitle: "À propos de In tuned",
+            aboutDescriptionLabel: "Description :",
+            aboutBody: "In tuned est un outil de réflexion intuitif qui vous aide à comprendre ce que vous ressentez sur le moment. Vous écrivez un court texte jusqu à 250 mots et l application met en évidence un mélange de sept émotions de base colère, dégoût, peur, joie, tristesse, passion et surprise afin de vous offrir un aperçu simple de votre ton émotionnel. Son but est de soutenir la conscience de soi et une réflexion saine. Ce n est pas une thérapie et ce n est pas un substitut à des soins professionnels en santé mentale ou en médecine.",
+            aboutDone: "Terminer",
+            statusEnterText: "Veuillez saisir du texte.",
+            statusAnalyzing: "Analyse en cours...",
+            statusLowSignal: "Il y a trop peu de texte pour comprendre ce que vous ressentez. Essayez d ajouter un peu plus de détails.",
+            crisisTitle: "Attendez, votre vie a une grande valeur.",
+            crisisBody: "Si vous ou un proche avez des pensées d autoagression ou de suicide, de l aide est toujours possible. Le monde a besoin de vous.",
+            crisisNote: "Cette application ne peut pas fournir de soutien d urgence. Les numéros affichés sont basés sur des services courants dans votre région et peuvent être incomplets. S ils ne fonctionnent pas ou en cas de danger immédiat, contactez un service d urgence local ou une ligne d aide de confiance.",
+            crisisHotlineCta: "Contacter une ligne d écoute",
+            crisisEmergencyCta: "Contacter les services d urgence",
+            crisisClose: "Fermer",
+            langMenuLabel: "Langue",
+            langSwitchTooltip: "Changer de langue",
+            helpButtonLabel: "À propos de In tuned",
+            themeToggleLabel: "Basculer entre thème clair et sombre"
+          },
+          emotions: {
+            anger: "Colère",
+            disgust: "Dégoût",
+            fear: "Peur",
+            joy: "Joie",
+            sadness: "Tristesse",
+            passion: "Passion",
+            surprise: "Surprise"
+          }
+        },
+        it: {
+          name: "Italiano",
+          short: "IT",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Rilevatore di emozioni",
+            subtitle: "Uno spazio semplice per notare ciò che provi nelle sette emozioni di base.",
+            inputLabel: "Testo",
+            inputPlaceholder: "Scrivi un breve testo. Per esempio: Sono grato ed emozionato di iniziare qualcosa di nuovo oggi.",
+            wordInfoDefault: "Massimo 250 parole",
+            wordsLabel: "parole",
+            analyzeButton: "Analizza",
+            coreMixtureTitle: "Miscela principale",
+            analysisTitle: "Analisi",
+            resultsTitle: "Risultati",
+            resultsDominantLabel: "Dominante",
+            resultsEmotionLabel: "Combinata",
+            resultsSecondaryLabel: "Secondaria",
+            resultsMixedLabel: "Stato misto",
+            resultsMixedYes: "Sì",
+            resultsMixedNo: "No",
+            footer: "© 2025 In tuned. Tutti i diritti riservati.",
+            aboutTitle: "Informazioni su In tuned",
+            aboutDescriptionLabel: "Descrizione:",
+            aboutBody: "In tuned è uno strumento intuitivo di riflessione che ti aiuta a capire ciò che provi in questo momento. Scrivi un breve testo fino a 250 parole e l applicazione evidenzia una miscela di sette emozioni di base rabbia, disgusto, paura, gioia, tristezza, passione e sorpresa per offrirti una semplice istantanea del tuo tono emotivo. L obiettivo è sostenere la consapevolezza di sé e una riflessione sana. Non è terapia e non sostituisce l assistenza professionale in ambito psicologico o medico.",
+            aboutDone: "Fine",
+            statusEnterText: "Inserisci del testo.",
+            statusAnalyzing: "Analisi in corso...",
+            statusLowSignal: "C è troppo poco testo per capire come ti senti. Prova ad aggiungere qualche dettaglio in più.",
+            crisisTitle: "Aspetta, la tua vita è preziosa.",
+            crisisBody: "Se tu o una persona cara avete pensieri di autolesionismo o di suicidio, l aiuto è sempre possibile. Il mondo ha bisogno di te.",
+            crisisNote: "Questa applicazione non può fornire supporto di emergenza. I numeri mostrati si basano su servizi comuni nella tua regione e potrebbero non essere completi. Se non funzionano o se sei in pericolo immediato, contatta un servizio di emergenza locale o una linea di aiuto di fiducia.",
+            crisisHotlineCta: "Contatta la linea di aiuto",
+            crisisEmergencyCta: "Contatta i servizi di emergenza",
+            crisisClose: "Chiudi",
+            langMenuLabel: "Lingua",
+            langSwitchTooltip: "Cambia lingua",
+            helpButtonLabel: "Informazioni su In tuned",
+            themeToggleLabel: "Passa tra tema chiaro e scuro"
+          },
+          emotions: {
+            anger: "Rabbia",
+            disgust: "Disgusto",
+            fear: "Paura",
+            joy: "Gioia",
+            sadness: "Tristezza",
+            passion: "Passione",
+            surprise: "Sorpresa"
+          }
+        },
+        de: {
+          name: "Deutsch",
+          short: "DE",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Emotionsdetektor",
+            subtitle: "Ein einfacher Raum, um deine Gefühle in sieben Grundemotionen wahrzunehmen.",
+            inputLabel: "Text",
+            inputPlaceholder: "Schreibe einen kurzen Text. Zum Beispiel: Ich bin dankbar und freue mich darauf, heute etwas Neues zu beginnen.",
+            wordInfoDefault: "Maximal 250 Wörter",
+            wordsLabel: "Wörter",
+            analyzeButton: "Analysieren",
+            coreMixtureTitle: "Kernmischung",
+            analysisTitle: "Analyse",
+            resultsTitle: "Ergebnisse",
+            resultsDominantLabel: "Dominant",
+            resultsEmotionLabel: "Gemischt",
+            resultsSecondaryLabel: "Sekundär",
+            resultsMixedLabel: "Gemischter Zustand",
+            resultsMixedYes: "Ja",
+            resultsMixedNo: "Nein",
+            footer: "© 2025 In tuned. Alle Rechte vorbehalten.",
+            aboutTitle: "Über In tuned",
+            aboutDescriptionLabel: "Beschreibung:",
+            aboutBody: "In tuned ist ein intuitives Reflexionswerkzeug, das dir hilft zu verstehen, was du im Moment fühlst. Du schreibst einen kurzen Text mit bis zu 250 Wörtern und die Anwendung hebt eine Mischung aus sieben Grundemotionen hervor Wut, Ekel, Angst, Freude, Traurigkeit, Leidenschaft und Überraschung, damit du einen einfachen Überblick über deine Gefühlslage bekommst. Ziel ist es, Selbstwahrnehmung und gesunde Reflexion zu unterstützen. Es ist keine Therapie und kein Ersatz für professionelle psychische oder medizinische Hilfe.",
+            aboutDone: "Fertig",
+            statusEnterText: "Bitte gib einen Text ein.",
+            statusAnalyzing: "Analyse läuft...",
+            statusLowSignal: "Der Text ist zu kurz, um zu verstehen, wie du dich fühlst. Versuche, etwas mehr zu schreiben.",
+            crisisTitle: "Warte, dein Leben ist wertvoll.",
+            crisisBody: "Wenn du oder jemand in deiner Nähe Selbstmordgedanken oder Gedanken an Selbstverletzung habt, ist Hilfe immer möglich. Die Welt braucht dich.",
+            crisisNote: "Diese Anwendung kann keinen Notfalldienst ersetzen. Die angezeigten Nummern basieren auf häufigen Diensten in deiner Region und sind eventuell nicht vollständig. Wenn sie nicht funktionieren oder bei unmittelbarer Gefahr, rufe einen örtlichen Notdienst oder eine vertrauenswürdige Hotline an.",
+            crisisHotlineCta: "Krisentelefon anrufen",
+            crisisEmergencyCta: "Notruf wählen",
+            crisisClose: "Schließen",
+            langMenuLabel: "Sprache",
+            langSwitchTooltip: "Sprache ändern",
+            helpButtonLabel: "Über In tuned",
+            themeToggleLabel: "Zwischen hellem und dunklem Design wechseln"
+          },
+          emotions: {
+            anger: "Wut",
+            disgust: "Ekel",
+            fear: "Angst",
+            joy: "Freude",
+            sadness: "Traurigkeit",
+            passion: "Leidenschaft",
+            surprise: "Überraschung"
+          }
+        },
+        nl: {
+          name: "Nederlands",
+          short: "NL",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Emotiedetector",
+            subtitle: "Een eenvoudige plek om te zien wat je voelt in zeven kernemoties.",
+            inputLabel: "Tekst",
+            inputPlaceholder: "Schrijf een korte tekst. Bijvoorbeeld: Ik ben dankbaar en enthousiast om vandaag iets nieuws te beginnen.",
+            wordInfoDefault: "Maximaal 250 woorden",
+            wordsLabel: "woorden",
+            analyzeButton: "Analyseren",
+            coreMixtureTitle: "Kernmix",
+            analysisTitle: "Analyse",
+            resultsTitle: "Resultaten",
+            resultsDominantLabel: "Dominant",
+            resultsEmotionLabel: "Gecombineerd",
+            resultsSecondaryLabel: "Secundair",
+            resultsMixedLabel: "Gemengde toestand",
+            resultsMixedYes: "Ja",
+            resultsMixedNo: "Nee",
+            footer: "© 2025 In tuned. Alle rechten voorbehouden.",
+            aboutTitle: "Over In tuned",
+            aboutDescriptionLabel: "Beschrijving:",
+            aboutBody: "In tuned is een intuïtieve reflectietool die je helpt te begrijpen wat je op dit moment voelt. Je schrijft een korte tekst van maximaal 250 woorden en de app markeert een mix van zeven basisemoties woede, walging, angst, vreugde, verdriet, passie en verrassing zodat je een eenvoudig beeld krijgt van je emotionele toon. Het doel is om zelfbewustzijn en gezonde reflectie te ondersteunen. Het is geen therapie en geen vervanging voor professionele psychische of medische hulp.",
+            aboutDone: "Gereed",
+            statusEnterText: "Voer een tekst in.",
+            statusAnalyzing: "Bezig met analyseren...",
+            statusLowSignal: "Er is te weinig tekst om te begrijpen hoe je je voelt. Probeer wat meer details toe te voegen.",
+            crisisTitle: "Wacht, jouw leven is kostbaar.",
+            crisisBody: "Als jij of iemand in je omgeving gedachten heeft aan zelfbeschadiging of zelfmoord, is er altijd hulp beschikbaar. De wereld heeft jou nodig.",
+            crisisNote: "Deze app kan geen crisishulp bieden. De getoonde nummers zijn gebaseerd op veelgebruikte diensten in jouw regio en zijn mogelijk niet volledig. Als ze niet werken of bij direct gevaar, neem contact op met een lokale hulpdienst of een vertrouwde hulplijn.",
+            crisisHotlineCta: "Contact met hulplijn",
+            crisisEmergencyCta: "Contact met hulpdiensten",
+            crisisClose: "Sluiten",
+            langMenuLabel: "Taal",
+            langSwitchTooltip: "Taal wijzigen",
+            helpButtonLabel: "Over In tuned",
+            themeToggleLabel: "Wissel tussen licht en donker"
+          },
+          emotions: {
+            anger: "Woede",
+            disgust: "Walging",
+            fear: "Angst",
+            joy: "Vreugde",
+            sadness: "Verdriet",
+            passion: "Passie",
+            surprise: "Verrassing"
+          }
+        },
+        pl: {
+          name: "Polski",
+          short: "PL",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "Detektor emocji",
+            subtitle: "Prosta przestrzeń, aby zauważyć, co czujesz w siedmiu podstawowych emocjach.",
+            inputLabel: "Tekst",
+            inputPlaceholder: "Napisz krótki tekst. Na przykład: Jestem wdzięczny i podekscytowany, że zaczynam dziś coś nowego.",
+            wordInfoDefault: "Maksymalnie 250 słów",
+            wordsLabel: "słów",
+            analyzeButton: "Analizuj",
+            coreMixtureTitle: "Mieszanka główna",
+            analysisTitle: "Analiza",
+            resultsTitle: "Wyniki",
+            resultsDominantLabel: "Dominująca",
+            resultsEmotionLabel: "Złożona",
+            resultsSecondaryLabel: "Drugorzędna",
+            resultsMixedLabel: "Stan mieszany",
+            resultsMixedYes: "Tak",
+            resultsMixedNo: "Nie",
+            footer: "© 2025 In tuned. Wszelkie prawa zastrzeżone.",
+            aboutTitle: "O In tuned",
+            aboutDescriptionLabel: "Opis:",
+            aboutBody: "In tuned to intuicyjne narzędzie do refleksji, które pomaga zrozumieć, co czujesz w danej chwili. Piszesz krótki tekst do 250 słów, a aplikacja podkreśla mieszankę siedmiu podstawowych emocji złość, wstręt, strach, radość, smutek, namiętność i zaskoczenie, aby pokazać prosty obraz twojego nastroju emocjonalnego. Celem jest wspieranie samoświadomości i zdrowej refleksji. Nie jest to terapia i nie zastępuje profesjonalnej pomocy psychologicznej ani medycznej.",
+            aboutDone: "Zakończ",
+            statusEnterText: "Wpisz tekst.",
+            statusAnalyzing: "Analiza w toku...",
+            statusLowSignal: "Tekstu jest za mało, aby zrozumieć, co czujesz. Spróbuj dodać trochę więcej szczegółów.",
+            crisisTitle: "Poczekaj, twoje życie jest bardzo cenne.",
+            crisisBody: "Jeśli ty lub ktoś bliski macie myśli samobójcze lub o zrobieniu sobie krzywdy, zawsze można znaleźć pomoc. Świat cię potrzebuje.",
+            crisisNote: "Ta aplikacja nie zapewnia pomocy kryzysowej. Wyświetlane numery opierają się na typowych usługach w twoim regionie i mogą nie być pełne. Jeśli nie działają lub jesteś w bezpośrednim niebezpieczeństwie, skontaktuj się z lokalnymi służbami ratunkowymi lub zaufaną linią pomocy.",
+            crisisHotlineCta: "Zadzwoń na linię wsparcia",
+            crisisEmergencyCta: "Zadzwoń po służby ratunkowe",
+            crisisClose: "Zamknij",
+            langMenuLabel: "Język",
+            langSwitchTooltip: "Zmień język",
+            helpButtonLabel: "O In tuned",
+            themeToggleLabel: "Przełącz motyw jasny i ciemny"
+          },
+          emotions: {
+            anger: "Złość",
+            disgust: "Wstręt",
+            fear: "Strach",
+            joy: "Radość",
+            sadness: "Smutek",
+            passion: "Namiętność",
+            surprise: "Zaskoczenie"
+          }
+        },
+        zh: {
+          name: "中文",
+          short: "中文",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "情绪检测器",
+            subtitle: "一个简单的空间, 用七种核心情绪来觉察你的感受。",
+            inputLabel: "文本",
+            inputPlaceholder: "写一小段文字。例如: 我很感激, 也很期待今天开始新的事情。",
+            wordInfoDefault: "最多 250 个词",
+            wordsLabel: "词",
+            analyzeButton: "分析",
+            coreMixtureTitle: "情绪组合",
+            analysisTitle: "分析",
+            resultsTitle: "结果",
+            resultsDominantLabel: "主导情绪",
+            resultsEmotionLabel: "综合情绪",
+            resultsSecondaryLabel: "次要情绪",
+            resultsMixedLabel: "混合状态",
+            resultsMixedYes: "是",
+            resultsMixedNo: "否",
+            footer: "© 2025 In tuned。保留所有权利。",
+            aboutTitle: "关于 In tuned",
+            aboutDescriptionLabel: "说明:",
+            aboutBody: "In tuned 是一款直观的自我反思工具, 帮助你理解当下的感受。你可以写一段不超过 250 个词的文字, 应用会标出七种核心情绪 怒、厌恶、恐惧、喜悦、悲伤、热情和惊讶, 让你看到一个简单的情绪快照。它的目标是支持自我觉察和健康反思, 不是治疗, 也不能代替专业心理或医疗帮助。",
+            aboutDone: "完成",
+            statusEnterText: "请输入一些文字。",
+            statusAnalyzing: "正在分析...",
+            statusLowSignal: "文本太少, 无法判断你的感受。可以尝试多写一点。",
+            crisisTitle: "等等, 你的生命非常宝贵。",
+            crisisBody: "如果你或身边的人有自杀或自残的想法, 一定要寻求帮助。这个世界需要你。",
+            crisisNote: "本应用无法提供危机干预服务。显示的号码基于常见服务, 可能并不完整。如果号码无效或有紧急危险, 请立即拨打当地急救电话或联系可信赖的求助热线。",
+            crisisHotlineCta: "联系危机热线",
+            crisisEmergencyCta: "联系急救服务",
+            crisisClose: "关闭",
+            langMenuLabel: "语言",
+            langSwitchTooltip: "切换语言",
+            helpButtonLabel: "关于 In tuned",
+            themeToggleLabel: "切换浅色和深色主题"
+          },
+          emotions: {
+            anger: "愤怒",
+            disgust: "厌恶",
+            fear: "恐惧",
+            joy: "喜悦",
+            sadness: "悲伤",
+            passion: "热情",
+            surprise: "惊讶"
+          }
+        },
+        ja: {
+          name: "日本語",
+          short: "日本語",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "感情チェッカー",
+            subtitle: "七つの基本感情から今の気持ちに気づくためのシンプルなスペースです。",
+            inputLabel: "テキスト",
+            inputPlaceholder: "短い文章を書いてください。例: 今日新しいことを始められることに感謝し、とてもわくわくしています。",
+            wordInfoDefault: "最大 250 語",
+            wordsLabel: "語",
+            analyzeButton: "分析する",
+            coreMixtureTitle: "感情のバランス",
+            analysisTitle: "分析",
+            resultsTitle: "結果",
+            resultsDominantLabel: "主な感情",
+            resultsEmotionLabel: "全体の印象",
+            resultsSecondaryLabel: "二番目の感情",
+            resultsMixedLabel: "混ざった状態",
+            resultsMixedYes: "はい",
+            resultsMixedNo: "いいえ",
+            footer: "© 2025 In tuned. 無断転載を禁じます。",
+            aboutTitle: "In tuned について",
+            aboutDescriptionLabel: "説明:",
+            aboutBody: "In tuned は、今の自分の感情を理解する手助けをする直感的な振り返りツールです。最大 250 語までの短い文章を書くと、怒り、嫌悪、恐れ、喜び、悲しみ、情熱、驚きという七つの基本感情のバランスを可視化して、感情のスナップショットを示します。目的は自己理解や健全な振り返りを支えることで、治療や専門的な医療の代わりになるものではありません。",
+            aboutDone: "閉じる",
+            statusEnterText: "テキストを入力してください。",
+            statusAnalyzing: "分析中...",
+            statusLowSignal: "文章が短すぎて気持ちが読み取りにくい状態です。もう少しだけ詳しく書いてみてください。",
+            crisisTitle: "ちょっと待って。あなたの命はとても大切です。",
+            crisisBody: "もしあなたや身近な人が自傷や自殺について考えているなら、必ず助けを求めてください。あなたを必要としている人がいます。",
+            crisisNote: "このアプリは危機対応を行うことはできません。表示されている番号は一般的な窓口に基づいていますが、必ずしも完全ではありません。つながらない場合や緊急の危険がある場合は、すぐに地域の救急や信頼できる相談窓口に連絡してください。",
+            crisisHotlineCta: "相談窓口に連絡",
+            crisisEmergencyCta: "緊急サービスに連絡",
+            crisisClose: "閉じる",
+            langMenuLabel: "言語",
+            langSwitchTooltip: "言語を変更",
+            helpButtonLabel: "In tuned について",
+            themeToggleLabel: "ライトモードとダークモードを切り替え"
+          },
+          emotions: {
+            anger: "怒り",
+            disgust: "嫌悪",
+            fear: "恐れ",
+            joy: "喜び",
+            sadness: "悲しみ",
+            passion: "情熱",
+            surprise: "驚き"
+          }
+        },
+        ko: {
+          name: "한국어",
+          short: "한국어",
+          direction: "ltr",
+          strings: {
+            appTitle: "In tuned",
+            headline: "감정 탐지기",
+            subtitle: "일곱 가지 핵심 감정을 통해 지금 내 마음을 바라보는 간단한 공간입니다.",
+            inputLabel: "텍스트",
+            inputPlaceholder: "짧은 글을 적어 보세요. 예: 오늘 새로운 것을 시작할 수 있어서 감사하고 설렙니다.",
+            wordInfoDefault: "최대 250 단어",
+            wordsLabel: "단어",
+            analyzeButton: "분석하기",
+            coreMixtureTitle: "감정 구성",
+            analysisTitle: "분석",
+            resultsTitle: "결과",
+            resultsDominantLabel: "주된 감정",
+            resultsEmotionLabel: "전체 분위기",
+            resultsSecondaryLabel: "두 번째 감정",
+            resultsMixedLabel: "혼합 상태",
+            resultsMixedYes: "예",
+            resultsMixedNo: "아니요",
+            footer: "© 2025 In tuned. All rights reserved.",
+            aboutTitle: "In tuned 소개",
+            aboutDescriptionLabel: "설명:",
+            aboutBody: "In tuned 는 지금 내가 무엇을 느끼는지 이해하도록 돕는 직관적인 성찰 도구입니다. 최대 250 단어의 짧은 글을 적으면 분노, 혐오, 두려움, 기쁨, 슬픔, 열정, 놀람이라는 일곱 가지 핵심 감정의 비율을 보여 주어 감정의 순간을 한눈에 볼 수 있게 합니다. 목표는 자기 인식과 건강한 성찰을 돕는 것이며, 치료나 전문적인 의학적 도움을 대신할 수는 없습니다.",
+            aboutDone: "닫기",
+            statusEnterText: "텍스트를 입력해 주세요.",
+            statusAnalyzing: "분석 중...",
+            statusLowSignal: "글이 너무 짧아 현재의 감정을 파악하기 어렵습니다. 내용을 조금만 더 추가해 보세요.",
+            crisisTitle: "잠시만요. 당신의 생명은 소중합니다.",
+            crisisBody: "당신이나 가까운 사람이 자해나 자살을 생각하고 있다면, 반드시 도움을 요청해야 합니다. 이 세상에는 당신이 필요합니다.",
+            crisisNote: "이 앱은 위기 개입을 제공할 수 없습니다. 표시된 번호는 일반적인 서비스에 기반하지만 완전하지 않을 수 있습니다. 전화가 연결되지 않거나 긴급한 상황이라면 즉시 지역의 응급 서비스나 신뢰할 수 있는 상담 기관에 연락하세요.",
+            crisisHotlineCta: "위기 상담 번호로 연락",
+            crisisEmergencyCta: "응급 서비스에 연락",
+            crisisClose: "닫기",
+            langMenuLabel: "언어",
+            langSwitchTooltip: "언어 변경",
+            helpButtonLabel: "In tuned 소개",
+            themeToggleLabel: "라이트 모드와 다크 모드 전환"
+          },
+          emotions: {
+            anger: "분노",
+            disgust: "혐오",
+            fear: "두려움",
+            joy: "기쁨",
+            sadness: "슬픔",
+            passion: "열정",
+            surprise: "놀람"
+          }
+        }
       };
 
-      const emojiTray = $('emojiTray');
-      const textArea = $('text');
-      const wordInfo = $('wordInfo');
+      const SUPPORTED_LOCALES = Object.keys(LOCALES);
 
-      let lastAcceptedText = textArea.value || '';
+      function normalizeLocaleCode(raw){
+        if (!raw) return "en";
+        const lower = String(raw).toLowerCase();
+        if (LOCALES[lower]) return lower;
+        const parts = lower.split("-");
+        const base = parts[0];
+        if (LOCALES[base]) return base;
+        if (base === "zh") return "zh";
+        if (base === "ja") return "ja";
+        if (base === "ko") return "ko";
+        return "en";
+      }
+
+      function getInitialLocale(){
+        try{
+          const stored = localStorage.getItem("in-tuned-locale");
+          if (stored && LOCALES[stored]) return stored;
+        }catch(e){}
+        const nav = (navigator.languages && navigator.languages[0]) || navigator.language || "en";
+        return normalizeLocaleCode(nav);
+      }
+
+      let currentLocale = getInitialLocale();
+
+      function t(key){
+        const loc = LOCALES[currentLocale] || LOCALES.en;
+        return loc.strings[key] || LOCALES.en.strings[key] || "";
+      }
+
+      const fields = {
+        anger: $("v-anger"),
+        disgust: $("v-disgust"),
+        fear: $("v-fear"),
+        joy: $("v-joy"),
+        sadness: $("v-sadness"),
+        passion: $("v-passion"),
+        surprise: $("v-surprise"),
+        dominant_emotion: $("v-dominant"),
+        emotion: $("v-emotion"),
+        secondary_emotion: $("v-secondary"),
+        mixed_state: $("v-mixed")
+      };
+
+      const emojiTray = $("emojiTray");
+      const textArea = $("text");
+      const wordInfo = $("wordInfo");
+
+      const langToggle = $("langToggle");
+      const langMenu = $("langMenu");
+      const langCurrentLabel = $("langCurrentLabel");
+
+      const crisisOverlay = $("crisisOverlay");
+      const closeCrisis = $("closeCrisis");
+      const crisisHotlineBtn = $("crisisHotline");
+      const crisisEmergencyBtn = $("crisisEmergency");
+      const crisisHotlineNumberSpan = $("crisisHotlineNumber");
+      const crisisEmergencyNumberSpan = $("crisisEmergencyNumber");
+
+      let lastAcceptedText = textArea.value || "";
 
       const titleCase = (s) => {
-        if (!s || typeof s !== 'string') return 'N/A';
+        if (!s || typeof s !== "string") return "N/A";
         if (s.toUpperCase() === s) return s;
         return s.charAt(0).toUpperCase() + s.slice(1);
       };
 
       function setStatus(text, isError=false){
-        const s = $('status');
-        s.textContent = text || '';
-        s.className = 'status' + (isError ? ' err' : '');
+        const s = $("status");
+        s.textContent = text || "";
+        s.className = "status" + (isError ? " err" : "");
       }
 
-      const fmt = v => typeof v === 'number' ? v.toFixed(3) : String(v ?? '');
+      const fmt = v => typeof v === "number" ? v.toFixed(3) : String(v ?? "");
 
       function wordCountAndLimit(){
         let value = textArea.value;
         if (!value) {
-          lastAcceptedText = '';
-          if (wordInfo) wordInfo.textContent = '250 word maximum';
+          lastAcceptedText = "";
+          if (wordInfo) wordInfo.textContent = t("wordInfoDefault");
           return;
         }
 
         let tokens = value.trim().split(/\s+/).filter(Boolean);
         if (tokens.length > 250) {
-          const prev = lastAcceptedText || '';
+          const prev = lastAcceptedText || "";
           const candidate = value;
 
           const justPeriodAllowed =
             candidate.length === prev.length + 1 &&
-            candidate.endsWith('.') &&
-            !prev.trim().endsWith('.');
+            candidate.endsWith(".") &&
+            !prev.trim().endsWith(".");
 
           if (justPeriodAllowed) {
             lastAcceptedText = candidate;
@@ -425,11 +1165,14 @@
 
         const count = tokens.length;
         if (wordInfo) {
-          wordInfo.textContent = count === 0 ? '250 word maximum' : `${count}/250 words`;
+          if (count === 0) {
+            wordInfo.textContent = t("wordInfoDefault");
+          } else {
+            wordInfo.textContent = `${count}/250 ${t("wordsLabel")}`;
+          }
         }
       }
 
-      // Crisis language detection
       const CRISIS_PATTERNS = [
         "suicide",
         "suicidal",
@@ -450,7 +1193,16 @@
         "hurting myself on purpose",
         "want to die",
         "wish i were dead",
-        "wish i was dead"
+        "wish i was dead",
+        "suicidio",
+        "suicida",
+        "suicídio",
+        "suicidio",
+        "suicide",
+        "selbstmord",
+        "自殺",
+        "自杀",
+        "자살"
       ];
 
       function containsCrisisLanguage(text){
@@ -459,29 +1211,22 @@
         return CRISIS_PATTERNS.some(p => lower.indexOf(p) !== -1);
       }
 
-      const crisisOverlay = $('crisisOverlay');
-      const closeCrisis = $('closeCrisis');
       function showCrisisModal(){
-        if (crisisOverlay) crisisOverlay.classList.add('show');
+        if (crisisOverlay) crisisOverlay.classList.add("show");
       }
       function hideCrisisModal(){
-        if (crisisOverlay) crisisOverlay.classList.remove('show');
+        if (crisisOverlay) crisisOverlay.classList.remove("show");
       }
       if (closeCrisis){
-        closeCrisis.addEventListener('click', hideCrisisModal);
+        closeCrisis.addEventListener("click", hideCrisisModal);
       }
       if (crisisOverlay){
-        crisisOverlay.addEventListener('click', (e)=>{
+        crisisOverlay.addEventListener("click", (e)=>{
           if (e.target === crisisOverlay) hideCrisisModal();
         });
       }
 
-      // Chart helpers
       const CORE_ORDER = ["anger","disgust","fear","joy","sadness","passion","surprise"];
-      const CORE_LABEL = {
-        anger:"Anger", disgust:"Disgust", fear:"Fear", joy:"Joy",
-        sadness:"Sadness", passion:"Passion", surprise:"Surprise"
-      };
       const CORE_COLOR = {
         anger:"var(--c-anger)",
         disgust:"var(--c-disgust)",
@@ -492,7 +1237,6 @@
         surprise:"var(--c-surprise)"
       };
 
-      // Emoji maps (client side fallback)
       const EMOJI_SUGGEST = {
         "Anger":["😠"], "Disgust":["🤢"], "Fear":["😨"], "Joy":["😊"],
         "Sadness":["😢"], "Passion":["😍"], "Surprise":["😮"], "N/A":["🤔"],
@@ -504,9 +1248,8 @@
         "Moral outrage":["😤"], "Schadenfreude":["😏"], "Embarrassed amusement":["😅"],
         "Melancholy":["🎻"], "Nostalgia":["🕰️","🙂"]
       };
-      const emojiForLabel = (label) => EMOJI_SUGGEST[titleCase(label || 'N/A')] || ["🤔"];
+      const emojiForLabel = (label) => EMOJI_SUGGEST[titleCase(label || "N/A")] || ["🤔"];
 
-      // Fallback rich emotion selection
       function normalizeMix(m){
         const keys = ["anger","disgust","fear","joy","sadness","passion","surprise"];
         let sum = 0;
@@ -523,7 +1266,7 @@
         return Object.entries(mix).sort((a,b)=>b[1]-a[1]).slice(0,2);
       }
       function fallbackEmotionLabel(mix){
-        const p = normalizeMix(mix);
+        const p = normalizeMix(mix || {});
         const A=p.anger,D=p.disgust,F=p.fear,J=p.joy,S=p.sadness,P=p.passion,U=p.surprise;
         if (S >= 0.65 && J <= 0.20) return "Mourning";
         if ((P >= 0.50 && J >= 0.22) || ((P+J) >= 0.60 && Math.abs(P-J) <= 0.20)) return "In love";
@@ -535,31 +1278,32 @@
       }
 
       function initBars(){
-        const container = $('bars');
-        container.innerHTML = '';
+        const container = $("bars");
+        container.innerHTML = "";
         CORE_ORDER.forEach(key=>{
-          const row = document.createElement('div');
-          row.className = 'barRow';
+          const row = document.createElement("div");
+          row.className = "barRow";
 
-          const label = document.createElement('div');
-          label.className = 'barLabel';
-          label.textContent = CORE_LABEL[key];
+          const label = document.createElement("div");
+          label.className = "barLabel";
+          label.setAttribute("data-emotion-label", key);
+          label.textContent = LOCALES.en.emotions[key];
 
-          const track = document.createElement('div');
-          track.className = 'barTrack';
+          const track = document.createElement("div");
+          track.className = "barTrack";
 
-          const fill = document.createElement('div');
-          fill.className = 'barFill';
+          const fill = document.createElement("div");
+          fill.className = "barFill";
           fill.style.background = CORE_COLOR[key];
-          fill.style.width = '0%';
+          fill.style.width = "0%";
           fill.id = `bar-${key}`;
 
           track.appendChild(fill);
 
-          const value = document.createElement('div');
-          value.className = 'barValue';
+          const value = document.createElement("div");
+          value.className = "barValue";
           value.id = `barv-${key}`;
-          value.textContent = '0.0%';
+          value.textContent = "0.0%";
 
           row.appendChild(label);
           row.appendChild(track);
@@ -569,7 +1313,7 @@
       }
 
       function renderBars(mixture){
-        if (!mixture || typeof mixture !== 'object') return;
+        if (!mixture || typeof mixture !== "object") return;
         CORE_ORDER.forEach(key=>{
           const v = Number(mixture[key]) || 0;
           const pct = Math.max(0, Math.min(100, v*100));
@@ -580,14 +1324,13 @@
         });
       }
 
-      // Single tray on the right
       function renderEmojis({emoji_emotion, emoji_dominant, same_label, dominant_label, emotion_label, mixture_for_fallback}){
-        let dominant = titleCase(dominant_label || 'N/A');
-        let emotion  = emotion_label && emotion_label !== 'N/A'
+        let dominant = titleCase(dominant_label || "N/A");
+        let emotion  = emotion_label && emotion_label !== "N/A"
           ? titleCase(emotion_label)
           : titleCase(fallbackEmotionLabel(mixture_for_fallback || {}));
 
-        const same = (typeof same_label === 'boolean') ? same_label : (dominant === emotion);
+        const same = (typeof same_label === "boolean") ? same_label : (dominant === emotion);
 
         const domArr = (Array.isArray(emoji_dominant) && emoji_dominant.length)
           ? emoji_dominant
@@ -596,19 +1339,19 @@
           ? emoji_emotion
           : emojiForLabel(emotion);
 
-        emojiTray.title = same ? 'Dominant and blended match' : 'Dominant and blended';
-        emojiTray.textContent = same ? (emoArr[0] || '🤔') : `${domArr[0] || '🤔'} ${emoArr[0] || '🤔'}`;
+        emojiTray.title = same ? "Dominant and blended match" : "Dominant and blended";
+        emojiTray.textContent = same ? (emoArr[0] || "🤔") : `${domArr[0] || "🤔"} ${emoArr[0] || "🤔"}`;
       }
 
       function resetToZero(){
         for (const k of Object.keys(fields)) {
-          if (k === 'dominant_emotion' || k === 'emotion') {
-            fields[k].textContent = 'N/A';
+          if (k === "dominant_emotion" || k === "emotion" || k === "secondary_emotion" || k === "mixed_state") {
+            fields[k].textContent = "N/A";
           } else {
-            fields[k].textContent = '0.000';
+            fields[k].textContent = "0.000";
           }
         }
-        emojiTray.textContent = '🤔';
+        emojiTray.textContent = "🤔";
         renderBars({
           anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
         });
@@ -623,53 +1366,252 @@
         fields.passion.textContent  = fmt(data.passion ?? 0);
         fields.surprise.textContent = fmt(data.surprise ?? 0);
 
-        fields.dominant_emotion.textContent = 'N/A';
-        fields.emotion.textContent = 'N/A';
+        fields.dominant_emotion.textContent = "N/A";
+        fields.emotion.textContent = "N/A";
+        fields.secondary_emotion.textContent = "N/A";
+        fields.mixed_state.textContent = "N/A";
 
         const primary = data.emoji_primary
           || (Array.isArray(data.emoji_emotion) && data.emoji_emotion[0])
-          || '❌';
+          || "❌";
         emojiTray.textContent = primary;
-        emojiTray.title = 'Not enough information';
+        emojiTray.title = "Not enough information";
 
         renderBars({
           anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
         });
 
-        textArea.classList.add('input-error');
-        setStatus('Too little text to understand how you feel. Try adding a bit more detail.', true);
+        textArea.classList.add("input-error");
+        setStatus(t("statusLowSignal"), true);
       }
 
-      // Analyze click
-      $('analyze').addEventListener('click', async ()=>{
+      const crisisRegionMap = {
+        US: { hotlineNumber:"988", hotlineSms:"988", emergencyNumber:"911" },
+        CA: { hotlineNumber:"988", hotlineSms:"988", emergencyNumber:"911" },
+        GB: { hotlineNumber:"116 123", hotlineSms:null, emergencyNumber:"999" },
+        IE: { hotlineNumber:"116 123", hotlineSms:null, emergencyNumber:"999" },
+        AU: { hotlineNumber:"13 11 14", hotlineSms:null, emergencyNumber:"000" },
+        NZ: { hotlineNumber:"1737", hotlineSms:null, emergencyNumber:"111" },
+        BR: { hotlineNumber:"188", hotlineSms:null, emergencyNumber:"190" },
+        PT: { hotlineNumber:"808 24 24 24", hotlineSms:null, emergencyNumber:"112" },
+        FR: { hotlineNumber:"3114", hotlineSms:null, emergencyNumber:"112" },
+        DE: { hotlineNumber:"0800 111 0 111", hotlineSms:null, emergencyNumber:"112" },
+        NL: { hotlineNumber:"113", hotlineSms:null, emergencyNumber:"112" },
+        PL: { hotlineNumber:"116 123", hotlineSms:null, emergencyNumber:"112" },
+        IT: { hotlineNumber:"800 860022", hotlineSms:null, emergencyNumber:"112" },
+        ES: { hotlineNumber:"024", hotlineSms:null, emergencyNumber:"112" }
+      };
+
+      function guessRegionFromLocale(locale){
+        const raw = locale || currentLocale || "en";
+        const parts = raw.split("-");
+        if (parts.length > 1) {
+          return parts[1].toUpperCase();
+        }
+        const base = parts[0];
+        if (base === "en") return "US";
+        if (base === "pt") return "BR";
+        if (base === "es") return "ES";
+        if (base === "fr") return "FR";
+        if (base === "it") return "IT";
+        if (base === "de") return "DE";
+        if (base === "nl") return "NL";
+        if (base === "pl") return "PL";
+        if (base === "zh") return "CN";
+        if (base === "ja") return "JP";
+        if (base === "ko") return "KR";
+        return "US";
+      }
+
+      function getCrisisConfig(){
+        const fallback = { hotlineNumber:"988", hotlineSms:"988", emergencyNumber:"911" };
+        const region = guessRegionFromLocale(currentLocale);
+        const cfg = crisisRegionMap[region];
+        if (!cfg) return fallback;
+        return {
+          hotlineNumber: cfg.hotlineNumber || fallback.hotlineNumber,
+          hotlineSms: cfg.hotlineSms === undefined ? fallback.hotlineSms : cfg.hotlineSms,
+          emergencyNumber: cfg.emergencyNumber || fallback.emergencyNumber
+        };
+      }
+
+      function updateCrisisNumbers(){
+        const cfg = getCrisisConfig();
+        if (crisisHotlineNumberSpan) crisisHotlineNumberSpan.textContent = cfg.hotlineNumber;
+        if (crisisEmergencyNumberSpan) crisisEmergencyNumberSpan.textContent = cfg.emergencyNumber;
+
+        if (crisisHotlineBtn) {
+          if (cfg.hotlineSms) {
+            crisisHotlineBtn.href = `sms:${cfg.hotlineSms}`;
+          } else if (cfg.hotlineNumber) {
+            crisisHotlineBtn.href = `tel:${cfg.hotlineNumber.replace(/\s+/g,"")}`;
+          } else {
+            crisisHotlineBtn.removeAttribute("href");
+          }
+        }
+        if (crisisEmergencyBtn && cfg.emergencyNumber) {
+          crisisEmergencyBtn.href = `tel:${cfg.emergencyNumber.replace(/\s+/g,"")}`;
+        }
+      }
+
+      function applyLocale(locale){
+        currentLocale = normalizeLocaleCode(locale);
+        const loc = LOCALES[currentLocale] || LOCALES.en;
+        const strings = loc.strings;
+
+        document.documentElement.setAttribute("lang", currentLocale.split("-")[0] || "en");
+        document.documentElement.dir = loc.direction || "ltr";
+
+        document.querySelectorAll("[data-i18n]").forEach(el=>{
+          const key = el.getAttribute("data-i18n");
+          if (!key) return;
+          const value = strings[key] || LOCALES.en.strings[key] || "";
+          el.textContent = value;
+        });
+
+        document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
+          const key = el.getAttribute("data-i18n-placeholder");
+          if (!key) return;
+          const value = strings[key] || LOCALES.en.strings[key] || "";
+          if (value) el.setAttribute("placeholder", value);
+        });
+
+        document.querySelectorAll("[data-i18n-aria-label]").forEach(el=>{
+          const key = el.getAttribute("data-i18n-aria-label");
+          if (!key) return;
+          const value = strings[key] || LOCALES.en.strings[key] || "";
+          if (value) el.setAttribute("aria-label", value);
+        });
+
+        document.querySelectorAll("[data-emotion-label]").forEach(el=>{
+          const emoKey = el.getAttribute("data-emotion-label");
+          const emoName = loc.emotions[emoKey] || LOCALES.en.emotions[emoKey] || emoKey;
+          el.textContent = emoName;
+        });
+
+        if (wordInfo) {
+          const text = wordInfo.textContent || "";
+          if (!text || text === LOCALES.en.strings.wordInfoDefault || text === strings.wordInfoDefault) {
+            wordInfo.textContent = strings.wordInfoDefault || LOCALES.en.strings.wordInfoDefault;
+          }
+        }
+      }
+
+      function buildLangMenu(){
+        if (!langMenu) return;
+        langMenu.innerHTML = "";
+
+        const heading = document.createElement("div");
+        heading.className = "langHeading";
+        heading.textContent = t("langMenuLabel") || "Language";
+        langMenu.appendChild(heading);
+
+        SUPPORTED_LOCALES.forEach(code=>{
+          const def = LOCALES[code];
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "langOption";
+          btn.dataset.locale = code;
+          btn.setAttribute("role", "menuitemradio");
+          btn.setAttribute("aria-checked", code === currentLocale ? "true" : "false");
+
+          const nameSpan = document.createElement("span");
+          nameSpan.textContent = def.name;
+          const shortSpan = document.createElement("span");
+          shortSpan.textContent = def.short || code.toUpperCase();
+
+          btn.appendChild(nameSpan);
+          btn.appendChild(shortSpan);
+
+          langMenu.appendChild(btn);
+        });
+      }
+
+      function updateLangUI(){
+        const loc = LOCALES[currentLocale] || LOCALES.en;
+        if (langCurrentLabel) {
+          langCurrentLabel.textContent = loc.short || currentLocale.toUpperCase();
+        }
+        if (!langMenu) return;
+        langMenu.querySelectorAll(".langOption").forEach(btn=>{
+          const code = btn.dataset.locale;
+          btn.setAttribute("aria-checked", code === currentLocale ? "true" : "false");
+        });
+        const heading = langMenu.querySelector(".langHeading");
+        if (heading) heading.textContent = t("langMenuLabel") || "Language";
+      }
+
+      function setLocale(locale){
+        applyLocale(locale);
+        updateLangUI();
+        updateCrisisNumbers();
+        try {
+          localStorage.setItem("in-tuned-locale", currentLocale);
+        } catch(e){}
+      }
+
+      if (langToggle){
+        langToggle.addEventListener("click", ()=>{
+          if (!langMenu) return;
+          const isOpen = langMenu.classList.contains("open");
+          if (isOpen) {
+            langMenu.classList.remove("open");
+            langToggle.setAttribute("aria-expanded", "false");
+          } else {
+            langMenu.classList.add("open");
+            langToggle.setAttribute("aria-expanded", "true");
+          }
+        });
+      }
+
+      if (langMenu){
+        langMenu.addEventListener("click", (e)=>{
+          const btn = e.target.closest(".langOption");
+          if (!btn) return;
+          const code = btn.dataset.locale;
+          if (!code) return;
+          langMenu.classList.remove("open");
+          if (langToggle) langToggle.setAttribute("aria-expanded", "false");
+          setLocale(code);
+        });
+        document.addEventListener("click", (e)=>{
+          if (!langMenu.classList.contains("open")) return;
+          if (langMenu.contains(e.target) || langToggle.contains(e.target)) return;
+          langMenu.classList.remove("open");
+          if (langToggle) langToggle.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      $("analyze").addEventListener("click", async ()=>{
         const text = textArea.value.trim();
         if (!text) {
-          setStatus('Please enter some text.');
-          textArea.classList.add('input-error');
+          setStatus(t("statusEnterText") || "Please enter some text.");
+          textArea.classList.add("input-error");
           resetToZero();
           return;
         }
 
         if (containsCrisisLanguage(text)) {
+          updateCrisisNumbers();
           showCrisisModal();
         }
 
-        setStatus('Analyzing...');
-        textArea.classList.remove('input-error');
+        setStatus(t("statusAnalyzing") || "Analyzing...");
+        textArea.classList.remove("input-error");
         try{
-          const res = await fetch('/emotionDetector', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ text })
+          const res = await fetch("/emotionDetector", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({ text, locale: currentLocale })
           });
           const data = await res.json();
-          if(!res.ok) throw new Error(data?.error || 'Request failed');
+          if(!res.ok) throw new Error(data && data.error ? data.error : "Request failed");
 
           if (data.low_signal) {
             handleLowSignal(data);
             return;
           }
 
-          // Normal path
           fields.anger.textContent    = fmt(data.anger);
           fields.disgust.textContent  = fmt(data.disgust);
           fields.fear.textContent     = fmt(data.fear);
@@ -678,21 +1620,31 @@
           fields.passion.textContent  = fmt(data.passion ?? 0);
           fields.surprise.textContent = fmt(data.surprise ?? 0);
 
-          const domLabel = titleCase(data.dominant_emotion || 'N/A');
+          const domLabel = titleCase(data.dominant_emotion || "N/A");
           const mix = data.mixture || {
             anger:data.anger, disgust:data.disgust, fear:data.fear, joy:data.joy,
             sadness:data.sadness, passion:data.passion, surprise:data.surprise
           };
-          let emoLabel = titleCase(data.emotion || '');
-          if (!emoLabel || emoLabel === 'N/A') emoLabel = titleCase(fallbackEmotionLabel(mix));
+          let emoLabel = titleCase(data.emotion || "");
+          if (!emoLabel || emoLabel === "N/A") emoLabel = titleCase(fallbackEmotionLabel(mix));
+
+          const secondaryRaw = data.secondary_emotion || "N/A";
+          const secondaryLabel = secondaryRaw === "N/A" ? "N/A" : titleCase(secondaryRaw);
+
+          let mixedLabel = "N/A";
+          if (typeof data.mixed_state === "boolean") {
+            mixedLabel = data.mixed_state ? (t("resultsMixedYes") || "Yes") : (t("resultsMixedNo") || "No");
+          }
 
           fields.dominant_emotion.textContent = domLabel;
           fields.emotion.textContent          = emoLabel;
+          fields.secondary_emotion.textContent = secondaryLabel;
+          fields.mixed_state.textContent       = mixedLabel;
 
           renderEmojis({
             emoji_emotion:  data.emoji_emotion || data.emoji || [],
             emoji_dominant: data.emoji_dominant || [],
-            same_label:     (typeof data.same_label === 'boolean') ? data.same_label : undefined,
+            same_label:     (typeof data.same_label === "boolean") ? data.same_label : undefined,
             dominant_label: domLabel,
             emotion_label:  emoLabel,
             mixture_for_fallback: mix
@@ -700,54 +1652,56 @@
 
           renderBars(normalizeMix(mix));
 
-          setStatus('');
+          setStatus("");
         }catch(err){
-          setStatus(err?.message || 'Unexpected error', true);
-          textArea.classList.add('input-error');
+          setStatus(err && err.message ? err.message : "Unexpected error", true);
+          textArea.classList.add("input-error");
           resetToZero();
         }
       });
 
-      // Clear error styling and enforce word limit when user edits
-      textArea.addEventListener('input', ()=>{
+      textArea.addEventListener("input", ()=>{
         wordCountAndLimit();
-        if (textArea.classList.contains('input-error')) {
-          textArea.classList.remove('input-error');
+        if (textArea.classList.contains("input-error")) {
+          textArea.classList.remove("input-error");
         }
-        if ($('status').textContent) {
-          setStatus('');
+        if ($("status").textContent) {
+          setStatus("");
         }
       });
 
-      // Modal open/close
-      const overlay = $('overlay');
-      $('helpBtn').addEventListener('click', ()=> overlay.classList.add('show'));
-      $('closeModal').addEventListener('click', ()=> overlay.classList.remove('show'));
-      overlay.addEventListener('click', (e)=>{ if (e.target === overlay) overlay.classList.remove('show'); });
+      const overlay = $("overlay");
+      $("helpBtn").addEventListener("click", ()=> overlay.classList.add("show"));
+      $("closeModal").addEventListener("click", ()=> overlay.classList.remove("show"));
+      overlay.addEventListener("click", (e)=>{ if (e.target === overlay) overlay.classList.remove("show"); });
 
-      // Theme toggle
-      const modeDot = $('modeDot');
+      const modeDot = $("modeDot");
       const root = document.documentElement;
-      const setTheme = (t)=> root.setAttribute('data-theme', t);
+      const setTheme = (theme)=> root.setAttribute("data-theme", theme);
       const toggleTheme = ()=> {
-        const now = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        const now = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
         setTheme(now);
-        try { localStorage.setItem('in-tuned-theme', now); } catch {}
+        try { localStorage.setItem("in-tuned-theme", now); } catch {}
       };
-      modeDot.addEventListener('click', toggleTheme);
-      modeDot.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTheme(); }});
+      modeDot.addEventListener("click", toggleTheme);
+      modeDot.addEventListener("keydown", (e)=>{ if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggleTheme(); }});
       try {
-        const saved = localStorage.getItem('in-tuned-theme');
-        if (saved) setTheme(saved);
+        const savedTheme = localStorage.getItem("in-tuned-theme");
+        if (savedTheme) setTheme(savedTheme);
       } catch {}
 
-      // Build empty chart on load and initialize word counter
-      function renderBarsZero(){ renderBars({
-        anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
-      }); }
+      function renderBarsZero(){
+        renderBars({
+          anger:0,disgust:0,fear:0,joy:0,sadness:0,passion:0,surprise:0
+        });
+      }
+
       initBars();
+      buildLangMenu();
+      setLocale(currentLocale);
       renderBarsZero();
       wordCountAndLimit();
+      updateCrisisNumbers();
     </script>
   </body>
 </html>
