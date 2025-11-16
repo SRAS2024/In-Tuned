@@ -2,6 +2,7 @@
 # High fidelity local emotion detector v2 with seven core dimensions and richer nuance.
 # Upgraded: more slang/colloquialisms, mixed emotion patterns, intensity tiers,
 # and improved exclamation and "I feel" handling.
+# Hardened: safer Watson detection, and defensive fallback so the app does not crash.
 
 from __future__ import annotations
 
@@ -65,6 +66,12 @@ class EmotionResult:
 
 
 def _has_watson_credentials() -> bool:
+    """
+    Only claim Watson is available if both credentials and the SDK are present.
+    This prevents runtime crashes when env vars exist but the SDK is not installed.
+    """
+    if NaturalLanguageUnderstandingV1 is None:
+        return False
     return bool(os.getenv("WATSON_NLU_APIKEY")) and bool(os.getenv("WATSON_NLU_URL"))
 
 
@@ -732,7 +739,7 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("never thought this would happen", "surprise", 1.8),
     ("out of nowhere", "surprise", 1.7),
     ("came out of nowhere", "surprise", 1.7),
-}
+]
 
 # Hand tuned mixed emotion phrase patterns
 MIXED_PATTERNS: List[Tuple[str, Dict[str, float]]] = [
@@ -1967,6 +1974,9 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
     incomplete inputs such as "am" are treated as low signal, while
     short but clear cues like "pisses me off" or "terrified" still
     receive a valid emotional profile.
+
+    Hardened so that any unexpected internal error falls back to a safe
+    low signal zero profile instead of crashing the application.
     """
     if text is None:
         raise InvalidTextError("Input text is required")
@@ -1978,27 +1988,47 @@ def detect_emotions(text: str, use_watson_if_available: bool = True) -> EmotionR
     low_signal = False
     scores: Dict[str, float]
 
-    if use_watson_if_available and _has_watson_credentials():
-        five = _call_watson(text_str)
-        raw, tokens = _augment_watson_with_local(text_str, five)
-        low_signal = _is_low_signal(tokens, raw) if tokens else True
-        scores = _clamp_scores(raw)
-    else:
-        tokens = _tokens(text_str)
-        if not tokens:
-            scores = _blank_scores()
-            low_signal = True
+    try:
+        if use_watson_if_available and _has_watson_credentials():
+            # Watson path with safe fallback to local if the API fails
+            try:
+                five = _call_watson(text_str)
+                raw, tokens = _augment_watson_with_local(text_str, five)
+                low_signal = _is_low_signal(tokens, raw) if tokens else True
+                scores = _clamp_scores(raw)
+            except Exception:
+                # If Watson fails for any reason, fall back to local scoring
+                tokens = _tokens(text_str)
+                if not tokens or _meaningful_token_count(tokens) == 0:
+                    scores = _blank_scores()
+                    low_signal = True
+                else:
+                    sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
+                    raw = _aggregate_sentences(sentences)
+                    raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
+                    low_signal = _is_low_signal(tokens, raw)
+                    scores = _clamp_scores(raw)
         else:
-            meaningful = _meaningful_token_count(tokens)
-            if meaningful == 0:
+            # Pure local path
+            tokens = _tokens(text_str)
+            if not tokens:
                 scores = _blank_scores()
                 low_signal = True
             else:
-                sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
-                raw = _aggregate_sentences(sentences)
-                raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-                low_signal = _is_low_signal(tokens, raw)
-                scores = _clamp_scores(raw)
+                meaningful = _meaningful_token_count(tokens)
+                if meaningful == 0:
+                    scores = _blank_scores()
+                    low_signal = True
+                else:
+                    sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
+                    raw = _aggregate_sentences(sentences)
+                    raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
+                    low_signal = _is_low_signal(tokens, raw)
+                    scores = _clamp_scores(raw)
+    except Exception:
+        # Last resort safety net so the app never crashes due to detector issues
+        low_signal = True
+        scores = _blank_scores()
 
     mix_for_dominance = _normalize_for_mixture(scores)
     dominant, secondary, mixed = _dominance_profile(
