@@ -1,7 +1,7 @@
 # advanced_detector.py
-# High fidelity local emotion detector with seven core dimensions and rich nuance.
-# Overhauled: richer lexicons, strong phrase coverage, safer low signal handling,
-# and better support for colloquial and short expressions.
+# High fidelity local emotion detector v2 with seven core dimensions and richer nuance.
+# Upgraded: more slang/colloquialisms, mixed emotion patterns, intensity tiers,
+# and improved exclamation and "I feel" handling.
 
 from __future__ import annotations
 
@@ -180,6 +180,19 @@ JOY = {
     "blessed",
     "secure",
     "reassured",
+    "excited",
+    "exciting",
+    "pumped",
+    "stoked",
+    "hyped",
+    "hype",
+    "lit",
+    "dope",
+    "lol",
+    "lmao",
+    "lmfao",
+    "rofl",
+    "grinning",
 }
 
 SADNESS = {
@@ -258,6 +271,11 @@ SADNESS = {
     "tough",
     "draining",
     "discouraged",
+    "numb",
+    "meh",
+    "idc",
+    "couldcareless",
+    "emptyinside",
 }
 
 ANGER = {
@@ -325,6 +343,10 @@ ANGER = {
     "jerk",
     "whatthehell",
     "ugh",
+    "salty",
+    "smh",
+    "bs",
+    "wtf",
 }
 
 FEAR = {
@@ -383,6 +405,8 @@ FEAR = {
     "difficult",
     "difficulty",
     "worrier",
+    "spooked",
+    "worriedsick",
 }
 
 DISGUST = {
@@ -422,6 +446,9 @@ DISGUST = {
     "repulsive",
     "trash",
     "trashy",
+    "cringe",
+    "cringy",
+    "grossed",
 }
 
 # Passion for romantic desire, devotion, attachment.
@@ -494,6 +521,8 @@ PASSION = {
     "stunning",
     "attractive",
     "cute",
+    "simp",
+    "simping",
 }
 
 SURPRISE = {
@@ -513,6 +542,7 @@ SURPRISE = {
     "sudden",
     "suddenly",
     "whoa",
+    "woah",
     "wow",
     "omg",
     "wtf",
@@ -525,6 +555,42 @@ SURPRISE = {
     "twist",
     "didnt",
     "didn't",
+}
+
+# Strong intensity subsets (checked by prefix against stems)
+JOY_STRONG = {
+    "ecstatic",
+    "euphoric",
+    "overjoyed",
+    "thrilled",
+}
+SADNESS_STRONG = {
+    "heartbroken",
+    "devastated",
+    "grief",
+    "mourning",
+}
+ANGER_STRONG = {
+    "furious",
+    "livid",
+    "enraged",
+    "seething",
+    "rage",
+}
+FEAR_STRONG = {
+    "terrified",
+    "panic",
+    "panicked",
+}
+PASSION_STRONG = {
+    "obsessed",
+    "smitten",
+    "madly",
+}
+SURPRISE_STRONG = {
+    "shocked",
+    "wtf",
+    "omg",
 }
 
 INTENT_COMMIT = {
@@ -600,9 +666,12 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("walking on air", "joy", 1.6),
     ("choosing joy", "joy", 1.2),
     ("deciding to be grateful", "joy", 1.1),
+    ("so proud of you", "joy", 1.4),
+    ("so proud of myself", "joy", 1.4),
     # Sadness and grief
     ("in tears", "sadness", 1.4),
     ("cry my eyes out", "sadness", 1.9),
+    ("crying my eyes out", "sadness", 1.9),
     ("heart is broken", "sadness", 1.9),
     ("broke my heart", "sadness", 2.0),
     ("it broke my heart", "sadness", 2.0),
@@ -613,10 +682,14 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("rough day", "sadness", 1.8),
     ("tough day", "sadness", 1.7),
     ("hard day", "sadness", 1.6),
+    ("burnt out", "sadness", 1.7),
+    ("burned out", "sadness", 1.7),
+    ("it is what it is", "sadness", 1.1),
     # Anger
     ("boiling with rage", "anger", 2.0),
     ("lost my temper", "anger", 1.7),
     ("at my wits end", "anger", 1.5),
+    ("at my wit's end", "anger", 1.5),
     ("pisses me off", "anger", 2.3),
     ("pissed me off", "anger", 2.3),
     ("really pisses me off", "anger", 2.4),
@@ -625,13 +698,17 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("makes me so mad", "anger", 2.0),
     ("he drives me crazy", "anger", 1.9),
     ("she drives me crazy", "anger", 1.9),
+    ("get on my nerves", "anger", 1.6),
+    ("getting on my nerves", "anger", 1.6),
     # Fear
     ("out of my mind with worry", "fear", 1.9),
+    ("worried sick", "fear", 1.7),
     # Disgust
     ("sick to my stomach", "disgust", 1.7),
     ("gives me the creeps", "disgust", 1.7),
     ("creeps me out", "disgust", 1.7),
     ("offensive and repulsive", "disgust", 1.7),
+    ("makes my skin crawl", "disgust", 1.7),
     # Passion
     ("head over heels", "passion", 2.0),
     ("butterflies in my stomach", "passion", 1.6),
@@ -655,6 +732,29 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("never thought this would happen", "surprise", 1.8),
     ("out of nowhere", "surprise", 1.7),
     ("came out of nowhere", "surprise", 1.7),
+}
+
+# Hand tuned mixed emotion phrase patterns
+MIXED_PATTERNS: List[Tuple[str, Dict[str, float]]] = [
+    ("excited and nervous", {"joy": 1.1, "fear": 1.1}),
+    ("excited but nervous", {"joy": 1.1, "fear": 1.1}),
+    ("scared but excited", {"fear": 1.0, "joy": 1.0}),
+    ("nervous but excited", {"fear": 1.0, "joy": 1.0}),
+    ("happy and scared", {"joy": 1.0, "fear": 1.1}),
+    ("happy but scared", {"joy": 1.0, "fear": 1.1}),
+    ("happy and anxious", {"joy": 0.9, "fear": 1.1}),
+    ("happy but anxious", {"joy": 0.9, "fear": 1.1}),
+    ("sad but grateful", {"sadness": 1.0, "joy": 0.9}),
+    ("grateful but sad", {"sadness": 1.0, "joy": 0.9}),
+    ("angry and hurt", {"anger": 1.0, "sadness": 1.1}),
+    ("angry but hurt", {"anger": 1.0, "sadness": 1.1}),
+    ("hurt and angry", {"anger": 1.0, "sadness": 1.1}),
+    ("love you but", {"passion": 0.8, "sadness": 1.0}),
+    ("i love you but", {"passion": 0.8, "sadness": 1.0}),
+    ("worried but hopeful", {"fear": 0.9, "joy": 0.9}),
+    ("afraid but hopeful", {"fear": 0.9, "joy": 0.9}),
+    ("bitter sweet", {"joy": 0.9, "sadness": 0.9}),
+    ("bittersweet", {"joy": 0.9, "sadness": 0.9}),
 ]
 
 EMOJI = {
@@ -815,6 +915,8 @@ INTENSIFIERS = {
     "utterly",
     "highly",
     "too",
+    "literally",
+    "highkey",
 }
 DAMPENERS = {
     "slightly",
@@ -840,6 +942,7 @@ HEDGES = {
     "kind of",
     "kinda",
     "ish",
+    "lowkey",
 }
 CONTRASTIVE = {
     "but",
@@ -1051,22 +1154,56 @@ def _in_lex(target: str, bag: set[str]) -> bool:
     return False
 
 
+def _is_strong(stem: str, bag: set[str]) -> bool:
+    if stem in bag:
+        return True
+    if len(stem) >= 4:
+        return any(w.startswith(stem) for w in bag)
+    return False
+
+
 def _lex_hit(stem: str) -> Dict[str, float]:
     s = _blank_scores()
+
     if _in_lex(stem, JOY):
-        s["joy"] += 1.0
+        base = 1.0
+        if _is_strong(stem, JOY_STRONG):
+            base = 1.6
+        s["joy"] += base
+
     if _in_lex(stem, SADNESS):
-        s["sadness"] += 1.0
+        base = 1.0
+        if _is_strong(stem, SADNESS_STRONG):
+            base = 1.6
+        s["sadness"] += base
+
     if _in_lex(stem, ANGER):
-        s["anger"] += 1.0
+        base = 1.0
+        if _is_strong(stem, ANGER_STRONG):
+            base = 1.6
+        s["anger"] += base
+
     if _in_lex(stem, FEAR):
-        s["fear"] += 1.0
+        base = 1.0
+        if _is_strong(stem, FEAR_STRONG):
+            base = 1.6
+        s["fear"] += base
+
     if _in_lex(stem, DISGUST):
         s["disgust"] += 1.0
+
     if _in_lex(stem, PASSION):
-        s["passion"] += 1.0
+        base = 1.0
+        if _is_strong(stem, PASSION_STRONG):
+            base = 1.5
+        s["passion"] += base
+
     if _in_lex(stem, SURPRISE):
-        s["surprise"] += 1.0
+        base = 1.0
+        if _is_strong(stem, SURPRISE_STRONG):
+            base = 1.4
+        s["surprise"] += base
+
     return s
 
 
@@ -1076,6 +1213,13 @@ def _apply_phrases(text_lower: str) -> Dict[str, float]:
         if phrase in text_lower:
             out[emo] += w
     return out
+
+
+def _apply_mixed_patterns(text_lower: str, scores: Dict[str, float]) -> None:
+    for pattern, delta in MIXED_PATTERNS:
+        if pattern in text_lower:
+            for k, v in delta.items():
+                scores[k] += v
 
 
 def _apply_negated_pairs(tokens: List[str], scores: Dict[str, float]) -> None:
@@ -1142,6 +1286,57 @@ def _arousal_valence_nudge(scores: Dict[str, float]) -> None:
     scores["passion"] = passion * (1.0 + warm)
     scores["sadness"] = sadness * (1.0 + low_arousal)
     scores["disgust"] = disgust * (1.0 + low_arousal)
+
+
+def _apply_exclamation_emphasis(tokens: List[str], scores: Dict[str, float]) -> None:
+    if "!" not in tokens:
+        return
+
+    bangs = tokens.count("!")
+    factor = 1.0 + min(bangs * 0.03, 0.12)
+
+    pos_mag = scores.get("joy", 0.0) + scores.get("passion", 0.0)
+    neg_mag = (
+        scores.get("anger", 0.0)
+        + scores.get("fear", 0.0)
+        + 0.5 * scores.get("disgust", 0.0)
+    )
+
+    if pos_mag >= neg_mag:
+        for k in ("joy", "passion", "surprise"):
+            scores[k] *= factor
+    else:
+        for k in ("anger", "fear", "surprise"):
+            scores[k] *= factor
+
+
+def _apply_feeling_focus(text_lower: str, scores: Dict[str, float]) -> None:
+    """
+    When someone explicitly says "I feel" or "it makes me feel",
+    bump emotional evidence slightly since it is a direct self report.
+    """
+    cues_strong = (
+        "i feel",
+        "i'm feeling",
+        "im feeling",
+        "i really feel",
+        "i truly feel",
+        "i honestly feel",
+        "makes me feel",
+        "made me feel",
+        "it makes me feel",
+        "i feel so",
+        "i feel really",
+    )
+    if not any(c in text_lower for c in cues_strong):
+        return
+
+    factor = 1.08
+    if "really" in text_lower or "so " in text_lower or "very " in text_lower:
+        factor = 1.12
+
+    for k in CORE_KEYS:
+        scores[k] *= factor
 
 
 # =============================================================================
@@ -1241,7 +1436,6 @@ def _apply_attraction_patterns(tokens: List[str], scores: Dict[str, float]) -> N
         return
 
     stems = [_stem(t) for t in tokens]
-    n = len(stems)
     for i, st in enumerate(stems):
         if st not in ATTRACTION_SUBJECTS:
             continue
@@ -1295,7 +1489,8 @@ def _apply_colloquial_overrides(
         return
 
     has_negative_context = any(
-        cue in text_lower for cue in (" but ", "but ", " no ", "doesnt", "doesn't", "didnt", "didn't")
+        cue in text_lower
+        for cue in (" but ", "but ", " no ", "doesnt", "doesn't", "didnt", "didn't")
     )
 
     if "whatever" in text_lower:
@@ -1387,6 +1582,9 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     s_damp = _because_clause_dampener(tokens)
     scores["surprise"] *= s_damp
 
+    # Exclamation emphasis routed to either positive or negative side
+    _apply_exclamation_emphasis(tokens, scores)
+
     for emo, opp in [
         ("joy", "sadness"),
         ("fear", "anger"),
@@ -1403,8 +1601,6 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     if "?" in tokens:
         scores["fear"] += 0.1
         scores["joy"] *= 0.985
-    if any(p in tokens for p in ("!", "!!")):
-        scores["anger"] += 0.02
 
     if any(t in STANCE_1P for t in tokens):
         for k in scores:
@@ -1413,10 +1609,12 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     if _sarcasm_cue(tokens):
         scores["joy"] *= 0.6
 
-    # New colloquial and pattern based adjustments
+    # Pattern based adjustments and mixed emotion cues
     _apply_attraction_patterns(tokens, scores)
     _apply_rhetorical_confrontation(text_lower, scores)
     _apply_colloquial_overrides(tokens, text_lower, scores)
+    _apply_mixed_patterns(text_lower, scores)
+    _apply_feeling_focus(text_lower, scores)
 
     text_seg = "".join(tokens)
     if re.search(r"\b[A-Z]{4,}\b", text_seg):
@@ -1653,10 +1851,10 @@ def _choose_dominant(scores: Dict[str, float], low_signal: bool = False) -> str:
     neg_total = sum(scores[k] for k in neg_keys)
 
     if (
-        pos_peak >= 0.35
-        and neg_peak >= 0.25
-        and pos_total >= 0.40
-        and neg_total >= 0.30
+        pos_peak >= 0.30
+        and neg_peak >= 0.20
+        and pos_total >= 0.35
+        and neg_total >= 0.25
         and neg_peak >= pos_peak * 0.5
     ):
         dominant_neg = max(neg_keys, key=lambda k: scores[k])
@@ -1717,12 +1915,22 @@ def _dominance_profile(
     min_pair_val = min(scores.get(dominant, 0.0), scores.get(candidate_key, 0.0))
 
     if not mixed:
-        if pair == {"joy", "sadness"} and min_pair_val >= 0.18:
+        if pair == {"joy", "sadness"} and min_pair_val >= 0.15:
             mixed = True
-        elif pair == {"joy", "fear"} and min_pair_val >= 0.18:
+        elif pair == {"joy", "fear"} and min_pair_val >= 0.15:
             mixed = True
-        elif "passion" in pair and "sadness" in pair and min_pair_val >= 0.18:
+        elif "passion" in pair and "sadness" in pair and min_pair_val >= 0.15:
             mixed = True
+
+    # If two emotions are close and both reasonably strong,
+    # treat as a mixed state even without special pairing.
+    if (
+        not mixed
+        and top_val >= 0.18
+        and second_val >= 0.15
+        and abs(top_val - second_val) <= 0.08
+    ):
+        mixed = True
 
     return dominant, candidate_key, mixed
 
