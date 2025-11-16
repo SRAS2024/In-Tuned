@@ -1,11 +1,18 @@
 # advanced_detector.py
-# High fidelity local emotion detector v3 with seven core dimensions and richer nuance.
-# Purely local engine: no external APIs, no Watson. Safe fallback so the app will not crash.
+# High fidelity local emotion detector v5.0, multilingual.
+# Seven core dimensions with richer nuance.
+# Purely local engine with support for:
+# English, Spanish, Portuguese, French, Italian, German, Dutch, Polish
+# plus phrase level support for Chinese, Japanese, and Korean.
+#
+# Tuned for very short inputs (1-2 words or emoji only)
+# up to about 250 words of text.
 
 from __future__ import annotations
 
 import re
 import difflib
+import unicodedata
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, Iterable, List, Tuple, Optional, Set
 from functools import lru_cache
@@ -13,7 +20,6 @@ from functools import lru_cache
 try:  # pragma: no cover
     from .errors import InvalidTextError  # type: ignore
 except Exception:  # pragma: no cover
-    # Fallback so the module can still be imported in isolation
     class InvalidTextError(ValueError):
         pass
 
@@ -38,16 +44,71 @@ class EmotionResult:
     low_signal: bool = False
     secondary_emotion: str = "N/A"
     mixed_state: bool = False
+    # v5 meta metrics
+    valence: float = 0.0
+    arousal: float = 0.0
+    confidence: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
 
+@dataclass
+class DetectorConfig:
+    """
+    Simple tuning hooks for the local detector.
+
+    You can call set_detector_config(window_min_tokens=80, ...)
+    from application code without editing this file.
+    """
+
+    # Sliding window mode for longer texts
+    window_min_tokens: int = 60
+    window_size_tokens: int = 40
+    window_step_tokens: int = 20
+
+    # Threshold for special short text handling
+    short_text_token_threshold: int = 3
+
+
+DEFAULT_CONFIG = DetectorConfig()
+
+
+def set_detector_config(**kwargs: Any) -> None:
+    """
+    Update the default detector configuration at runtime.
+
+    Example:
+        set_detector_config(window_min_tokens=80, short_text_token_threshold=4)
+    """
+    for key, value in kwargs.items():
+        if hasattr(DEFAULT_CONFIG, key):
+            setattr(DEFAULT_CONFIG, key, value)
+
+
 # =============================================================================
-# Lexicons and resources
+# Unicode helpers
 # =============================================================================
 
-JOY = {
+
+def _strip_accents(text: str) -> str:
+    """
+    Remove combining accents for accent-insensitive matching.
+    """
+    try:
+        norm = unicodedata.normalize("NFD", text)
+        return "".join(ch for ch in norm if not unicodedata.combining(ch))
+    except Exception:
+        return text
+
+
+# =============================================================================
+# Multilingual lexicons and resources
+# =============================================================================
+
+# JOY
+JOY: Set[str] = {
+    # English base
     "love",
     "loved",
     "loving",
@@ -94,10 +155,16 @@ JOY = {
     "alright",
     "relaxed",
     "chill",
+    "chilling",
+    "vibe",
+    "vibes",
+    "vibing",
     "proud",
     "success",
     "win",
     "won",
+    "dub",
+    "w",
     "best",
     "perfect",
     "beautiful",
@@ -140,9 +207,133 @@ JOY = {
     "lmfao",
     "rofl",
     "grinning",
+    "wholesome",
+    # Spanish
+    "feliz",
+    "felices",
+    "felicidad",
+    "alegre",
+    "alegria",
+    "alegría",
+    "contento",
+    "contenta",
+    "tranquilo",
+    "tranquila",
+    "orgulloso",
+    "orgullosa",
+    "agradecido",
+    "agradecida",
+    "bendecido",
+    "bendecida",
+    "sonrisa",
+    "sonreir",
+    "sonreír",
+    "sonriendo",
+    "risa",
+    "risas",
+    "bendecidos",
+    # Portuguese
+    "felicidade",
+    "contente",
+    "tranquilo",
+    "tranquila",
+    "orgulhoso",
+    "orgulhosa",
+    "agradecido",
+    "agradecida",
+    "abençoado",
+    "abençoada",
+    "sorriso",
+    "sorrir",
+    "sorrindo",
+    "risada",
+    "risadas",
+    "abençoados",
+    "grato",
+    "grata",
+    # French
+    "heureux",
+    "heureuse",
+    "bonheur",
+    "joyeux",
+    "joyeuse",
+    "content",
+    "contente",
+    "sourire",
+    "souriant",
+    "souriante",
+    "rire",
+    "reconnaissant",
+    "reconnaissante",
+    "béni",
+    "bénie",
+    # Italian
+    "felice",
+    "felicità",
+    "gioia",
+    "gioioso",
+    "gioiosa",
+    "contento",
+    "contenta",
+    "sorriso",
+    "sorridere",
+    "soddisfatto",
+    "soddisfatta",
+    "grato",
+    "grata",
+    "benedetto",
+    "benedetta",
+    # German
+    "glücklich",
+    "glucklich",
+    "freude",
+    "froh",
+    "zufrieden",
+    "erleichtert",
+    "stolz",
+    "lächeln",
+    "lacheln",
+    "lachen",
+    "dankbar",
+    "gesegnet",
+    # Dutch
+    "blij",
+    "gelukkig",
+    "vreugde",
+    "tevreden",
+    "opluchting",
+    "trots",
+    "dankbaar",
+    "gezegend",
+    "lachen",
+    "glimlach",
+    # Polish
+    "szczesliwy",
+    "szczesliwa",
+    "szczęśliwy",
+    "szczęśliwa",
+    "szczescie",
+    "szczęście",
+    "radosc",
+    "radość",
+    "zadowolony",
+    "zadowolona",
+    "usmiech",
+    "uśmiech",
+    "smiech",
+    "śmiech",
+    "wdzieczny",
+    "wdzięczny",
+    "wdzieczna",
+    "wdzięczna",
+    "blogoslawiony",
+    "błogosławiony",
+    "blogoslawiona",
+    "błogosławiona",
 }
 
-SADNESS = {
+SADNESS: Set[str] = {
+    # English base
     "sad",
     "sadden",
     "saddened",
@@ -223,9 +414,104 @@ SADNESS = {
     "idc",
     "couldcareless",
     "emptyinside",
+    "overit",
+    "sooverit",
+    "sooverthis",
+    # Spanish
+    "triste",
+    "tristeza",
+    "solo",
+    "sola",
+    "soledad",
+    "llorar",
+    "llorando",
+    "llanto",
+    "deprimido",
+    "deprimida",
+    "depresion",
+    "depresión",
+    "culpa",
+    "culpable",
+    # Portuguese
+    "sozinho",
+    "sozinha",
+    "triste",
+    "tristeza",
+    "solidão",
+    "solidao",
+    "chorar",
+    "chorando",
+    "deprimido",
+    "deprimida",
+    "depressao",
+    "depressão",
+    "culpado",
+    "culpada",
+    # French
+    "triste",
+    "tristesse",
+    "seul",
+    "seule",
+    "solitude",
+    "pleurer",
+    "pleurant",
+    "déprimé",
+    "deprime",
+    "déprimée",
+    "deprimee",
+    "dépression",
+    "depression",
+    "culpabilité",
+    # Italian
+    "triste",
+    "tristezza",
+    "solo",
+    "sola",
+    "solitudine",
+    "piangere",
+    "piangendo",
+    "depresso",
+    "depressa",
+    "depressione",
+    "colpa",
+    # German
+    "traurig",
+    "traurigkeit",
+    "einsam",
+    "einsamkeit",
+    "weinen",
+    "weinend",
+    "depressiv",
+    "depression",
+    "schuld",
+    # Dutch
+    "verdrietig",
+    "verdriet",
+    "eenzaam",
+    "eenzaamheid",
+    "huilen",
+    "huilend",
+    "depressief",
+    "depressie",
+    "schuld",
+    # Polish
+    "smutny",
+    "smutna",
+    "smutek",
+    "samotny",
+    "samotna",
+    "samotnosc",
+    "samotność",
+    "placz",
+    "płacz",
+    "plakac",
+    "płakać",
+    "depresja",
+    "wina",
 }
 
-ANGER = {
+ANGER: Set[str] = {
+    # English base
     "angry",
     "anger",
     "mad",
@@ -282,7 +568,6 @@ ANGER = {
     "piss",
     "enraged",
     "fedup",
-    "fed",
     "trash",
     "trashy",
     "stupid",
@@ -294,9 +579,85 @@ ANGER = {
     "smh",
     "bs",
     "wtf",
+    "triggered",
+    # Spanish
+    "enojado",
+    "enojada",
+    "enojo",
+    "furioso",
+    "furiosa",
+    "rabia",
+    "ira",
+    "molesto",
+    "molesta",
+    "frustrado",
+    "frustrada",
+    "odio",
+    # Portuguese
+    "bravo",
+    "brava",
+    "raiva",
+    "irritado",
+    "irritada",
+    "furioso",
+    "furiosa",
+    "ódio",
+    "odio",
+    "frustrado",
+    "frustrada",
+    # French
+    "furieux",
+    "furieuse",
+    "colère",
+    "colere",
+    "faché",
+    "fache",
+    "fâché",
+    "fâchée",
+    "fachée",
+    "énervé",
+    "enervé",
+    "enerve",
+    "énervée",
+    "enervee",
+    # Italian
+    "arrabbiato",
+    "arrabbiata",
+    "rabbia",
+    "furioso",
+    "furiosa",
+    "odio",
+    "infastidito",
+    "infastidita",
+    # German
+    "wütend",
+    "wutend",
+    "zornig",
+    "ärgerlich",
+    "argerlich",
+    "wut",
+    "zorn",
+    # Dutch
+    "boos",
+    "woedend",
+    "kwaad",
+    "woede",
+    # Polish
+    "zly",
+    "zły",
+    "zla",
+    "zła",
+    "gniew",
+    "wściekły",
+    "wsciekly",
+    "wściekła",
+    "wsciekla",
+    "złość",
+    "zlosc",
 }
 
-FEAR = {
+FEAR: Set[str] = {
+    # English base
     "scare",
     "scared",
     "afraid",
@@ -354,9 +715,89 @@ FEAR = {
     "worrier",
     "spooked",
     "worriedsick",
+    # Spanish
+    "miedo",
+    "temor",
+    "asustado",
+    "asustada",
+    "preocupado",
+    "preocupada",
+    "ansioso",
+    "ansiosa",
+    "ansiedad",
+    "nervioso",
+    "nerviosa",
+    # Portuguese
+    "medo",
+    "temor",
+    "assustado",
+    "assustada",
+    "preocupado",
+    "preocupada",
+    "ansioso",
+    "ansiosa",
+    "ansiedade",
+    "nervoso",
+    "nervosa",
+    # French
+    "peur",
+    "craintif",
+    "craintive",
+    "inquiet",
+    "inquiète",
+    "inquiette",
+    "anxieux",
+    "anxieuse",
+    "anxiété",
+    "anxiete",
+    "nerveux",
+    "nerveuse",
+    # Italian
+    "paura",
+    "timore",
+    "spaventato",
+    "spaventata",
+    "preoccupato",
+    "preoccupata",
+    "ansioso",
+    "ansiosa",
+    "ansia",
+    "nervoso",
+    "nervosa",
+    # German
+    "angst",
+    "furcht",
+    "fürchten",
+    "furchten",
+    "besorgt",
+    "sorge",
+    "nervös",
+    "nervos",
+    "ängstlich",
+    "angstlich",
+    # Dutch
+    "bang",
+    "angst",
+    "bezorgd",
+    "ongerust",
+    "nerveus",
+    # Polish
+    "strach",
+    "boje",
+    "boję",
+    "boisz",
+    "przestraszony",
+    "przestraszona",
+    "zaniepokojony",
+    "zaniepokojona",
+    "napiety",
+    "napięty",
+    "nerwowy",
+    "nerwowa",
 }
 
-DISGUST = {
+DISGUST: Set[str] = {
+    # English base
     "disgust",
     "disgusted",
     "disgusting",
@@ -389,17 +830,66 @@ DISGUST = {
     "contaminated",
     "putrid",
     "icky",
-    "revolting",
-    "repulsive",
-    "trash",
-    "trashy",
     "cringe",
     "cringy",
     "grossed",
+    # Spanish
+    "asco",
+    "asqueroso",
+    "asquerosa",
+    "repugnante",
+    "repulsivo",
+    "repulsiva",
+    "desagradable",
+    # Portuguese
+    "nojo",
+    "nojento",
+    "nojenta",
+    "repugnante",
+    "repulsivo",
+    "repulsiva",
+    "desagradavel",
+    "desagradável",
+    # French
+    "dégoût",
+    "degout",
+    "dégoûtant",
+    "degoutant",
+    "dégoûtante",
+    "degoutante",
+    "répugnant",
+    "repugnant",
+    # Italian
+    "disgusto",
+    "disgustoso",
+    "disgustosa",
+    "ripugnante",
+    "ripulsivo",
+    "ripulsiva",
+    "schifoso",
+    "schifosa",
+    # German
+    "ekel",
+    "ekelhaft",
+    "widerlich",
+    "abstoßend",
+    "abstossend",
+    # Dutch
+    "walging",
+    "walgelijk",
+    "degoutant",
+    "afschuwelijk",
+    # Polish
+    "wstręt",
+    "wstret",
+    "obrzydliwy",
+    "obrzydliwa",
+    "odpychający",
+    "odpychajacy",
 }
 
-# Passion for romantic desire, devotion, attachment.
-PASSION = {
+PASSION: Set[str] = {
+    # English base
     "passion",
     "passionate",
     "desire",
@@ -458,7 +948,6 @@ PASSION = {
     "care",
     "cares",
     "caring",
-    "devoted",
     "beloved",
     "hot",
     "sexy",
@@ -470,9 +959,68 @@ PASSION = {
     "cute",
     "simp",
     "simping",
+    # Spanish
+    "apasionado",
+    "apasionada",
+    "deseo",
+    "enamorado",
+    "enamorada",
+    "te amo",
+    "te quiero",
+    "amor",
+    "cariño",
+    # Portuguese
+    "apaixonado",
+    "apaixonada",
+    "desejo",
+    "apaixonar",
+    "amado",
+    "amada",
+    "te amo",
+    "te adoro",
+    "amor",
+    "carinho",
+    # French
+    "passionné",
+    "passionnee",
+    "amoureux",
+    "amoureuse",
+    "je t'aime",
+    "mon amour",
+    # Italian
+    "passione",
+    "appassionato",
+    "appassionata",
+    "innamorato",
+    "innamorata",
+    "ti amo",
+    "amore",
+    "amore mio",
+    # German
+    "leidenschaft",
+    "leidenschaftlich",
+    "verliebt",
+    "ich liebe dich",
+    "schatz",
+    # Dutch
+    "passie",
+    "gepassioneerd",
+    "verliefd",
+    "ik hou van je",
+    # Polish
+    "pasja",
+    "namiętny",
+    "namietny",
+    "namiętna",
+    "namietna",
+    "zakochany",
+    "zakochana",
+    "kocham cię",
+    "kocham cie",
 }
 
-SURPRISE = {
+SURPRISE: Set[str] = {
+    # English base
     "surprise",
     "surprised",
     "surprising",
@@ -495,13 +1043,50 @@ SURPRISE = {
     "wtf",
     "gasp",
     "unbelievable",
-    "no way",
-    "what",
+    "no",
+    "noway",
     "holy",
     "plot",
     "twist",
     "didnt",
     "didn't",
+    # Spanish
+    "sorprendido",
+    "sorprendida",
+    "sorprendente",
+    "increible",
+    "increíble",
+    # Portuguese
+    "surpreso",
+    "surpresa",
+    "surpreendente",
+    "inacreditavel",
+    "inacreditável",
+    # French
+    "surpris",
+    "surprise",
+    "étonné",
+    "etonne",
+    "incroyable",
+    # Italian
+    "sorpreso",
+    "sorpresa",
+    "sorprendente",
+    "incredibile",
+    # German
+    "überrascht",
+    "uberrascht",
+    "erstaunt",
+    "unglaublich",
+    # Dutch
+    "verrast",
+    "verrassing",
+    "ongelofelijk",
+    # Polish
+    "zaskoczony",
+    "zaskoczona",
+    "niesamowite",
+    "niewiarygodne",
 }
 
 # Strong intensity subsets (checked by prefix against stems)
@@ -516,6 +1101,10 @@ SADNESS_STRONG = {
     "devastated",
     "grief",
     "mourning",
+    "tristeza",
+    "depresion",
+    "depressao",
+    "depression",
 }
 ANGER_STRONG = {
     "furious",
@@ -523,21 +1112,33 @@ ANGER_STRONG = {
     "enraged",
     "seething",
     "rage",
+    "rabia",
+    "raiva",
 }
 FEAR_STRONG = {
     "terrified",
     "panic",
     "panicked",
+    "miedo",
+    "medo",
+    "angst",
 }
 PASSION_STRONG = {
     "obsessed",
     "smitten",
     "madly",
+    "apaixonado",
+    "apasionado",
+    "innamorato",
+    "verliebt",
 }
 SURPRISE_STRONG = {
     "shocked",
     "wtf",
     "omg",
+    "increible",
+    "inacreditavel",
+    "incroyable",
 }
 
 INTENT_COMMIT = {
@@ -605,7 +1206,7 @@ INTENT_DEESCALATE = {
 }
 
 PHRASES: List[Tuple[str, str, float]] = [
-    # Joy and gratitude
+    # Joy and gratitude English
     ("over the moon", "joy", 1.8),
     ("on cloud nine", "joy", 1.6),
     ("could not be happier", "joy", 1.9),
@@ -615,7 +1216,30 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("deciding to be grateful", "joy", 1.1),
     ("so proud of you", "joy", 1.4),
     ("so proud of myself", "joy", 1.4),
-    # Sadness and grief
+    ("feeling blessed", "joy", 1.6),
+    ("feeling so blessed", "joy", 1.8),
+    ("so grateful for you", "joy", 1.6),
+    ("grateful for you", "joy", 1.5),
+    ("so thankful for you", "joy", 1.6),
+    # Joy Spanish Portuguese French etc
+    ("muy feliz", "joy", 1.6),
+    ("tan feliz", "joy", 1.5),
+    ("me siento feliz", "joy", 1.7),
+    ("estoy muy feliz", "joy", 1.8),
+    ("sou muito feliz", "joy", 1.8),
+    ("estou muito feliz", "joy", 1.8),
+    ("me sinto feliz", "joy", 1.7),
+    ("je suis très heureux", "joy", 1.8),
+    ("je suis tres heureux", "joy", 1.8),
+    ("je suis très heureuse", "joy", 1.8),
+    ("je suis tres heureuse", "joy", 1.8),
+    ("je suis tellement heureux", "joy", 1.9),
+    ("je suis tellement heureuse", "joy", 1.9),
+    ("sono così felice", "joy", 1.8),
+    ("sono cosi felice", "joy", 1.8),
+    ("ich bin so glücklich", "joy", 1.8),
+    ("ik ben zo gelukkig", "joy", 1.8),
+    # Sadness and grief English
     ("in tears", "sadness", 1.4),
     ("cry my eyes out", "sadness", 1.9),
     ("crying my eyes out", "sadness", 1.9),
@@ -632,6 +1256,31 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("burnt out", "sadness", 1.7),
     ("burned out", "sadness", 1.7),
     ("it is what it is", "sadness", 1.1),
+    ("im so done", "sadness", 1.6),
+    ("i am so done", "sadness", 1.6),
+    ("so done with this", "sadness", 1.7),
+    # Sadness multilingual
+    ("muy triste", "sadness", 1.7),
+    ("me siento triste", "sadness", 1.8),
+    ("estoy muy triste", "sadness", 1.9),
+    ("estou muito triste", "sadness", 1.9),
+    ("me sinto triste", "sadness", 1.8),
+    ("je suis très triste", "sadness", 1.9),
+    ("je suis tres triste", "sadness", 1.9),
+    ("sono così triste", "sadness", 1.9),
+    ("ich bin so traurig", "sadness", 1.9),
+    ("ik ben zo verdrietig", "sadness", 1.9),
+    ("jest mi bardzo smutno", "sadness", 1.9),
+    ("no puedo más", "sadness", 2.0),
+    ("no puedo mas", "sadness", 2.0),
+    ("não aguento mais", "sadness", 2.0),
+    ("nao aguento mais", "sadness", 2.0),
+    ("je n'en peux plus", "sadness", 2.0),
+    ("je nen peux plus", "sadness", 2.0),
+    ("non ce la faccio più", "sadness", 2.0),
+    ("non ce la faccio piu", "sadness", 2.0),
+    ("ich kann nicht mehr", "sadness", 2.0),
+    ("nie dam rady", "sadness", 1.9),
     # Anger
     ("boiling with rage", "anger", 2.0),
     ("lost my temper", "anger", 1.7),
@@ -647,15 +1296,60 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("she drives me crazy", "anger", 1.9),
     ("get on my nerves", "anger", 1.6),
     ("getting on my nerves", "anger", 1.6),
+    ("im so mad", "anger", 1.9),
+    ("i am so mad", "anger", 1.9),
+    ("so done with you", "anger", 1.9),
+    # Anger multilingual
+    ("me pone furioso", "anger", 2.0),
+    ("me pone furiosa", "anger", 2.0),
+    ("me da mucha rabia", "anger", 2.1),
+    ("isso me deixa com raiva", "anger", 2.1),
+    ("je suis tellement en colère", "anger", 2.0),
+    ("sono così arrabbiato", "anger", 2.0),
+    ("sono cosi arrabbiato", "anger", 2.0),
+    ("ich bin so wütend", "anger", 2.0),
+    ("ik ben zo boos", "anger", 2.0),
     # Fear
     ("out of my mind with worry", "fear", 1.9),
     ("worried sick", "fear", 1.7),
+    ("so worried about", "fear", 1.6),
+    ("cant stop worrying", "fear", 1.7),
+    ("can't stop worrying", "fear", 1.7),
+    # Fear multilingual
+    ("tengo mucho miedo", "fear", 1.9),
+    ("tengo miedo", "fear", 1.7),
+    ("tengo miedo de", "fear", 1.8),
+    ("estoy muy preocupado", "fear", 1.7),
+    ("estoy muy preocupada", "fear", 1.7),
+    ("me preocupa", "fear", 1.5),
+    ("estou muito preocupado", "fear", 1.7),
+    ("estou muito preocupada", "fear", 1.7),
+    ("tenho medo de", "fear", 1.8),
+    ("isso me preocupa", "fear", 1.6),
+    ("je suis très inquiet", "fear", 1.8),
+    ("je suis tres inquiet", "fear", 1.8),
+    ("je suis très inquiète", "fear", 1.8),
+    ("je suis tres inquiete", "fear", 1.8),
+    ("sono molto preoccupato", "fear", 1.8),
+    ("ich habe solche angst", "fear", 1.9),
+    ("ik ben zo bang", "fear", 1.8),
+    ("bardzo się boję", "fear", 1.9),
+    ("bardzo sie boje", "fear", 1.9),
     # Disgust
     ("sick to my stomach", "disgust", 1.7),
     ("gives me the creeps", "disgust", 1.7),
     ("creeps me out", "disgust", 1.7),
     ("offensive and repulsive", "disgust", 1.7),
     ("makes my skin crawl", "disgust", 1.7),
+    # Disgust multilingual
+    ("me da asco", "disgust", 1.9),
+    ("que asco", "disgust", 1.9),
+    ("que nojento", "disgust", 1.9),
+    ("tenho nojo", "disgust", 1.9),
+    ("ça me dégoûte", "disgust", 1.9),
+    ("ca me degoute", "disgust", 1.9),
+    ("che schifo", "disgust", 1.9),
+    ("das ist ekelhaft", "disgust", 1.9),
     # Passion
     ("head over heels", "passion", 2.0),
     ("butterflies in my stomach", "passion", 1.6),
@@ -671,6 +1365,33 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("i want to marry you", "passion", 2.2),
     ("i want to marry her", "passion", 2.2),
     ("i want to marry him", "passion", 2.2),
+    ("i miss you so much", "passion", 2.0),
+    ("i miss you", "passion", 1.4),
+    # Passion multilingual
+    ("estoy muy enamorado", "passion", 2.2),
+    ("estoy muy enamorada", "passion", 2.2),
+    ("estoy enamorado de ti", "passion", 2.4),
+    ("estoy enamorada de ti", "passion", 2.4),
+    ("te extraño tanto", "passion", 2.0),
+    ("te extraño", "passion", 1.5),
+    ("sou muito apaixonado", "passion", 2.2),
+    ("sou muito apaixonada", "passion", 2.2),
+    ("estou apaixonado por você", "passion", 2.4),
+    ("estou apaixonada por você", "passion", 2.4),
+    ("sinto sua falta", "passion", 1.7),
+    ("je suis fou amoureux", "passion", 2.3),
+    ("je suis folle amoureuse", "passion", 2.3),
+    ("je t'aime tellement", "passion", 2.4),
+    ("tu me manques tellement", "passion", 2.0),
+    ("sono follemente innamorato", "passion", 2.3),
+    ("sono follemente innamorata", "passion", 2.3),
+    ("mi manchi tanto", "passion", 2.0),
+    ("ich bin so verliebt", "passion", 2.3),
+    ("du fehlst mir so", "passion", 2.0),
+    ("ik ben zo verliefd", "passion", 2.3),
+    ("ik mis je zo", "passion", 2.0),
+    ("jestem w tobie zakochany", "passion", 2.3),
+    ("jestem w tobie zakochana", "passion", 2.3),
     # Surprise and incredulity
     ("i could not believe", "surprise", 1.7),
     ("i can't believe", "surprise", 1.7),
@@ -679,9 +1400,87 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("never thought this would happen", "surprise", 1.8),
     ("out of nowhere", "surprise", 1.7),
     ("came out of nowhere", "surprise", 1.7),
+    # Surprise multilingual
+    ("no lo puedo creer", "surprise", 1.9),
+    ("no puedo creerlo", "surprise", 1.9),
+    ("no me lo creo", "surprise", 1.9),
+    ("não acredito", "surprise", 1.9),
+    ("nao acredito", "surprise", 1.9),
+    ("je n'arrive pas à y croire", "surprise", 1.9),
+    ("je narrive pas a y croire", "surprise", 1.9),
+    ("je ne peux pas y croire", "surprise", 1.9),
+    ("non ci posso credere", "surprise", 1.9),
+    ("ich kann es nicht glauben", "surprise", 1.9),
+    ("ik kan het niet geloven", "surprise", 1.9),
+    ("nie mogę w to uwierzyć", "surprise", 1.9),
+    ("nie moge w to uwierzyc", "surprise", 1.9),
+    # CJK joy
+    ("很开心", "joy", 1.8),
+    ("好开心", "joy", 1.8),
+    ("很高兴", "joy", 1.8),
+    ("好高兴", "joy", 1.8),
+    ("好幸福", "joy", 1.9),
+    ("楽しい", "joy", 1.7),
+    ("嬉しい", "joy", 1.7),
+    ("うれしい", "joy", 1.7),
+    ("幸せ", "joy", 1.8),
+    ("행복해", "joy", 1.8),
+    ("행복하다", "joy", 1.8),
+    ("기뻐", "joy", 1.7),
+    # CJK sadness
+    ("很难过", "sadness", 1.9),
+    ("好难过", "sadness", 1.9),
+    ("伤心", "sadness", 1.9),
+    ("傷心", "sadness", 1.9),
+    ("悲しい", "sadness", 1.9),
+    ("かなしい", "sadness", 1.9),
+    ("슬퍼", "sadness", 1.9),
+    ("슬프다", "sadness", 1.9),
+    # CJK anger
+    ("生气", "anger", 2.0),
+    ("生氣", "anger", 2.0),
+    ("很生气", "anger", 2.1),
+    ("好生气", "anger", 2.1),
+    ("怒ってる", "anger", 2.1),
+    ("怒っている", "anger", 2.1),
+    ("화나", "anger", 2.1),
+    ("화났다", "anger", 2.1),
+    # CJK fear
+    ("害怕", "fear", 1.9),
+    ("很怕", "fear", 1.8),
+    ("好怕", "fear", 1.8),
+    ("怖い", "fear", 1.9),
+    ("こわい", "fear", 1.9),
+    ("무서워", "fear", 1.9),
+    ("무섭다", "fear", 1.9),
+    # CJK disgust
+    ("恶心", "disgust", 1.9),
+    ("噁心", "disgust", 1.9),
+    ("好恶心", "disgust", 1.9),
+    ("気持ち悪い", "disgust", 1.9),
+    ("きもちわるい", "disgust", 1.9),
+    ("징그러", "disgust", 1.9),
+    ("징그럽다", "disgust", 1.9),
+    # CJK passion
+    ("爱你", "passion", 2.3),
+    ("愛你", "passion", 2.3),
+    ("我爱你", "passion", 2.4),
+    ("我愛你", "passion", 2.4),
+    ("喜欢你", "passion", 2.2),
+    ("好きです", "passion", 2.3),
+    ("大好き", "passion", 2.4),
+    ("사랑해", "passion", 2.4),
+    # CJK surprise
+    ("天哪", "surprise", 1.7),
+    ("竟然", "surprise", 1.7),
+    ("居然", "surprise", 1.7),
+    ("ありえない", "surprise", 1.8),
+    ("あり得ない", "surprise", 1.8),
+    ("헐", "surprise", 1.7),
+    ("진짜요", "surprise", 1.7),
 ]
 
-# Hand tuned mixed emotion phrase patterns
+# Mixed emotion patterns English, plus a couple of Romance examples
 MIXED_PATTERNS: List[Tuple[str, Dict[str, float]]] = [
     ("excited and nervous", {"joy": 1.1, "fear": 1.1}),
     ("excited but nervous", {"joy": 1.1, "fear": 1.1}),
@@ -702,6 +1501,14 @@ MIXED_PATTERNS: List[Tuple[str, Dict[str, float]]] = [
     ("afraid but hopeful", {"fear": 0.9, "joy": 0.9}),
     ("bitter sweet", {"joy": 0.9, "sadness": 0.9}),
     ("bittersweet", {"joy": 0.9, "sadness": 0.9}),
+    # Romance language blends
+    ("triste pero agradecido", {"sadness": 1.0, "joy": 0.9}),
+    ("triste pero agradecida", {"sadness": 1.0, "joy": 0.9}),
+    ("feliz pero nervioso", {"joy": 1.0, "fear": 1.0}),
+    ("feliz pero nerviosa", {"joy": 1.0, "fear": 1.0}),
+    ("feliz mas com medo", {"joy": 1.0, "fear": 1.0}),
+    ("heureux mais inquiet", {"joy": 1.0, "fear": 1.0}),
+    ("heureuse mais inquiète", {"joy": 1.0, "fear": 1.0}),
 ]
 
 EMOJI = {
@@ -740,6 +1547,7 @@ EMOJI = {
         "😤",
         ">:(",
         "!!1",
+        "😾",
     },
     "fear": {
         "😨",
@@ -797,6 +1605,21 @@ ATTRACTION_SUBJECTS = {
     "boy",
     "boys",
     "you",
+    # Romantic pronouns multilingual
+    "ella",
+    "el",
+    "él",
+    "ele",
+    "ela",
+    "elle",
+    "lui",
+    "lei",
+    "er",
+    "sie",
+    "hij",
+    "zij",
+    "ona",
+    "on",
 }
 
 ATTRACTION_ADJECTIVES = {
@@ -805,11 +1628,47 @@ ATTRACTION_ADJECTIVES = {
     "beautiful",
     "handsome",
     "pretty",
-    "gorgeous",
-    "cute",
     "stunning",
     "attractive",
+    "cute",
     "fine",
+    # Spanish
+    "guapo",
+    "guapa",
+    "hermoso",
+    "hermosa",
+    "lindo",
+    "linda",
+    "atractivo",
+    "atractiva",
+    # Portuguese
+    "lindo",
+    "linda",
+    "gato",
+    "gata",
+    "bonito",
+    "bonita",
+    "atraente",
+    # French
+    "beau",
+    "belle",
+    "magnifique",
+    # Italian
+    "bello",
+    "bella",
+    "carino",
+    "carina",
+    # German
+    "hübsch",
+    "hubsch",
+    "attraktiv",
+    # Dutch
+    "knap",
+    "mooi",
+    # Polish
+    "przystojny",
+    "ładna",
+    "ladna",
 }
 
 CONFRONTATIONAL_QUESTION_PATTERNS = [
@@ -827,7 +1686,8 @@ CONFRONTATIONAL_QUESTION_PATTERNS = [
     "what were you thinking",
 ]
 
-NEGATIONS = {
+NEGATIONS: Set[str] = {
+    # English
     "not",
     "no",
     "never",
@@ -846,8 +1706,44 @@ NEGATIONS = {
     "won't",
     "aint",
     "ain't",
+    # Spanish
+    "no",
+    "nunca",
+    "jamás",
+    "jamas",
+    # Portuguese
+    "não",
+    "nao",
+    "nunca",
+    "jamais",
+    "nem",
+    # French
+    "ne",
+    "pas",
+    "jamais",
+    "aucun",
+    # Italian
+    "non",
+    "mai",
+    # German
+    "kein",
+    "keine",
+    "keinen",
+    "keiner",
+    "niemals",
+    "nie",
+    "nicht",
+    # Dutch
+    "geen",
+    "niet",
+    "nooit",
+    # Polish
+    "nie",
+    "nigdy",
 }
-INTENSIFIERS = {
+
+INTENSIFIERS: Set[str] = {
+    # English
     "very",
     "really",
     "so",
@@ -864,8 +1760,45 @@ INTENSIFIERS = {
     "too",
     "literally",
     "highkey",
+    # Spanish
+    "muy",
+    "tan",
+    "tanto",
+    "bastante",
+    "demasiado",
+    # Portuguese
+    "muito",
+    "tão",
+    "tao",
+    "bastante",
+    "demais",
+    # French
+    "très",
+    "tres",
+    "tellement",
+    "vraiment",
+    # Italian
+    "molto",
+    "tantissimo",
+    "così",
+    "cosi",
+    # German
+    "sehr",
+    "wirklich",
+    "total",
+    "ziemlich",
+    # Dutch
+    "erg",
+    "heel",
+    "echt",
+    "best",
+    # Polish
+    "bardzo",
+    "strasznie",
 }
-DAMPENERS = {
+
+DAMPENERS: Set[str] = {
+    # English
     "slightly",
     "somewhat",
     "kinda",
@@ -877,8 +1810,33 @@ DAMPENERS = {
     "little",
     "mildly",
     "barely",
+    # Spanish
+    "un",
+    "poco",
+    "algo",
+    # Portuguese
+    "um",
+    "pouco",
+    # French
+    "un peu",
+    "peu",
+    # Italian
+    "un po",
+    "un po'",
+    "poco",
+    # German
+    "ein bisschen",
+    "bisschen",
+    # Dutch
+    "een beetje",
+    "beetje",
+    # Polish
+    "troche",
+    "trochę",
 }
-HEDGES = {
+
+HEDGES: Set[str] = {
+    # English
     "maybe",
     "perhaps",
     "possibly",
@@ -890,8 +1848,38 @@ HEDGES = {
     "kinda",
     "ish",
     "lowkey",
+    # Spanish
+    "quizás",
+    "quizas",
+    "tal vez",
+    "talvez",
+    "creo que",
+    "supongo que",
+    # Portuguese
+    "talvez",
+    "acho que",
+    # French
+    "peut-être",
+    "peutetre",
+    "je crois",
+    "je pense",
+    # Italian
+    "forse",
+    "credo che",
+    # German
+    "vielleicht",
+    "ich glaube",
+    # Dutch
+    "misschien",
+    "ik denk",
+    # Polish
+    "może",
+    "moze",
+    "chyba",
 }
-CONTRASTIVE = {
+
+CONTRASTIVE: Set[str] = {
+    # English
     "but",
     "however",
     "though",
@@ -905,10 +1893,171 @@ CONTRASTIVE = {
     "even though",
     "whereas",
     "regardless",
+    # Spanish
+    "pero",
+    "sin",
+    "embargo",
+    "aunque",
+    # Portuguese
+    "mas",
+    "porém",
+    "porem",
+    "embora",
+    # French
+    "mais",
+    "cependant",
+    "pourtant",
+    "toutefois",
+    # Italian
+    "ma",
+    "però",
+    "pero",
+    "tuttavia",
+    # German
+    "aber",
+    "doch",
+    "jedoch",
+    "trotzdem",
+    # Dutch
+    "maar",
+    "echter",
+    "toch",
+    # Polish
+    "ale",
+    "jednak",
+    "chociaż",
+    "chociaz",
 }
-TEMPORAL_POS = {"now", "finally", "at last"}
-TEMPORAL_NEG = {"still", "yet", "anymore", "no longer", "any longer"}
-STANCE_1P = {"i", "im", "i'm", "ive", "i've", "me", "my", "mine", "we", "our", "ours"}
+
+TEMPORAL_POS: Set[str] = {
+    "now",
+    "finally",
+    "at",
+    "last",
+    # Spanish
+    "ahora",
+    "ya",
+    "por",
+    "fin",
+    # Portuguese
+    "agora",
+    "finalmente",
+    # French
+    "maintenant",
+    "enfin",
+    # Italian
+    "adesso",
+    "ora",
+    "finalmente",
+    # German
+    "jetzt",
+    "endlich",
+    # Dutch
+    "nu",
+    "eindelijk",
+    # Polish
+    "teraz",
+    "wreszcie",
+}
+
+TEMPORAL_NEG: Set[str] = {
+    "still",
+    "yet",
+    "anymore",
+    "no",
+    "longer",
+    # Spanish
+    "todavía",
+    "todavia",
+    "aún",
+    "aun",
+    # Portuguese
+    "ainda",
+    # French
+    "encore",
+    "toujours",
+    # Italian
+    "ancora",
+    # German
+    "noch",
+    "immer",
+    # Dutch
+    "nog",
+    "nog steeds",
+    # Polish
+    "ciągle",
+    "ciagle",
+}
+
+STANCE_1P: Set[str] = {
+    # English
+    "i",
+    "im",
+    "i'm",
+    "ive",
+    "i've",
+    "me",
+    "my",
+    "mine",
+    "we",
+    "our",
+    "ours",
+    # Spanish
+    "yo",
+    "me",
+    "mi",
+    "mio",
+    "mía",
+    "mia",
+    "nosotros",
+    "nosotras",
+    "nuestro",
+    "nuestra",
+    # Portuguese
+    "eu",
+    "meu",
+    "minha",
+    "nós",
+    "nos",
+    "nosso",
+    "nossa",
+    # French
+    "je",
+    "moi",
+    "mon",
+    "ma",
+    "nous",
+    "notre",
+    # Italian
+    "io",
+    "me",
+    "mio",
+    "mia",
+    "noi",
+    "nostro",
+    "nostra",
+    # German
+    "ich",
+    "mir",
+    "mich",
+    "mein",
+    "wir",
+    "uns",
+    # Dutch
+    "ik",
+    "mij",
+    "mijn",
+    "wij",
+    "ons",
+    # Polish
+    "ja",
+    "mnie",
+    "mi",
+    "moja",
+    "mój",
+    "moj",
+    "my",
+}
 
 NEGATED_PAIRS = {
     ("no", "joy"): ("joy", "sadness", 1.1),
@@ -921,7 +2070,14 @@ NEGATED_PAIRS = {
     ("not", "in"): ("passion", "sadness", 0.9),
 }
 
-TOKEN_RE = re.compile(r"[a-zA-Z']+|[^\w\s]", re.UNICODE)
+# =============================================================================
+# Tokenization helpers
+# =============================================================================
+
+# Unicode aware tokenization:
+# - \w+ captures words in all scripts (Latin with accents, CJK, etc.)
+# - [^\w\s] keeps punctuation and emojis as separate tokens.
+TOKEN_RE = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 
 MISSPELLINGS = {
     "hapy": "happy",
@@ -944,16 +2100,24 @@ MISSPELLINGS = {
     "wont": "won't",
     "im": "i'm",
 }
-APPROX_TARGETS = set().union(JOY, SADNESS, ANGER, FEAR, DISGUST, PASSION, SURPRISE)
 
 
-# =============================================================================
-# Tokenization helpers
-# =============================================================================
+def _build_approx_targets() -> Set[str]:
+    base = set().union(JOY, SADNESS, ANGER, FEAR, DISGUST, PASSION, SURPRISE)
+    expanded: Set[str] = set()
+    for w in base:
+        if not w:
+            continue
+        expanded.add(w)
+        expanded.add(_strip_accents(w))
+    return expanded
+
+
+APPROX_TARGETS: Set[str] = _build_approx_targets()
 
 
 def _normalize_elongation(text: str) -> str:
-    return re.sub(r"([a-zA-Z])\1{2,}", r"\1\1", text)
+    return re.sub(r"([A-Za-z])\1{2,}", r"\1\1", text)
 
 
 def _normalize_whitespace(text: str) -> str:
@@ -961,8 +2125,13 @@ def _normalize_whitespace(text: str) -> str:
 
 
 def _tokens(text: str) -> List[str]:
+    """
+    Tokenize into unicode words and punctuation.
+    Normalizes elongation like "soooo" -> "soo".
+    """
     text = _normalize_elongation(text)
     text = _normalize_whitespace(text)
+    # Collapse repeated boosters like "so so so" -> "so"
     text = re.sub(r"\b(so|very|really)\s+\1\b", r"\1", text, flags=re.IGNORECASE)
     return [t.lower() for t in TOKEN_RE.findall(text)]
 
@@ -983,16 +2152,119 @@ def _window(tokens: List[str], i: int, size: int = 3) -> Iterable[str]:
 
 @lru_cache(maxsize=4096)
 def _approx_correction(stem: str) -> str:
-    if stem in APPROX_TARGETS:
-        return stem
-    if stem in MISSPELLINGS:
-        return MISSPELLINGS[stem]
-    matches = difflib.get_close_matches(stem, APPROX_TARGETS, n=1, cutoff=0.90)
-    return matches[0] if matches else stem
+    """
+    Approximate correction that is accent insensitive and typo aware.
+    """
+    raw = stem
+    norm = _strip_accents(raw)
+    if norm in MISSPELLINGS:
+        return MISSPELLINGS[norm]
+    if norm in APPROX_TARGETS:
+        return norm
+    matches = difflib.get_close_matches(norm, APPROX_TARGETS, n=1, cutoff=0.90)
+    return matches[0] if matches else raw
 
 
 def _meaningful_token_count(tokens: List[str]) -> int:
     return sum(1 for t in tokens if t.isalpha() and len(t) >= 3)
+
+
+# =============================================================================
+# Language guesser (used for both scoring and introspection)
+# =============================================================================
+
+
+def _guess_language(text: str) -> str:
+    """
+    Lightweight heuristic language guesser.
+    Returns ISO like codes: en, es, pt, fr, it, de, nl, pl, zh, ja, ko.
+    Defaults to en if uncertain.
+    """
+    t = text.lower()
+
+    # CJK ranges first
+    for ch in t:
+        code = ord(ch)
+        if 0x4E00 <= code <= 0x9FFF:
+            return "zh"
+        if 0x3040 <= code <= 0x30FF:
+            return "ja"
+        if 0xAC00 <= code <= 0xD7AF:
+            return "ko"
+
+    toks = _tokens(text)
+    joined = " " + " ".join(toks) + " "
+
+    scores: Dict[str, float] = {c: 0.0 for c in ("en", "es", "pt", "fr", "it", "de", "nl", "pl")}
+
+    def bump(lang: str, w: float = 1.0) -> None:
+        scores[lang] += w
+
+    # Spanish
+    for marker in (
+        " el ",
+        " la ",
+        " que ",
+        " de ",
+        " y ",
+        " pero ",
+        " porque ",
+        "estoy ",
+        "estas ",
+        "estás ",
+        "gracias",
+    ):
+        if marker in joined:
+            bump("es", 1.0)
+    if any(ch in t for ch in "ñáéíóú"):
+        bump("es", 0.6)
+
+    # Portuguese
+    for marker in (" não ", " nao ", " você", " voce", "tudo bem", "obrigado", "obrigada", "saudade"):
+        if marker in joined:
+            bump("pt", 1.0)
+    if any(ch in t for ch in "ãõç"):
+        bump("pt", 0.8)
+
+    # French
+    for marker in (" je ", " moi ", " ne ", " pas ", "vous ", "avec ", "pour ", "merci", "très ", "tres "):
+        if marker in joined:
+            bump("fr", 1.0)
+    if any(ch in t for ch in "éèêàùçôî"):
+        bump("fr", 0.6)
+
+    # Italian
+    for marker in (" ciao", " grazie", "non ", "perché", "perche", "sono ", "sei ", "allora"):
+        if marker in joined:
+            bump("it", 1.0)
+
+    # German
+    for marker in (" ich ", " nicht", " und ", "aber ", "dass ", "schön", "schon", "sehr "):
+        if marker in joined:
+            bump("de", 1.0)
+    if "ß" in t:
+        bump("de", 0.8)
+
+    # Dutch
+    for marker in (" ik ", " jij ", " je ", " niet", " maar ", " wij ", " we ", " heel ", " erg "):
+        if marker in joined:
+            bump("nl", 1.0)
+
+    # Polish
+    for marker in (" nie ", " jestem", " masz ", "dzień", "dzien", "proszę", "prosze", "dziękuję", "dziekuje"):
+        if marker in joined:
+            bump("pl", 1.0)
+    if any(ch in t for ch in "ąćęłńóśżź"):
+        bump("pl", 0.8)
+
+    # If one language clearly dominates, return it
+    best_lang = "en"
+    best_score = 0.0
+    for code, score in scores.items():
+        if score > best_score:
+            best_lang, best_score = code, score
+
+    return best_lang if best_score >= 1.0 else "en"
 
 
 # =============================================================================
@@ -1003,8 +2275,12 @@ _SENT_ENDERS = {".", "!", "?", "?!", "!?"}
 
 
 def _split_sentences_from_tokens(
-    tokens: List[str], max_sentences: int = 12
+    tokens: List[str], max_sentences: int = 16
 ) -> List[List[str]]:
+    """
+    Split tokens into sentence like segments, capped to max_sentences,
+    suitable for up to roughly 250 words.
+    """
     if not tokens:
         return [[]]
     sents: List[List[str]] = []
@@ -1096,8 +2372,13 @@ def _surprise_punctuation_bonus(text: str) -> float:
 def _in_lex(target: str, bag: Set[str]) -> bool:
     if target in bag:
         return True
+    stripped = _strip_accents(target)
+    if stripped in bag:
+        return True
     if len(target) >= 4:
-        return any(w.startswith(target) for w in bag)
+        for w in bag:
+            if w.startswith(target) or _strip_accents(w).startswith(target):
+                return True
     return False
 
 
@@ -1258,10 +2539,6 @@ def _apply_exclamation_emphasis(tokens: List[str], scores: Dict[str, float]) -> 
 
 
 def _apply_feeling_focus(text_lower: str, scores: Dict[str, float]) -> None:
-    """
-    When someone explicitly says "I feel" or "it makes me feel",
-    bump emotional evidence slightly since it is a direct self report.
-    """
     cues_strong = (
         "i feel",
         "i'm feeling",
@@ -1274,16 +2551,172 @@ def _apply_feeling_focus(text_lower: str, scores: Dict[str, float]) -> None:
         "it makes me feel",
         "i feel so",
         "i feel really",
+        # Spanish Portuguese French Italian
+        "me siento",
+        "me sinto",
+        "me siento tan",
+        "me sinto tão",
+        "me sinto tao",
+        "je me sens",
+        "je me sens tellement",
+        "mi sento",
+        "mi sento così",
+        "mi sento cosi",
+        # German Dutch Polish
+        "ich fühle mich",
+        "ich fuhle mich",
+        "ik voel me",
+        "czuje sie",
+        "czuję się",
     )
     if not any(c in text_lower for c in cues_strong):
         return
 
     factor = 1.08
-    if "really" in text_lower or "so " in text_lower or "very " in text_lower:
+    if any(
+        x in text_lower
+        for x in ("really", "so ", "very ", "muy ", "muito ", "très ", "tres ", "sehr ")
+    ):
         factor = 1.12
 
     for k in CORE_KEYS:
         scores[k] *= factor
+
+
+def _apply_short_text_rules(
+    tokens: List[str],
+    text_lower: str,
+    scores: Dict[str, float],
+    language: str,
+) -> None:
+    """
+    Additional handling for ultra short inputs.
+
+    This focuses on common ambiguous replies like "im fine", "ok",
+    "estoy bien", "tudo bem" and their near equivalents.
+    """
+    total_tokens = len(tokens)
+    alpha_tokens = sum(1 for t in tokens if t.isalpha())
+
+    threshold = min(6, max(1, DEFAULT_CONFIG.short_text_token_threshold))
+    if total_tokens > threshold and alpha_tokens > threshold:
+        return
+
+    simple = text_lower.strip()
+    simple = re.sub(r"\s+", " ", simple)
+
+    # If we have emoji heavy content, fall back on normal emoji logic
+    if alpha_tokens == 0:
+        return
+
+    # English style "im fine", "its fine", "ok then", etc
+    base_fine_patterns = {
+        "im fine",
+        "i'm fine",
+        "i am fine",
+        "fine",
+        "im ok",
+        "i'm ok",
+        "i am ok",
+        "im okay",
+        "i'm okay",
+        "i am okay",
+        "its fine",
+        "it's fine",
+        "that is fine",
+    }
+    if any(simple.startswith(p) for p in base_fine_patterns):
+        exclam = "!" in simple
+        neg_emoji = any(e in simple for e in ("😢", "😭", "🙁", "😞", "😔", "🥺"))
+        if exclam and not neg_emoji:
+            # More sincerely positive
+            scores["joy"] += 0.8
+        else:
+            # Mildly resigned or masking distress
+            scores["sadness"] += 1.0
+            scores["anger"] += 0.25
+            scores["joy"] *= 0.6
+
+    if any(
+        kw in simple for kw in ("ok then", "fine then", "ok whatever", "ok, whatever")
+    ):
+        scores["sadness"] += 0.8
+        scores["anger"] += 0.4
+        scores["joy"] *= 0.4
+
+    # Spanish and Portuguese "estoy bien", "estou bem", "tudo bem"
+    if language in ("es", "pt"):
+        if any(
+            phrase in simple
+            for phrase in (
+                "estoy bien",
+                "todo bien",
+                "estou bem",
+                "to bem",
+                "tudo bem",
+                "tá bem",
+                "ta bem",
+            )
+        ):
+            exclam = "!" in simple
+            if exclam:
+                scores["joy"] += 0.6
+            else:
+                scores["sadness"] += 0.4
+                scores["joy"] += 0.2
+
+    # French "ça va", "ca va"
+    if language == "fr":
+        if "ca va" in simple or "ça va" in simple:
+            exclam = "!" in simple
+            if exclam:
+                scores["joy"] += 0.6
+            else:
+                scores["sadness"] += 0.35
+                scores["joy"] += 0.2
+
+    # Italian "sto bene"
+    if language == "it" and "sto bene" in simple:
+        exclam = "!" in simple
+        if exclam:
+            scores["joy"] += 0.6
+        else:
+            scores["sadness"] += 0.35
+            scores["joy"] += 0.2
+
+    # German "alles gut", "mir geht es gut"
+    if language == "de":
+        if "alles gut" in simple or "mir geht es gut" in simple:
+            exclam = "!" in simple
+            if exclam:
+                scores["joy"] += 0.6
+            else:
+                scores["sadness"] += 0.3
+                scores["joy"] += 0.25
+
+    # Dutch "het gaat goed", "gaat goed"
+    if language == "nl":
+        if "het gaat goed" in simple or "gaat goed" in simple:
+            exclam = "!" in simple
+            if exclam:
+                scores["joy"] += 0.6
+            else:
+                scores["sadness"] += 0.3
+                scores["joy"] += 0.25
+
+    # Polish "wszystko dobrze", "jest ok", "jest okej"
+    if language == "pl":
+        if (
+            "wszystko dobrze" in simple
+            or "jest ok" in simple
+            or "jest okej" in simple
+        ):
+            exclam = "!" in simple
+            if exclam:
+                scores["joy"] += 0.6
+            else:
+                scores["sadness"] += 0.35
+                scores["joy"] += 0.25
 
 
 # =============================================================================
@@ -1302,6 +2735,24 @@ def _desire_commitment_bonus(text_lower: str) -> Dict[str, float]:
     if " in love" in text_lower or text_lower.startswith("in love"):
         out["passion"] += 2.2
         out["joy"] += 0.4
+    # Simple Romance language commitment signals
+    if any(
+        p in text_lower
+        for p in (
+            "quiero casarme",
+            "quero me casar",
+            "quero casar",
+            "je veux t'épouser",
+            "je veux tepouser",
+            "voglio sposarti",
+            "ich will dich heiraten",
+            "ik wil met je trouwen",
+            "chcę się z tobą ożenić",
+            "chce sie z toba ozenic",
+        )
+    ):
+        out["passion"] += 2.5
+        out["joy"] += 0.7
     return out
 
 
@@ -1310,6 +2761,25 @@ def _apply_reassurance_and_deescalation(
 ) -> None:
     has_reassure = any(p in text_lower for p in INTENT_REASSURE)
     has_deesc = any(p in text_lower for p in INTENT_DEESCALATE)
+
+    # Simple multilingual reassurance
+    reassure_phrases = [
+        "todo va a estar bien",
+        "todo estará bien",
+        "todo estara bien",
+        "vai dar tudo certo",
+        "tudo vai ficar bem",
+        "tout ira bien",
+        "andrà tutto bene",
+        "andrà tutto a posto",
+        "es wird alles gut",
+        "alles wird gut",
+        "alles komt goed",
+        "wszystko będzie dobrze",
+        "wszystko bedzie dobrze",
+    ]
+    if any(p in text_lower for p in reassure_phrases):
+        has_reassure = True
 
     if not (has_reassure or has_deesc):
         return
@@ -1369,16 +2839,25 @@ def _sarcasm_cue(tokens: List[str]) -> bool:
         "so fun",
         "how lovely",
         "what a delight",
+        "yeah no",
+        "yeah, no",
     ]
-    return any(c in text for c in cues)
+    if any(c in text for c in cues):
+        return True
+
+    # Deadpan positive adjective with period in a negative context
+    if re.search(r"\b(great|amazing|wonderful|fantastic|perfect)\.\b", text):
+        if _is_negative_clause(tokens):
+            return True
+
+    # Simple Romance language sarcasm markers
+    if "si claro" in text or "sí claro" in text or "pois sim" in text:
+        return True
+
+    return False
 
 
 def _apply_attraction_patterns(tokens: List[str], scores: Dict[str, float]) -> None:
-    """
-    Handle very short attraction phrases like "She is so hot" or "He is cute".
-
-    This gives a strong passion signal even when there are only a few words.
-    """
     if not tokens:
         return
 
@@ -1392,7 +2871,7 @@ def _apply_attraction_patterns(tokens: List[str], scores: Dict[str, float]) -> N
             continue
 
         for j, adj in enumerate(window):
-            if adj in {"is", "s"}:
+            if adj in {"is", "s", "est", "é", "e"}:
                 continue
 
             between = stems[i + 1 : i + 1 + j]
@@ -1413,11 +2892,6 @@ def _apply_attraction_patterns(tokens: List[str], scores: Dict[str, float]) -> N
 def _apply_rhetorical_confrontation(
     text_lower: str, scores: Dict[str, float]
 ) -> None:
-    """
-    Detect confrontational questions such as
-    "Who do you think you are" that typically carry anger,
-    not fear.
-    """
     if any(p in text_lower for p in CONFRONTATIONAL_QUESTION_PATTERNS):
         scores["anger"] += 1.2
         scores["disgust"] += 0.35
@@ -1428,16 +2902,24 @@ def _apply_rhetorical_confrontation(
 def _apply_colloquial_overrides(
     tokens: List[str], text_lower: str, scores: Dict[str, float]
 ) -> None:
-    """
-    Adjust for colloquial expressions like "whatever, that is fine"
-    which are often sarcastic or resigned rather than joyful.
-    """
     if not tokens:
         return
 
     has_negative_context = any(
         cue in text_lower
-        for cue in (" but ", "but ", " no ", "doesnt", "doesn't", "didnt", "didn't")
+        for cue in (
+            " but ",
+            "but ",
+            " no ",
+            "doesnt",
+            "doesn't",
+            "didnt",
+            "didn't",
+            "pero ",
+            " mas ",
+            "mais ",
+            "mais que",
+        )
     )
 
     if "whatever" in text_lower:
@@ -1462,6 +2944,15 @@ def _apply_colloquial_overrides(
             "ok then",
             "okay then",
             "fine then",
+            # Romance language equivalents
+            "esta bien",
+            "está bien",
+            "esta tudo bem",
+            "está tudo bem",
+            "cest bon",
+            "c'est bon",
+            "va bene",
+            "ist schon gut",
         )
     ):
         scores["sadness"] += 0.8
@@ -1470,6 +2961,98 @@ def _apply_colloquial_overrides(
 
     if "rough day" in text_lower or "tough day" in text_lower:
         scores["sadness"] += 0.9
+
+
+def _apply_not_x_but_y(tokens: List[str], scores: Dict[str, float]) -> None:
+    """
+    Handle patterns like "I am not sad, I am angry"
+    across supported languages, transferring weight
+    from the first emotion to the second.
+    """
+    if len(tokens) < 4:
+        return
+
+    lex_by_emo: Dict[str, Set[str]] = {
+        "joy": JOY,
+        "sadness": SADNESS,
+        "anger": ANGER,
+        "fear": FEAR,
+        "disgust": DISGUST,
+        "passion": PASSION,
+        "surprise": SURPRISE,
+    }
+
+    n = len(tokens)
+    for i, tok in enumerate(tokens):
+        if tok not in NEGATIONS and not tok.endswith("n't"):
+            continue
+
+        emo1: Optional[str] = None
+        emo1_idx: Optional[int] = None
+        for j in range(i + 1, min(n, i + 6)):
+            raw = tokens[j]
+            if not raw.isalpha():
+                continue
+            stem = _approx_correction(_stem(raw))
+            for emo, bag in lex_by_emo.items():
+                if _in_lex(stem, bag):
+                    emo1 = emo
+                    emo1_idx = j
+                    break
+            if emo1 is not None:
+                break
+
+        if emo1 is None or emo1_idx is None:
+            continue
+
+        emo2: Optional[str] = None
+        emo2_idx: Optional[int] = None
+        for j in range(emo1_idx + 1, min(n, emo1_idx + 10)):
+            raw = tokens[j]
+            if not raw.isalpha():
+                continue
+            stem = _approx_correction(_stem(raw))
+            for emo, bag in lex_by_emo.items():
+                if emo == emo1:
+                    continue
+                if _in_lex(stem, bag):
+                    emo2 = emo
+                    emo2_idx = j
+                    break
+            if emo2 is not None:
+                break
+
+        if emo2 is None or emo2_idx is None:
+            continue
+
+        between = tokens[emo1_idx + 1 : emo2_idx]
+        between_joined = " ".join(between)
+        bridge_bonus = 1.0
+        if any(
+            kw in between_joined
+            for kw in (
+                "just",
+                "only",
+                "simply",
+                "solo",
+                "solamente",
+                "apenas",
+                "só",
+                "so ",
+            )
+        ):
+            bridge_bonus = 1.15
+
+        src_val = scores.get(emo1, 0.0)
+        dst_val = scores.get(emo2, 0.0)
+        if src_val <= 0 and dst_val <= 0:
+            continue
+
+        scores[emo1] = src_val * 0.35
+        scores[emo2] = dst_val + src_val * 0.55 * bridge_bonus + 0.12 * bridge_bonus
+
+        # Only apply once per clause to avoid over correction
+        break
 
 
 def _score_clause(tokens: List[str]) -> Dict[str, float]:
@@ -1529,7 +3112,6 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     s_damp = _because_clause_dampener(tokens)
     scores["surprise"] *= s_damp
 
-    # Exclamation emphasis routed to either positive or negative side
     _apply_exclamation_emphasis(tokens, scores)
 
     for emo, opp in [
@@ -1556,11 +3138,11 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     if _sarcasm_cue(tokens):
         scores["joy"] *= 0.6
 
-    # Pattern based adjustments and mixed emotion cues
     _apply_attraction_patterns(tokens, scores)
     _apply_rhetorical_confrontation(text_lower, scores)
     _apply_colloquial_overrides(tokens, text_lower, scores)
     _apply_mixed_patterns(text_lower, scores)
+    _apply_not_x_but_y(tokens, scores)
     _apply_feeling_focus(text_lower, scores)
 
     text_seg = "".join(tokens)
@@ -1568,6 +3150,7 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
         scores["anger"] *= 1.05
         scores["joy"] *= 1.03
 
+    # Normalize by alphabetic token count, but keep floor 1
     denom = max(n_alpha, 1)
     for k in CORE_KEYS:
         scores[k] = scores[k] / denom
@@ -1750,24 +3333,106 @@ def _aggregate_sentences(sentences: List[List[str]]) -> Dict[str, float]:
     return raw
 
 
+def _score_windows(tokens: List[str]) -> List[Dict[str, Any]]:
+    """
+    Sliding window scoring over longer texts to capture emotional turns.
+    Returns a list of window descriptors with raw scores.
+    """
+    n = len(tokens)
+    config = DEFAULT_CONFIG
+    min_tokens = max(20, config.window_min_tokens)
+    if n < min_tokens:
+        return []
+
+    size = max(24, min(config.window_size_tokens, n))
+    step = max(8, min(config.window_step_tokens, size // 2))
+
+    windows: List[Dict[str, Any]] = []
+    start = 0
+    while start < n:
+        end = min(n, start + size)
+        seg = tokens[start:end]
+        if _meaningful_token_count(seg) == 0:
+            if end == n:
+                break
+            start += step
+            continue
+
+        sc = _aggregate_sentence(seg)
+        norm = _normalize_for_mixture(sc)
+        dominant = _choose_dominant(norm, low_signal=False)
+        windows.append(
+            {
+                "start_index": start,
+                "end_index": end,
+                "token_count": len(seg),
+                "tokens": seg,
+                "scores": sc,
+                "dominant": dominant,
+            }
+        )
+
+        if end == n:
+            break
+        start += step
+
+    return windows
+
+
+def _apply_window_level_adjustment(
+    tokens: List[str], base_scores: Dict[str, float]
+) -> Tuple[Dict[str, float], List[Dict[str, Any]]]:
+    """
+    For longer texts, blend sentence level aggregate with
+    sliding window aggregate to better respect emotional turns.
+    """
+    windows = _score_windows(tokens)
+    if not windows:
+        return base_scores, []
+
+    win_agg = _blank_scores()
+    total_len = 0.0
+    for w in windows:
+        sc = w.get("scores", {})
+        ln = float(w.get("token_count", len(w.get("tokens", []))))
+        if ln <= 0:
+            continue
+        total_len += ln
+        for k in CORE_KEYS:
+            win_agg[k] += sc.get(k, 0.0) * ln
+
+    if total_len <= 0.0:
+        return base_scores, windows
+
+    for k in CORE_KEYS:
+        win_agg[k] /= total_len
+
+    blended = _blank_scores()
+    doc_w = 0.6
+    win_w = 0.4
+    for k in CORE_KEYS:
+        blended[k] = base_scores.get(k, 0.0) * doc_w + win_agg.get(k, 0.0) * win_w
+
+    return blended, windows
+
+
 def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
     """
-    Decide whether the input is truly low signal.
+    Decide whether the signal is too weak to trust.
 
-    Short but emotionally clear entries such as "He really pisses me off"
-    or "She is so hot" should be treated as valid once there is
-    a strong peak, even if the total word count is small.
+    For v5 this considers phrase-only CJK text, emoji only, and short texts.
     """
     meaningful = _meaningful_token_count(tokens)
-    if meaningful == 0:
-        return True
-
     peak = max((v for v in raw_scores.values()), default=0.0)
-    if peak >= 0.05:
-        return False
-
     total = sum(max(v, 0.0) for v in raw_scores.values())
     distinct = sum(1 for v in raw_scores.values() if v > 0.06)
+
+    # If purely phrase or emoji based but still strong, do not mark low signal.
+    if meaningful == 0:
+        return peak < 0.05
+
+    if peak >= 0.05:
+        return False
 
     if meaningful == 1 and total < 0.04 and distinct <= 1:
         return True
@@ -1873,8 +3538,6 @@ def _dominance_profile(
         elif pair == {"anger", "disgust"} and min_pair_val >= 0.16:
             mixed = True
 
-    # If two emotions are close and both reasonably strong,
-    # treat as a mixed state even without special pairing.
     if (
         not mixed
         and top_val >= 0.18
@@ -1886,6 +3549,193 @@ def _dominance_profile(
     return dominant, candidate_key, mixed
 
 
+def _compute_meta_metrics(
+    final_scores: Dict[str, float],
+    low_signal: bool,
+    tokens: List[str],
+) -> Dict[str, float]:
+    """
+    Compute document level valence, arousal and confidence
+    from final scores and token features.
+    """
+    pos = final_scores.get("joy", 0.0) + final_scores.get("passion", 0.0)
+    neg = (
+        final_scores.get("sadness", 0.0)
+        + final_scores.get("fear", 0.0)
+        + final_scores.get("anger", 0.0)
+        + final_scores.get("disgust", 0.0)
+    )
+    denom = pos + neg
+    if denom > 0:
+        valence = (pos - neg) / denom
+    else:
+        valence = 0.0
+
+    exclam = tokens.count("!")
+    qmarks = tokens.count("?")
+    caps_tokens = sum(
+        1 for t in tokens if t.isalpha() and len(t) >= 3 and t.upper() == t
+    )
+    alpha_tokens = sum(1 for t in tokens if t.isalpha())
+    caps_ratio = (caps_tokens / alpha_tokens) if alpha_tokens else 0.0
+
+    base_energy = (
+        final_scores.get("anger", 0.0)
+        + final_scores.get("fear", 0.0)
+        + final_scores.get("passion", 0.0)
+        + final_scores.get("surprise", 0.0)
+    )
+    punct_boost = min(exclam * 0.05 + qmarks * 0.03, 0.4)
+    caps_boost = min(caps_ratio * 0.4, 0.4)
+    arousal = base_energy * 0.75 + punct_boost + caps_boost
+    if arousal > 1.0:
+        arousal = 1.0
+
+    ordered_vals = sorted(final_scores.values(), reverse=True)
+    peak = ordered_vals[0] if ordered_vals else 0.0
+    second = ordered_vals[1] if len(ordered_vals) > 1 else 0.0
+    spread = max(0.0, peak - second)
+    non_trivial = sum(1 for v in final_scores.values() if v >= 0.08)
+
+    if low_signal or peak < 0.05:
+        confidence = 0.15
+    else:
+        confidence = (
+            0.45 * peak
+            + 0.35 * spread
+            + 0.2 * (non_trivial / float(len(CORE_KEYS)))
+        )
+        if confidence > 1.0:
+            confidence = 1.0
+        if confidence < 0.0:
+            confidence = 0.0
+
+    return {
+        "valence": float(valence),
+        "arousal": float(arousal),
+        "confidence": float(confidence),
+    }
+
+
+def _extract_reasons(
+    text: str,
+    tokens: List[str],
+    final_scores: Dict[str, float],
+) -> Dict[str, List[str]]:
+    """
+    Heuristic explanation of which words or phrases contributed
+    to each emotion score.
+    """
+    reasons: Dict[str, List[str]] = {k: [] for k in CORE_KEYS}
+    if not text or not tokens:
+        return reasons
+
+    text_lower = text.lower()
+
+    # Phrase based reasons
+    for phrase, emo, _ in PHRASES:
+        if final_scores.get(emo, 0.0) < 0.08:
+            continue
+        if phrase in text_lower and phrase not in reasons[emo]:
+            reasons[emo].append(phrase)
+            if len(reasons[emo]) >= 4:
+                continue
+
+    # Lexical reasons
+    lex_map = {
+        "joy": JOY,
+        "sadness": SADNESS,
+        "anger": ANGER,
+        "fear": FEAR,
+        "disgust": DISGUST,
+        "passion": PASSION,
+        "surprise": SURPRISE,
+    }
+    for raw in tokens:
+        if not raw:
+            continue
+        if not raw.isalpha() and raw not in {"<3", "❤️"}:
+            continue
+        stem = _approx_correction(_stem(raw))
+        for emo, bag in lex_map.items():
+            if final_scores.get(emo, 0.0) < 0.08:
+                continue
+            if _in_lex(stem, bag) and raw not in reasons[emo]:
+                reasons[emo].append(raw)
+                if len(reasons[emo]) >= 5:
+                    break
+
+    # Emoji reasons
+    for emo, emoji_set in EMOJI.items():
+        if final_scores.get(emo, 0.0) < 0.08:
+            continue
+        if any(e in tokens for e in emoji_set):
+            if "emoji" not in reasons[emo]:
+                reasons[emo].append("emoji")
+
+    return reasons
+
+
+def _collect_patterns_fired(text_lower: str) -> List[str]:
+    patterns: List[str] = []
+
+    for pattern, _ in MIXED_PATTERNS:
+        if pattern in text_lower:
+            patterns.append(f"mixed:{pattern}")
+
+    if any(p in text_lower for p in INTENT_COMMIT):
+        patterns.append("commitment_intent")
+
+    if any(p in text_lower for p in INTENT_DESIRE):
+        patterns.append("desire_intent")
+
+    if any(p in text_lower for p in INTENT_REASSURE):
+        patterns.append("reassurance")
+    if any(p in text_lower for p in INTENT_DEESCALATE):
+        patterns.append("deescalation")
+
+    if any(p in text_lower for p in CONFRONTATIONAL_QUESTION_PATTERNS):
+        patterns.append("confrontational_question")
+
+    return patterns
+
+
+def _score_document(
+    tokens: List[str],
+    text_str: str,
+) -> Tuple[Dict[str, float], List[Dict[str, Any]], bool, str]:
+    """
+    Core document level scoring before clamping and dominance.
+
+    Returns:
+        raw_scores, windows, low_signal, language
+    """
+    if not tokens:
+        return _blank_scores(), [], True, "en"
+
+    sentences = _split_sentences_from_tokens(tokens, max_sentences=16)
+    raw = _aggregate_sentences(sentences)
+    raw, windows = _apply_window_level_adjustment(tokens, raw)
+    raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
+
+    language = _guess_language(text_str)
+    text_lower = text_str.lower()
+
+    _apply_short_text_rules(tokens, text_lower, raw, language)
+
+    alpha_tokens = sum(1 for t in tokens if t.isalpha())
+    total_tokens = len(tokens)
+    threshold = min(6, max(1, DEFAULT_CONFIG.short_text_token_threshold))
+    if total_tokens <= threshold or alpha_tokens <= 2:
+        max_raw = max(raw.values()) if raw else 0.0
+        if max_raw > 0.0:
+            for k in CORE_KEYS:
+                raw[k] *= 1.2
+
+    low_signal = _is_low_signal(tokens, raw)
+    return raw, windows, low_signal, language
+
+
 # =============================================================================
 # Public API
 # =============================================================================
@@ -1893,19 +3743,13 @@ def _dominance_profile(
 
 def detect_emotions(text: str, use_watson_if_available: bool = False) -> EmotionResult:
     """
-    Main detector entry point.
+    Main multilingual detector entry point.
 
-    Purely local scoring with a true zero baseline. Emotions that have
-    no lexical or structural evidence stay at 0. Very short or
-    incomplete inputs such as "am" are treated as low signal, while
-    short but clear cues like "pisses me off" or "terrified" still
-    receive a valid emotional profile.
+    Purely local scoring with a true zero baseline that supports:
+    English, Spanish, Portuguese, French, Italian, German, Dutch, Polish
+    and phrase based cues for Chinese, Japanese and Korean.
 
-    Hardened so that any unexpected internal error falls back to a safe
-    low signal zero profile instead of crashing the application.
-
-    The parameter use_watson_if_available is kept for API compatibility
-    but is ignored in this v3 local detector.
+    Calibrated for 1 to about 250 words.
     """
     if text is None:
         raise InvalidTextError("Input text is required")
@@ -1916,6 +3760,7 @@ def detect_emotions(text: str, use_watson_if_available: bool = False) -> Emotion
 
     low_signal = False
     scores: Dict[str, float]
+    tokens: List[str] = []
 
     try:
         tokens = _tokens(text_str)
@@ -1923,24 +3768,19 @@ def detect_emotions(text: str, use_watson_if_available: bool = False) -> Emotion
             scores = _blank_scores()
             low_signal = True
         else:
-            meaningful = _meaningful_token_count(tokens)
-            if meaningful == 0:
-                scores = _blank_scores()
-                low_signal = True
-            else:
-                sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
-                raw = _aggregate_sentences(sentences)
-                raw["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-                low_signal = _is_low_signal(tokens, raw)
-                scores = _clamp_scores(raw)
+            raw, _windows, low_signal, _lang = _score_document(tokens, text_str)
+            scores = _clamp_scores(raw)
     except Exception:
         low_signal = True
         scores = _blank_scores()
+        tokens = []
 
     mix_for_dominance = _normalize_for_mixture(scores)
     dominant, secondary, mixed = _dominance_profile(
         mix_for_dominance, low_signal=low_signal
     )
+
+    meta = _compute_meta_metrics(scores, low_signal, tokens)
 
     result = EmotionResult(
         anger=float(scores.get("anger", 0.0)),
@@ -1954,6 +3794,9 @@ def detect_emotions(text: str, use_watson_if_available: bool = False) -> Emotion
         low_signal=low_signal,
         secondary_emotion=secondary,
         mixed_state=mixed,
+        valence=meta["valence"],
+        arousal=meta["arousal"],
+        confidence=meta["confidence"],
     )
     return result
 
@@ -1962,18 +3805,19 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
     """
     Developer facing introspection helper.
 
-    Returns intermediate tokens, per sentence breakdown, raw aggregate
-    scores and the final clamped scores, together with the dominant and
-    secondary emotions and mixed state flag.
-
-    The parameter use_watson_if_available is kept for API compatibility
-    but is ignored in this v3 local detector.
+    Returns tokens, per sentence breakdown, raw aggregate scores and the
+    final clamped scores, together with the dominant and secondary
+    emotions, mixed state flag, guessed language, window level view,
+    meta metrics and a simple reasons list per emotion.
     """
     if text is None or not str(text).strip():
         raise InvalidTextError("Input text is required")
 
-    tokens = _tokens(text)
-    sentences = _split_sentences_from_tokens(tokens, max_sentences=12)
+    text_str = str(text)
+    tokens = _tokens(text_str)
+    sentences = _split_sentences_from_tokens(tokens, max_sentences=16)
+
+    # Per sentence breakdown for debugging
     per_sentence = []
     per_sentence_weights = []
     for idx, s in enumerate(sentences):
@@ -1996,9 +3840,7 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
     total = sum(sw) or 1.0
     sw = [w / total for w in sw]
 
-    agg = _aggregate_sentences(sentences) if sentences else _blank_scores()
-    agg["surprise"] += _surprise_punctuation_bonus("".join(tokens)) * 0.2
-    low_signal = _is_low_signal(tokens, agg) if tokens else True
+    agg, windows, low_signal, language = _score_document(tokens, text_str)
     final = _clamp_scores(agg)
 
     mix_for_dominance = _normalize_for_mixture(final)
@@ -2006,8 +3848,13 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
         mix_for_dominance, low_signal=low_signal
     )
 
+    meta = _compute_meta_metrics(final, low_signal, tokens)
+    reasons = _extract_reasons(text_str, tokens, final)
+    patterns_fired = _collect_patterns_fired(text_str.lower())
+
     return {
         "text": text,
+        "language": language,
         "tokens": tokens,
         "sentences": sentences,
         "per_sentence": per_sentence,
@@ -2018,6 +3865,10 @@ def explain_emotions(text: str, use_watson_if_available: bool = False) -> Dict[s
         "secondary": secondary,
         "mixed_state": mixed,
         "low_signal": low_signal,
+        "windows": windows,
+        "meta": meta,
+        "reasons": reasons,
+        "patterns_fired": patterns_fired,
     }
 
 
