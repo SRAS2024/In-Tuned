@@ -586,14 +586,8 @@
               <div class="label" data-i18n="resultsDominantLabel">Dominant</div>
               <div class="value" id="v-dominant">N/A</div>
 
-              <div class="label" data-i18n="resultsEmotionLabel">Blended</div>
+              <div class="label" data-i18n="resultsEmotionLabel">Current emotion</div>
               <div class="value" id="v-emotion">N/A</div>
-
-              <div class="label" data-i18n="resultsSecondaryLabel">Secondary</div>
-              <div class="value" id="v-secondary">N/A</div>
-
-              <div class="label" data-i18n="resultsMixedLabel">Mixed state</div>
-              <div class="value" id="v-mixed">N/A</div>
             </div>
           </div>
         </div>
@@ -675,7 +669,7 @@
             analysisTitle: "Analysis",
             resultsTitle: "Results",
             resultsDominantLabel: "Dominant",
-            resultsEmotionLabel: "Blended",
+            resultsEmotionLabel: "Current emotion",
             resultsSecondaryLabel: "Secondary",
             resultsMixedLabel: "Mixed state",
             resultsMixedYes: "Yes",
@@ -728,7 +722,7 @@
             analysisTitle: "Análisis",
             resultsTitle: "Resultados",
             resultsDominantLabel: "Principal",
-            resultsEmotionLabel: "Combinada",
+            resultsEmotionLabel: "Emoción actual",
             resultsSecondaryLabel: "Secundaria",
             resultsMixedLabel: "Estado mixto",
             resultsMixedYes: "Sí",
@@ -779,7 +773,7 @@
             analysisTitle: "Análise",
             resultsTitle: "Resultados",
             resultsDominantLabel: "Principal",
-            resultsEmotionLabel: "Combinada",
+            resultsEmotionLabel: "Emoção atual",
             resultsSecondaryLabel: "Secundária",
             resultsMixedLabel: "Estado misto",
             resultsMixedYes: "Sim",
@@ -830,7 +824,7 @@
             analysisTitle: "Analyse",
             resultsTitle: "Résultats",
             resultsDominantLabel: "Dominante",
-            resultsEmotionLabel: "Combinée",
+            resultsEmotionLabel: "Émotion actuelle",
             resultsSecondaryLabel: "Secondaire",
             resultsMixedLabel: "État mixte",
             resultsMixedYes: "Oui",
@@ -881,7 +875,7 @@
             analysisTitle: "Analisi",
             resultsTitle: "Risultati",
             resultsDominantLabel: "Dominante",
-            resultsEmotionLabel: "Combinata",
+            resultsEmotionLabel: "Emozione attuale",
             resultsSecondaryLabel: "Secondaria",
             resultsMixedLabel: "Stato misto",
             resultsMixedYes: "Sì",
@@ -932,7 +926,7 @@
             analysisTitle: "Analyse",
             resultsTitle: "Ergebnisse",
             resultsDominantLabel: "Dominant",
-            resultsEmotionLabel: "Gemischt",
+            resultsEmotionLabel: "Aktuelle Emotion",
             resultsSecondaryLabel: "Sekundär",
             resultsMixedLabel: "Gemischter Zustand",
             resultsMixedYes: "Ja",
@@ -983,7 +977,7 @@
             analysisTitle: "Analyse",
             resultsTitle: "Resultaten",
             resultsDominantLabel: "Dominant",
-            resultsEmotionLabel: "Gecombineerd",
+            resultsEmotionLabel: "Huidige emotie",
             resultsSecondaryLabel: "Secundair",
             resultsMixedLabel: "Gemengde toestand",
             resultsMixedYes: "Ja",
@@ -1034,7 +1028,7 @@
             analysisTitle: "Analiza",
             resultsTitle: "Wyniki",
             resultsDominantLabel: "Dominująca",
-            resultsEmotionLabel: "Złożona",
+            resultsEmotionLabel: "Aktualna emocja",
             resultsSecondaryLabel: "Drugorzędna",
             resultsMixedLabel: "Stan mieszany",
             resultsMixedYes: "Tak",
@@ -1085,7 +1079,7 @@
             analysisTitle: "分析",
             resultsTitle: "结果",
             resultsDominantLabel: "主导情绪",
-            resultsEmotionLabel: "综合情绪",
+            resultsEmotionLabel: "当前情绪",
             resultsSecondaryLabel: "次要情绪",
             resultsMixedLabel: "混合状态",
             resultsMixedYes: "是",
@@ -1136,7 +1130,7 @@
             analysisTitle: "分析",
             resultsTitle: "結果",
             resultsDominantLabel: "主な感情",
-            resultsEmotionLabel: "全体の印象",
+            resultsEmotionLabel: "今の感情",
             resultsSecondaryLabel: "二番目の感情",
             resultsMixedLabel: "混ざった状態",
             resultsMixedYes: "はい",
@@ -1187,7 +1181,7 @@
             analysisTitle: "분석",
             resultsTitle: "결과",
             resultsDominantLabel: "주된 감정",
-            resultsEmotionLabel: "전체 분위기",
+            resultsEmotionLabel: "현재 감정",
             resultsSecondaryLabel: "두 번째 감정",
             resultsMixedLabel: "혼합 상태",
             resultsMixedYes: "예",
@@ -1263,9 +1257,7 @@
         passion: $("v-passion"),
         surprise: $("v-surprise"),
         dominant_emotion: $("v-dominant"),
-        emotion: $("v-emotion"),
-        secondary_emotion: $("v-secondary"),
-        mixed_state: $("v-mixed")
+        emotion: $("v-emotion")
       };
 
       const emojiTray = $("emojiTray");
@@ -1508,13 +1500,13 @@
           ? emoji_emotion
           : emojiForLabel(emotion);
 
-        emojiTray.title = same ? "Dominant and blended match" : "Dominant and blended";
+        emojiTray.title = same ? "Dominant and current emotion match" : "Dominant and current emotion";
         emojiTray.textContent = same ? (emoArr[0] || "🤔") : `${domArr[0] || "🤔"} ${emoArr[0] || "🤔"}`;
       }
 
       function resetToZero(){
         for (const k of Object.keys(fields)) {
-          if (k === "dominant_emotion" || k === "emotion" || k === "secondary_emotion" || k === "mixed_state") {
+          if (k === "dominant_emotion" || k === "emotion") {
             fields[k].textContent = "N/A";
           } else {
             fields[k].textContent = "0.000";
@@ -1537,8 +1529,6 @@
 
         fields.dominant_emotion.textContent = "N/A";
         fields.emotion.textContent = "N/A";
-        fields.secondary_emotion.textContent = "N/A";
-        fields.mixed_state.textContent = "N/A";
 
         const primary = data.emoji_primary
           || (Array.isArray(data.emoji_emotion) && data.emoji_emotion[0])
@@ -1825,18 +1815,8 @@
           let emoLabel = titleCase(data.emotion || "");
           if (!emoLabel || emoLabel === "N/A") emoLabel = titleCase(fallbackEmotionLabel(mix));
 
-          const secondaryRaw = data.secondary_emotion || "N/A";
-          const secondaryLabel = secondaryRaw === "N/A" ? "N/A" : titleCase(secondaryRaw);
-
-          let mixedLabel = "N/A";
-          if (typeof data.mixed_state === "boolean") {
-            mixedLabel = data.mixed_state ? (t("resultsMixedYes") || "Yes") : (t("resultsMixedNo") || "No");
-          }
-
           fields.dominant_emotion.textContent = domLabel;
           fields.emotion.textContent          = emoLabel;
-          fields.secondary_emotion.textContent = secondaryLabel;
-          fields.mixed_state.textContent       = mixedLabel;
 
           renderEmojis({
             emoji_emotion:  data.emoji_emotion || data.emoji || [],
