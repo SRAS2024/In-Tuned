@@ -73,41 +73,132 @@
       .title{font-size:1.38rem;font-weight:800;letter-spacing:.2px}
       .actions{display:flex;align-items:center;gap:.6rem}
 
-      .help{
+      .iconBtn,
+      .help,
+      .settingsBtn{
         appearance:none;border:1px solid var(--border);background:var(--surface);
         color:var(--ink);width:36px;height:36px;border-radius:10px;cursor:pointer;
-        display:grid;place-items:center;font-weight:800;box-shadow:var(--shadow)
+        display:grid;place-items:center;font-weight:800;box-shadow:var(--shadow);
+        padding:0;
       }
+      .helpIcon,
+      .settingsIcon{
+        font-size:1.1rem;
+      }
+
+      .settingsControl{
+        position:relative;
+      }
+
+      .settingsMenu{
+        position:absolute;
+        top:calc(100% + .5rem);
+        right:0;
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:14px;
+        box-shadow:var(--shadow);
+        padding:.7rem .8rem .75rem;
+        width:min(260px, 78vw);
+        opacity:0;
+        transform:translateY(-4px) scale(.98);
+        pointer-events:none;
+        transition:opacity .16s ease, transform .18s ease;
+        z-index:40;
+      }
+      .settingsMenu.open{
+        opacity:1;
+        transform:translateY(0) scale(1);
+        pointer-events:auto;
+      }
+
+      .settingsSection{
+        display:flex;
+        flex-direction:column;
+        gap:.45rem;
+        margin-bottom:.65rem;
+      }
+      .settingsSection:last-child{
+        margin-bottom:0;
+      }
+      .settingsLabel{
+        font-size:.78rem;
+        text-transform:uppercase;
+        letter-spacing:.08em;
+        color:var(--muted);
+        font-weight:600;
+      }
+      .settingsRow{
+        display:flex;
+        align-items:center;
+        gap:.55rem;
+      }
+
       .modeDot{
-        width:18px;height:18px;border-radius:50%;border:1px solid var(--border);
-        display:inline-block;cursor:pointer;box-shadow:0 0 16px 4px rgba(255,255,255,.35);
-        background:#fff;
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:.45rem;
+        width:100%;
+        padding:.35rem .55rem;
+        border-radius:999px;
+        background:var(--surface-2);
+        border:1px solid var(--border);
+        cursor:pointer;
+        font-size:.80rem;
+        font-weight:600;
       }
-      [data-theme="light"] .modeDot{
-        background:#0b1a3a; box-shadow:0 0 14px 2px rgba(2,6,23,.22);
+      .modeDotLabel{
+        flex:0 0 auto;
+      }
+      .modeDotTrack{
+        flex:1;
+        height:18px;
+        border-radius:999px;
+        background:var(--bar-bg);
+        position:relative;
+        overflow:hidden;
+      }
+      .modeDotThumb{
+        position:absolute;
+        top:2px;
+        bottom:2px;
+        left:2px;
+        width:50%;
+        border-radius:999px;
+        background:linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow:0 3px 8px rgba(15,23,42,.35);
+        transition:transform .22s ease;
+      }
+      [data-theme="light"] .modeDotThumb{
+        transform:translateX(100%);
       }
 
       .langControl{
         position:relative;
+        width:100%;
       }
       .langToggle{
         appearance:none;
         border:1px solid var(--border);
-        background:var(--surface);
+        background:var(--surface-2);
         color:var(--ink);
-        height:36px;
+        height:32px;
         border-radius:999px;
-        padding:0 .8rem;
+        padding:0 .7rem;
         display:flex;
         align-items:center;
         gap:.35rem;
         cursor:pointer;
         box-shadow:var(--shadow);
-        font-size:.85rem;
+        font-size:.8rem;
         font-weight:600;
+        width:100%;
+        justify-content:space-between;
       }
       .langIcon{
-        font-size:1.1rem;
+        font-size:1rem;
       }
       .langCurrentLabel{
         font-variant:small-caps;
@@ -115,19 +206,24 @@
       }
       .langMenu{
         position:absolute;
-        top:calc(100% + .4rem);
+        top:calc(100% + .35rem);
         right:0;
         background:var(--surface);
         border:1px solid var(--border);
         border-radius:12px;
         box-shadow:var(--shadow);
         padding:.35rem 0;
-        min-width:160px;
-        display:none;
-        z-index:32;
+        min-width:180px;
+        opacity:0;
+        transform:translateY(-4px) scale(.98);
+        pointer-events:none;
+        transition:opacity .16s ease, transform .18s ease;
+        z-index:42;
       }
       .langMenu.open{
-        display:block;
+        opacity:1;
+        transform:translateY(0) scale(1);
+        pointer-events:auto;
       }
       .langHeading{
         padding:.35rem .9rem;
@@ -200,6 +296,18 @@
         font-weight:800;background: linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0b1220;
         text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
       }
+      .btn:focus-visible,
+      .ghost:focus-visible,
+      .btnLink:focus-visible,
+      .ghostLink:focus-visible,
+      .help:focus-visible,
+      .settingsBtn:focus-visible,
+      .langToggle:focus-visible,
+      .modeDot:focus-visible{
+        outline:2px solid var(--accent);
+        outline-offset:2px;
+      }
+
       .status{grid-column:1/-1;font-size:.95rem}
       .status.err{color:#f43f5e}
       .emojiInline{font-size:1.6rem;display:flex;gap:.35rem;align-items:center;min-height:1.6rem}
@@ -228,7 +336,13 @@
         height:14px;border-radius:999px;background:var(--bar-bg);position:relative;overflow:hidden;border:1px solid var(--border)
       }
       .barFill{
-        position:absolute;inset:0 100% 0 0;border-radius:999px;box-shadow:inset 0 0 12px rgba(0,0,0,.15);
+        position:absolute;
+        left:0;
+        top:0;
+        bottom:0;
+        width:0%;
+        border-radius:999px;
+        box-shadow:inset 0 0 12px rgba(0,0,0,.15);
         transition:width .45s cubic-bezier(.2,.9,.2,1);
       }
       .barValue{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
@@ -325,6 +439,18 @@
           justify-content:flex-start;
           gap:.5rem;
         }
+        .settingsMenu{
+          right:auto;
+          left:0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce){
+        .barFill,
+        .langMenu,
+        .settingsMenu{
+          transition:none !important;
+        }
       }
     </style>
   </head>
@@ -336,41 +462,79 @@
           <div class="title" data-i18n="appTitle">In tuned</div>
         </div>
         <div class="actions">
-          <div class="langControl">
-            <button
-              id="langToggle"
-              class="langToggle"
-              type="button"
-              data-i18n-aria-label="langSwitchTooltip"
-              aria-haspopup="true"
-              aria-expanded="false"
-            >
-              <span class="langIcon" aria-hidden="true">🌐</span>
-              <span id="langCurrentLabel" class="langCurrentLabel">EN</span>
-            </button>
-            <div
-              id="langMenu"
-              class="langMenu"
-              role="menu"
-              data-i18n-aria-label="langMenuLabel"
-              aria-label="Language"
-            ></div>
-          </div>
-          <span
-            id="modeDot"
-            class="modeDot"
-            title="Toggle light or dark mode"
-            data-i18n-aria-label="themeToggleLabel"
-            aria-label="Toggle theme"
-            role="button"
-            tabindex="0"
-          ></span>
           <button
             id="helpBtn"
-            class="help"
+            class="help iconBtn"
+            type="button"
             data-i18n-aria-label="helpButtonLabel"
             aria-label="About In tuned"
-          >?</button>
+          >
+            <span class="helpIcon" aria-hidden="true">?</span>
+          </button>
+
+          <div class="settingsControl">
+            <button
+              id="settingsBtn"
+              class="settingsBtn iconBtn"
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-label="Settings"
+            >
+              <span class="settingsIcon" aria-hidden="true">⚙️</span>
+            </button>
+            <div
+              id="settingsMenu"
+              class="settingsMenu"
+              role="menu"
+              aria-label="Settings"
+            >
+              <div class="settingsSection">
+                <div class="settingsLabel" data-i18n="settingsThemeLabel">Theme</div>
+                <div class="settingsRow">
+                  <button
+                    id="modeDot"
+                    class="modeDot"
+                    type="button"
+                    data-i18n-aria-label="themeToggleLabel"
+                    aria-label="Toggle light or dark theme"
+                  >
+                    <span class="modeDotLabel" data-i18n="settingsThemeLabel">Theme</span>
+                    <div class="modeDotTrack" aria-hidden="true">
+                      <div class="modeDotThumb"></div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="settingsSection">
+                <div class="settingsLabel" data-i18n="settingsLanguageLabel">Language</div>
+                <div class="settingsRow">
+                  <div class="langControl">
+                    <button
+                      id="langToggle"
+                      class="langToggle"
+                      type="button"
+                      data-i18n-aria-label="langSwitchTooltip"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                    >
+                      <span class="langIcon" aria-hidden="true">🌐</span>
+                      <span id="langCurrentLabel" class="langCurrentLabel">EN</span>
+                    </button>
+                    <div
+                      id="langMenu"
+                      class="langMenu"
+                      role="menu"
+                      data-i18n-aria-label="langMenuLabel"
+                      aria-label="Language"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -533,7 +697,9 @@
             langMenuLabel: "Language",
             langSwitchTooltip: "Change language",
             helpButtonLabel: "About In tuned",
-            themeToggleLabel: "Toggle light or dark theme"
+            themeToggleLabel: "Toggle light or dark theme",
+            settingsThemeLabel: "Theme",
+            settingsLanguageLabel: "Language"
           },
           emotions: {
             anger: "Anger",
@@ -1110,6 +1276,9 @@
       const langMenu = $("langMenu");
       const langCurrentLabel = $("langCurrentLabel");
 
+      const settingsBtn = $("settingsBtn");
+      const settingsMenu = $("settingsMenu");
+
       const crisisOverlay = $("crisisOverlay");
       const closeCrisis = $("closeCrisis");
       const crisisHotlineBtn = $("crisisHotline");
@@ -1576,9 +1745,37 @@
         });
         document.addEventListener("click", (e)=>{
           if (!langMenu.classList.contains("open")) return;
-          if (langMenu.contains(e.target) || langToggle.contains(e.target)) return;
+          if (langMenu.contains(e.target) || (langToggle && langToggle.contains(e.target))) return;
           langMenu.classList.remove("open");
           if (langToggle) langToggle.setAttribute("aria-expanded", "false");
+        });
+      }
+
+      if (settingsBtn && settingsMenu){
+        settingsBtn.addEventListener("click", ()=>{
+          const isOpen = settingsMenu.classList.contains("open");
+          if (isOpen) {
+            settingsMenu.classList.remove("open");
+            settingsBtn.setAttribute("aria-expanded","false");
+            if (langMenu) {
+              langMenu.classList.remove("open");
+              if (langToggle) langToggle.setAttribute("aria-expanded","false");
+            }
+          } else {
+            settingsMenu.classList.add("open");
+            settingsBtn.setAttribute("aria-expanded","true");
+          }
+        });
+
+        document.addEventListener("click",(e)=>{
+          if (!settingsMenu.classList.contains("open")) return;
+          if (settingsMenu.contains(e.target) || settingsBtn.contains(e.target)) return;
+          settingsMenu.classList.remove("open");
+          settingsBtn.setAttribute("aria-expanded","false");
+          if (langMenu) {
+            langMenu.classList.remove("open");
+            if (langToggle) langToggle.setAttribute("aria-expanded","false");
+          }
         });
       }
 
@@ -1683,12 +1880,22 @@
         setTheme(now);
         try { localStorage.setItem("in-tuned-theme", now); } catch {}
       };
-      modeDot.addEventListener("click", toggleTheme);
-      modeDot.addEventListener("keydown", (e)=>{ if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggleTheme(); }});
+      if (modeDot){
+        modeDot.addEventListener("click", toggleTheme);
+        modeDot.addEventListener("keydown", (e)=>{ if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggleTheme(); }});
+      }
       try {
         const savedTheme = localStorage.getItem("in-tuned-theme");
-        if (savedTheme) setTheme(savedTheme);
-      } catch {}
+        if (savedTheme) {
+          setTheme(savedTheme);
+        } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+          setTheme("light");
+        } else {
+          setTheme(root.getAttribute("data-theme") || "dark");
+        }
+      } catch {
+        setTheme(root.getAttribute("data-theme") || "dark");
+      }
 
       function renderBarsZero(){
         renderBars({
