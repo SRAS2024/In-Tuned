@@ -7,6 +7,8 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from .detector import EmotionResult
 
+VERSION = "v5"
+
 EMOTIONS = ["anger", "disgust", "fear", "joy", "sadness", "passion", "surprise"]
 _IDX = {k: i for i, k in enumerate(EMOTIONS)}
 
@@ -21,7 +23,7 @@ PAIR_NAMES = {
     tuple(sorted(["joy", "surprise"])): "Delighted surprise",
     tuple(sorted(["fear", "surprise"])): "Shock",
     tuple(sorted(["anger", "surprise"])): "Indignant shock",
-    tuple(sorted(["passion", "joy"])): "In love",
+    tuple(sorted(["passion, joy"])): "In love",
     tuple(sorted(["passion", "fear"])): "Aflutter",
 }
 
@@ -137,6 +139,8 @@ EMOJI_SUGGEST = {
     "Embarrassed amusement": ["😅"],
     "Affectionate": ["🤗"],
     "Hopeful": ["🌟"],
+    "Subtle blend": ["😶‍🌫️"],
+    "Mixed state": ["😶‍🌫️"],
     "N/A": ["❌"],
 
     # Direct mappings for the seven core names so dominant emojis always resolve
@@ -189,6 +193,49 @@ def _cos(a: List[float], b: List[float]) -> float:
 
 def _vector(p: Dict[str, float]) -> List[float]:
     return [p[k] for k in EMOTIONS]
+
+
+# ---------------- Valence and activation helpers ----------------
+
+def _valence_label(p: Dict[str, float]) -> str:
+    pos = p["joy"] + 0.8 * p["passion"] + 0.3 * p["surprise"]
+    neg = p["anger"] + p["disgust"] + p["fear"] + 0.7 * p["sadness"]
+
+    if pos < 0.12 and neg < 0.12:
+        return "neutral or very subtle"
+    if pos - neg >= 0.12:
+        return "primarily positive"
+    if neg - pos >= 0.12:
+        return "primarily negative"
+    return "mixed"
+
+def _activation_label(p: Dict[str, float]) -> str:
+    arousal = (
+        p["anger"]
+        + p["fear"]
+        + p["joy"]
+        + p["passion"]
+        + p["surprise"]
+    )
+    if arousal >= 0.7:
+        return "high"
+    if arousal >= 0.4:
+        return "moderate"
+    if arousal > 0.0:
+        return "low"
+    return "none"
+
+def _intensity_label(p: Dict[str, float], conf: float) -> str:
+    ranked = _top_components(p)
+    top_val = ranked[0][1] if ranked else 0.0
+
+    if top_val >= 0.55 or conf >= 0.65:
+        return "high"
+    if top_val >= 0.30 or conf >= 0.35:
+        return "moderate"
+    if top_val > 0.0:
+        return "low"
+    return "none"
 
 
 # ---------------- Single state and blend overrides ----------------
@@ -351,13 +398,23 @@ def _final_emotion_label(p: Dict[str, float]) -> str:
         return "In love"
 
     conf = _confidence(p)
-    if v1 >= 0.20 and conf >= 0.12:
-        label, sim = _best_prototype(p)
-        if sim >= 0.68:
-            return label
 
-    if v1 < 0.20:
+    # Very flat or near neutral patterns
+    if v1 < 0.10 and conf < 0.08:
         return "N/A"
+
+    # Try nuanced prototype match first with a relaxed but still meaningful threshold
+    label, sim = _best_prototype(p)
+    if sim >= 0.60:
+        return label
+
+    # Fall back to structured blend dominance
+    if v1 >= 0.60:
+        return _title(k1)
+
+    # Distribution is subtle but not entirely flat
+    if v1 < 0.20:
+        return "Subtle blend"
 
     return _title(k1)
 
@@ -414,9 +471,16 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     total_signal = sum(raw.values())
     low_signal_flag = bool(base.get("low_signal", False)) or total_signal <= 0.0
 
+    # Try to track signal strength if detector supplied it, otherwise approximate
+    sig_raw = base.get("signal_strength", total_signal)
+    try:
+        signal_strength = float(sig_raw)
+    except (TypeError, ValueError):
+        signal_strength = float(total_signal)
+
     if low_signal_flag:
         out = {k: 0.0 for k in EMOTIONS}
-        return {
+        result_dict: Dict[str, Any] = {
             **raw,
             "dominant_emotion": "N/A",
             "secondary_emotion": "N/A",
@@ -434,13 +498,26 @@ def format_emotions(result: Any) -> Dict[str, Any]:
             "low_signal": True,
             "emoji": ["❌"],
             "emoji_primary": "❌",
+            "valence": "neutral or very subtle",
+            "activation": "none",
+            "intensity": "none",
+            "signal_strength": _round3(signal_strength),
+            "version": VERSION,
         }
+
+        # Propagate any extra metadata from the detector result
+        for k, v in base.items():
+            if k not in EMOTIONS and k not in result_dict:
+                result_dict[k] = v
+
+        return result_dict
 
     # Normalized mixture for prototype and blend logic
     p = _normalize(raw)
     blended = _blend_name(p)
     final_single = _final_emotion_label(p)
-    conf = _confidence(p)
+    conf_raw = _confidence(p)
+    conf = _round3(conf_raw)
 
     ranked = _top_components(raw)
 
@@ -480,22 +557,28 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     top3 = ", ".join(
         f"{_title(k)} {_round3(v)}" for k, v in _top_components(p)[:3]
     )
+
+    valence = _valence_label(p)
+    activation = _activation_label(p)
+    intensity = _intensity_label(p, conf_raw)
+
     rationale = (
         f"Top components: {top3}. "
         f"Dominant core is {_title(dominant)}. "
         f"Secondary core is {_title(secondary) if secondary != 'N/A' else 'none'}. "
+        f"Overall valence is {valence} with {activation} activation and {intensity} intensity. "
         f"Rich label reflects blended meaning: {final_single}. "
         f"Context blend: {blended}."
     )
 
-    return {
+    result_dict = {
         **raw,
         "dominant_emotion": dominant,
         "secondary_emotion": secondary,
         "mixed_state": mixed_state,
         "blended_emotion": blended,
         "emotion": final_single,
-        "confidence": _round3(conf),
+        "confidence": conf,
         "mixture": mixture,
         "present": {k: _round3(v) for k, v in p.items() if v >= 0.03},
         "components": components,
@@ -506,4 +589,17 @@ def format_emotions(result: Any) -> Dict[str, Any]:
         "low_signal": False,
         "emoji": emoji_em,
         "emoji_primary": emoji_dom[0] if emoji_dom else "❌",
+        "valence": valence,
+        "activation": activation,
+        "intensity": intensity,
+        "signal_strength": _round3(signal_strength),
+        "version": VERSION,
     }
+
+    # Propagate any extra metadata from the detector result without
+    # overwriting the formatted fields above
+    for k, v in base.items():
+        if k not in EMOTIONS and k not in result_dict:
+            result_dict[k] = v
+
+    return result_dict
