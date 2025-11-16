@@ -1,6 +1,7 @@
 # advanced_detector.py
 # High fidelity local emotion detector with seven core dimensions and rich nuance.
-# Overhauled: richer lexicons, strong phrase coverage, safer low signal handling.
+# Overhauled: richer lexicons, strong phrase coverage, safer low signal handling,
+# and better support for colloquial and short expressions.
 
 from __future__ import annotations
 
@@ -143,6 +144,9 @@ JOY = {
     "fine",
     "ok",
     "okay",
+    "alright",
+    "relaxed",
+    "chill",
     "proud",
     "success",
     "win",
@@ -250,6 +254,10 @@ SADNESS = {
     "difficulty",
     "disappointed",
     "disappointing",
+    "rough",
+    "tough",
+    "draining",
+    "discouraged",
 }
 
 ANGER = {
@@ -310,6 +318,13 @@ ANGER = {
     "enraged",
     "fedup",
     "fed",
+    "trash",
+    "trashy",
+    "stupid",
+    "idiot",
+    "jerk",
+    "whatthehell",
+    "ugh",
 }
 
 FEAR = {
@@ -405,6 +420,8 @@ DISGUST = {
     "icky",
     "revolting",
     "repulsive",
+    "trash",
+    "trashy",
 }
 
 # Passion for romantic desire, devotion, attachment.
@@ -469,6 +486,14 @@ PASSION = {
     "caring",
     "devoted",
     "beloved",
+    "hot",
+    "sexy",
+    "handsome",
+    "gorgeous",
+    "pretty",
+    "stunning",
+    "attractive",
+    "cute",
 }
 
 SURPRISE = {
@@ -585,6 +610,9 @@ PHRASES: List[Tuple[str, str, float]] = [
     ("despite the suffering", "sadness", 1.6),
     ("despite everything", "sadness", 1.0),
     ("in spite of the pain", "sadness", 1.6),
+    ("rough day", "sadness", 1.8),
+    ("tough day", "sadness", 1.7),
+    ("hard day", "sadness", 1.6),
     # Anger
     ("boiling with rage", "anger", 2.0),
     ("lost my temper", "anger", 1.7),
@@ -702,6 +730,55 @@ EMOJI = {
         "😵",
     },
 }
+
+# Attraction oriented short phrases like "She is so hot"
+ATTRACTION_SUBJECTS = {
+    "she",
+    "he",
+    "they",
+    "them",
+    "her",
+    "him",
+    "girl",
+    "girls",
+    "guy",
+    "guys",
+    "woman",
+    "women",
+    "man",
+    "men",
+    "boy",
+    "boys",
+    "you",
+}
+
+ATTRACTION_ADJECTIVES = {
+    "hot",
+    "sexy",
+    "beautiful",
+    "handsome",
+    "pretty",
+    "gorgeous",
+    "cute",
+    "stunning",
+    "attractive",
+    "fine",
+}
+
+CONFRONTATIONAL_QUESTION_PATTERNS = [
+    "who do you think you are",
+    "what is your problem",
+    "what's your problem",
+    "whats your problem",
+    "what is wrong with you",
+    "what's wrong with you",
+    "whats wrong with you",
+    "are you kidding me",
+    "are you serious right now",
+    "can you not",
+    "why would you do that",
+    "what were you thinking",
+]
 
 NEGATIONS = {
     "not",
@@ -1138,6 +1215,121 @@ def _is_negative_clause(tokens: List[str]) -> bool:
     )
 
 
+def _sarcasm_cue(tokens: List[str]) -> bool:
+    text = " ".join(tokens)
+    cues = [
+        "yeah right",
+        "as if",
+        "sure buddy",
+        "sure jan",
+        "what a joy",
+        "great job",
+        "so fun",
+        "how lovely",
+        "what a delight",
+    ]
+    return any(c in text for c in cues)
+
+
+def _apply_attraction_patterns(tokens: List[str], scores: Dict[str, float]) -> None:
+    """
+    Handle very short attraction phrases like "She is so hot" or "He is cute".
+
+    This gives a strong passion signal even when there are only a few words.
+    """
+    if not tokens:
+        return
+
+    stems = [_stem(t) for t in tokens]
+    n = len(stems)
+    for i, st in enumerate(stems):
+        if st not in ATTRACTION_SUBJECTS:
+            continue
+
+        window = stems[i + 1 : i + 5]
+        if not window:
+            continue
+
+        for j, adj in enumerate(window):
+            if adj in {"is", "s"}:
+                continue
+
+            between = stems[i + 1 : i + 1 + j]
+            if adj in ATTRACTION_ADJECTIVES:
+                scope = stems[max(0, i - 3) : i + 1 + j]
+                if any(w in NEGATIONS or w.endswith("n't") for w in scope):
+                    continue
+
+                weight = 2.2
+                if any(w in INTENSIFIERS for w in between):
+                    weight *= 1.25
+
+                scores["passion"] += weight
+                scores["joy"] += 0.4 * (weight / 2.2)
+                return
+
+
+def _apply_rhetorical_confrontation(
+    text_lower: str, scores: Dict[str, float]
+) -> None:
+    """
+    Detect confrontational questions such as
+    "Who do you think you are" that typically carry anger,
+    not fear.
+    """
+    if any(p in text_lower for p in CONFRONTATIONAL_QUESTION_PATTERNS):
+        scores["anger"] += 1.2
+        scores["disgust"] += 0.35
+        scores["fear"] *= 0.7
+        scores["surprise"] += 0.15
+
+
+def _apply_colloquial_overrides(
+    tokens: List[str], text_lower: str, scores: Dict[str, float]
+) -> None:
+    """
+    Adjust for colloquial expressions like "whatever, that is fine"
+    which are often sarcastic or resigned rather than joyful.
+    """
+    if not tokens:
+        return
+
+    has_negative_context = any(
+        cue in text_lower for cue in (" but ", "but ", " no ", "doesnt", "doesn't", "didnt", "didn't")
+    )
+
+    if "whatever" in text_lower:
+        if has_negative_context:
+            scores["sadness"] += 1.0
+            scores["anger"] += 0.7
+            scores["joy"] *= 0.35
+        else:
+            scores["sadness"] += 0.25
+            scores["anger"] += 0.15
+            scores["joy"] *= 0.8
+
+    if any(
+        phrase in text_lower
+        for phrase in (
+            "thats fine",
+            "that's fine",
+            "that is fine",
+            "its fine",
+            "it's fine",
+            "fine whatever",
+            "ok then",
+            "okay then",
+            "fine then",
+        )
+    ):
+        scores["sadness"] += 0.8
+        scores["anger"] += 0.5
+        scores["joy"] *= 0.45
+
+    if "rough day" in text_lower or "tough day" in text_lower:
+        scores["sadness"] += 0.9
+
+
 def _score_clause(tokens: List[str]) -> Dict[str, float]:
     scores = _blank_scores()
     n_alpha = 0
@@ -1221,6 +1413,11 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     if _sarcasm_cue(tokens):
         scores["joy"] *= 0.6
 
+    # New colloquial and pattern based adjustments
+    _apply_attraction_patterns(tokens, scores)
+    _apply_rhetorical_confrontation(text_lower, scores)
+    _apply_colloquial_overrides(tokens, text_lower, scores)
+
     text_seg = "".join(tokens)
     if re.search(r"\b[A-Z]{4,}\b", text_seg):
         scores["anger"] *= 1.05
@@ -1239,22 +1436,6 @@ def _score_clause(tokens: List[str]) -> Dict[str, float]:
     _arousal_valence_nudge(scores)
 
     return scores
-
-
-def _sarcasm_cue(tokens: List[str]) -> bool:
-    text = " ".join(tokens)
-    cues = [
-        "yeah right",
-        "as if",
-        "sure buddy",
-        "sure jan",
-        "what a joy",
-        "great job",
-        "so fun",
-        "how lovely",
-        "what a delight",
-    ]
-    return any(c in text for c in cues)
 
 
 def _sentence_emphasis_weight(
@@ -1428,15 +1609,14 @@ def _is_low_signal(tokens: List[str], raw_scores: Dict[str, float]) -> bool:
     """
     Decide whether the input is truly low signal.
 
-    Short but emotionally clear entries, such as "He really pisses me off",
-    are treated as valid as soon as there is a strong peak, even if the
-    total word count is small.
+    Short but emotionally clear entries such as "He really pisses me off"
+    or "She is so hot" should be treated as valid once there is
+    a strong peak, even if the total word count is small.
     """
     meaningful = _meaningful_token_count(tokens)
     if meaningful == 0:
         return True
 
-    # Strong evidence anywhere in the vector always cancels low signal.
     peak = max((v for v in raw_scores.values()), default=0.0)
     if peak >= 0.05:
         return False
