@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Optional, Any
 
 from .detector import EmotionResult
 
-VERSION = "v5"
+VERSION = "v6"
 
 EMOTIONS = ["anger", "disgust", "fear", "joy", "sadness", "passion", "surprise"]
 _IDX = {k: i for i, k in enumerate(EMOTIONS)}
@@ -23,7 +23,7 @@ PAIR_NAMES = {
     tuple(sorted(["joy", "surprise"])): "Delighted surprise",
     tuple(sorted(["fear", "surprise"])): "Shock",
     tuple(sorted(["anger", "surprise"])): "Indignant shock",
-    tuple(sorted(["passion, joy"])): "In love",
+    tuple(sorted(["passion", "joy"])): "In love",
     tuple(sorted(["passion", "fear"])): "Aflutter",
 }
 
@@ -153,6 +153,7 @@ EMOJI_SUGGEST = {
     "Surprise": ["😱"],
 }
 
+
 # Helper numeric routines
 def _normalize(scores: Dict[str, float]) -> Dict[str, float]:
     total = sum(max(0, scores.get(k, 0)) for k in EMOTIONS)
@@ -160,9 +161,11 @@ def _normalize(scores: Dict[str, float]) -> Dict[str, float]:
         return {k: 0 for k in EMOTIONS}
     return {k: max(0, scores.get(k, 0)) / total for k in EMOTIONS}
 
+
 def _entropy(p: Dict[str, float]) -> float:
     eps = 1e-12
     return -sum(pi * math.log(pi + eps) for pi in p.values() if pi > 0)
+
 
 def _confidence(p: Dict[str, float]) -> float:
     total = sum(p.values())
@@ -172,24 +175,31 @@ def _confidence(p: Dict[str, float]) -> float:
     hmax = math.log(len(EMOTIONS))
     return max(0.0, min(1.0, 1.0 - h / hmax))
 
+
 def _top_components(p: Dict[str, float]) -> List[Tuple[str, float]]:
     return sorted(p.items(), key=lambda x: x[1], reverse=True)
+
 
 def _title(s: str) -> str:
     return s[:1].upper() + s[1:] if s else s
 
+
 def _round3(x: float) -> float:
     return float(f"{x:.3f}")
 
+
 def _dot(a: List[float], b: List[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
+
 
 def _norm(v: List[float]) -> float:
     n = math.sqrt(sum(x * x for x in v))
     return n if n > 0 else 1.0
 
+
 def _cos(a: List[float], b: List[float]) -> float:
     return _dot(a, b) / (_norm(a) * _norm(b))
+
 
 def _vector(p: Dict[str, float]) -> List[float]:
     return [p[k] for k in EMOTIONS]
@@ -209,6 +219,7 @@ def _valence_label(p: Dict[str, float]) -> str:
         return "primarily negative"
     return "mixed"
 
+
 def _activation_label(p: Dict[str, float]) -> str:
     arousal = (
         p["anger"]
@@ -224,6 +235,7 @@ def _activation_label(p: Dict[str, float]) -> str:
     if arousal > 0.0:
         return "low"
     return "none"
+
 
 def _intensity_label(p: Dict[str, float], conf: float) -> str:
     ranked = _top_components(p)
@@ -380,6 +392,7 @@ def _best_prototype(p: Dict[str, float]) -> Tuple[str, float]:
             best = label
     return best, bestsim
 
+
 def _final_emotion_label(p: Dict[str, float]) -> str:
     total = sum(p.values())
     if total <= 0:
@@ -429,8 +442,10 @@ def _emoji_for(label: str) -> List[str]:
         return EMOJI_SUGGEST[titled]
     return ["❌"]
 
+
 def _emoji_core(core: str) -> List[str]:
     return _emoji_for(_title(core))
+
 
 def _resolve_emoji_pair(
     emoji_dom: List[str], emoji_em: List[str]
@@ -471,7 +486,7 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     total_signal = sum(raw.values())
     low_signal_flag = bool(base.get("low_signal", False)) or total_signal <= 0.0
 
-    # Try to track signal strength if detector supplied it, otherwise approximate
+    # Track signal strength if detector supplied it, otherwise approximate
     sig_raw = base.get("signal_strength", total_signal)
     try:
         signal_strength = float(sig_raw)
@@ -487,6 +502,7 @@ def format_emotions(result: Any) -> Dict[str, Any]:
             "mixed_state": False,
             "blended_emotion": "N/A",
             "emotion": "N/A",
+            "current_emotion": "N/A",
             "confidence": 0.0,
             "mixture": out,
             "present": {},
@@ -519,14 +535,14 @@ def format_emotions(result: Any) -> Dict[str, Any]:
     conf_raw = _confidence(p)
     conf = _round3(conf_raw)
 
-    ranked = _top_components(raw)
+    ranked_raw = _top_components(raw)
 
     # Use detector supplied dominance when available so UI and backend agree
     detector_dom = base.get("dominant_emotion") or "N/A"
     if detector_dom in EMOTIONS:
         dominant = detector_dom
     else:
-        dominant = ranked[0][0] if ranked else "N/A"
+        dominant = ranked_raw[0][0] if ranked_raw else "N/A"
 
     secondary = base.get("secondary_emotion", "N/A")
     mixed_state = bool(base.get("mixed_state", False))
@@ -567,7 +583,7 @@ def format_emotions(result: Any) -> Dict[str, Any]:
         f"Dominant core is {_title(dominant)}. "
         f"Secondary core is {_title(secondary) if secondary != 'N/A' else 'none'}. "
         f"Overall valence is {valence} with {activation} activation and {intensity} intensity. "
-        f"Rich label reflects blended meaning: {final_single}. "
+        f"Current emotion label: {final_single}. "
         f"Context blend: {blended}."
     )
 
@@ -577,7 +593,9 @@ def format_emotions(result: Any) -> Dict[str, Any]:
         "secondary_emotion": secondary,
         "mixed_state": mixed_state,
         "blended_emotion": blended,
+        # v6: "emotion" is the human readable current state shown in the UI
         "emotion": final_single,
+        "current_emotion": final_single,
         "confidence": conf,
         "mixture": mixture,
         "present": {k: _round3(v) for k, v in p.items() if v >= 0.03},
