@@ -1,6 +1,6 @@
 # detector/detector.py
-# High fidelity local emotion detector v12-espt
-# Seven core emotions, 1–250 words, English / Spanish / Portuguese only.
+# High fidelity local emotion detector v13-espt
+# Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ class EmotionResult:
     label: str
     emoji: str
     score: float          # raw internal strength
-    percent: float        # intensity percentage 0–100 (sum across emotions ≤ 100)
+    percent: float        # intensity percentage 0 to 100 (sum across emotions ≤ 100)
 
 
 @dataclass
@@ -307,6 +307,8 @@ _register_words(
         "stupid",
         "idiot",
         "idiots",
+        "clown",
+        "clowns",
     ],
     1.8,
 )
@@ -322,6 +324,7 @@ _register_words(
         "freaking",
         "freaked",
         "freakingout",
+        "lowkey_scared",
     ],
     1.8,
 )
@@ -342,6 +345,8 @@ _register_words(
         "w",
         "dub",
         "winning",
+        "contentment",
+        "gracefilled",
     ],
     1.7,
 )
@@ -353,12 +358,13 @@ _register_words(
         "numb",
         "broken",
         "lost",
-        "drained",
         "exhausted",
         "burnt",
         "burntout",
         "burnedout",
         "heartbroken",
+        "drained",
+        "hopeless",
     ],
     1.9,
 )
@@ -376,6 +382,7 @@ _register_words(
         "crushing",
         "crushin",
         "lowkey_inlove",
+        "my_person",
     ],
     2.0,
 )
@@ -584,6 +591,8 @@ _register_words(
         "preciosa",
         "lindisimo",
         "lindísima",
+        "bendecido",
+        "bendecida",
     ],
     1.8,
 )
@@ -599,6 +608,8 @@ _register_words(
         "roto",
         "destrozado",
         "destrozada",
+        "apagado",
+        "apagada",
     ],
     1.9,
 )
@@ -852,7 +863,7 @@ _register_words(
     1.8,
 )
 
-# Nuance and dialect extensions for subtle “rough day, but better now” patterns
+# Nuance and dialect extensions for subtle rough day patterns
 _register_words(
     "en",
     "sadness",
@@ -947,6 +958,8 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "no cap": _vec(joy=0.5, passion=0.5),
     "so proud of you": _vec(joy=2.0, passion=1.0),
     "proud of you": _vec(joy=1.6, passion=0.6),
+    "all good now": _vec(joy=1.4, sadness=0.3),
+    "it is okay now": _vec(joy=1.2, sadness=0.4),
     # Spanish
     "no aguanto más": _vec(anger=1.5, sadness=2.0),
     "no aguanto mas": _vec(anger=1.5, sadness=2.0),
@@ -961,6 +974,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "que bueno": _vec(joy=2.0),
     "te quiero mucho": _vec(passion=2.3, joy=1.0),
     "te amo mucho": _vec(passion=2.5, joy=1.2),
+    "todo bien ahora": _vec(joy=1.4, sadness=0.4),
     # Portuguese
     "não aguento mais": _vec(anger=1.5, sadness=2.0),
     "nao aguento mais": _vec(anger=1.5, sadness=2.0),
@@ -975,6 +989,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "que bom": _vec(joy=2.0),
     "te amo muito": _vec(passion=2.5, joy=1.2),
     "te amo demais": _vec(passion=2.5, joy=1.3),
+    "tudo bem agora": _vec(joy=1.4, sadness=0.4),
 }
 
 # Emoticons and text faces, applied as patterns on the raw text
@@ -1158,7 +1173,7 @@ AROUSAL_EMOJI = {
     "disgust": "🤮",
 }
 
-# Self harm / suicide risk patterns
+# Self harm and suicide risk patterns
 SELF_HARM_PATTERNS = [
     # English
     r"\bkill myself\b",
@@ -1170,6 +1185,9 @@ SELF_HARM_PATTERNS = [
     r"\bself[-\s]?harm\b",
     r"\bhurt myself\b",
     r"\bsuicide\b",
+    r"\bcant go on\b",
+    r"\bcan[']?t go on\b",
+    r"\bdone with life\b",
     # Spanish
     r"\bquiero morir\b",
     r"\bno quiero vivir\b",
@@ -1178,6 +1196,8 @@ SELF_HARM_PATTERNS = [
     r"\bsuicidio\b",
     r"\bhacerme daño\b",
     r"\bautolesi",
+    r"\bno puedo mas\b",
+    r"\bno puedo más\b",
     # Portuguese
     r"\bquero morrer\b",
     r"\bnão quero viver\b",
@@ -1187,6 +1207,8 @@ SELF_HARM_PATTERNS = [
     r"\bsuic[ií]dio\b",
     r"\bauto[-\s]?mutila",
     r"\bauto[-\s]?les",
+    r"\nnao aguento viver\b",
+    r"\bnão aguento viver\b",
 ]
 
 SELF_HARM_REGEX = [re.compile(pat, flags=re.IGNORECASE) for pat in SELF_HARM_PATTERNS]
@@ -1212,6 +1234,7 @@ DOMAIN_MULTIPLIERS: Dict[str, Dict[str, float]] = {
     "social": {"joy": 1.04, "passion": 1.04},
     "whatsapp": {"joy": 1.03, "passion": 1.05, "sadness": 1.04},
     "chat": {"joy": 1.03, "passion": 1.03},
+    "prayer": {"passion": 1.05, "joy": 1.03, "sadness": 1.02},
 }
 
 # Emotion sign for valence
@@ -1344,18 +1367,36 @@ def compute_sarcasm_probability(text: str, mixture_hint: Optional[Dict[str, floa
         "ta bom",
         "tá bom então",
         "ta bom entao",
+        "ah claro",
+        "ah, claro",
     ]
     for p in patterns:
         if p in t:
             score += 0.4
 
     if any(k in t for k in ["lol", "lmao", "jaja", "jeje", "kkk", "kkkk"]):
-        if any(w in t for w in ["hate", "sad", "cry", "triste", "deprimido", "deprimida", "sozinho", "sozinha"]):
+        if any(
+            w in t
+            for w in [
+                "hate",
+                "sad",
+                "cry",
+                "triste",
+                "deprimido",
+                "deprimida",
+                "sozinho",
+                "sozinha",
+            ]
+        ):
             score += 0.3
 
     if mixture_hint:
         pos = mixture_hint.get("joy", 0.0) + mixture_hint.get("passion", 0.0)
-        neg = mixture_hint.get("anger", 0.0) + mixture_hint.get("sadness", 0.0) + mixture_hint.get("disgust", 0.0)
+        neg = (
+            mixture_hint.get("anger", 0.0)
+            + mixture_hint.get("sadness", 0.0)
+            + mixture_hint.get("disgust", 0.0)
+        )
         if pos > 0.25 and neg > 0.25:
             score += 0.2
 
@@ -1489,6 +1530,61 @@ def _expand_lexicon_morphology() -> None:
 
 
 _expand_lexicon_morphology()
+
+
+# =============================================================================
+# Higher order analysis helpers
+# =============================================================================
+
+
+def compute_code_switch_score(tokens: List[str]) -> Tuple[float, Dict[str, int]]:
+    """Rough estimate of code switching intensity based on lexicon hits per language."""
+    lang_counts = {"en": 0, "es": 0, "pt": 0}
+    for tok in tokens:
+        if not any(ch.isalpha() for ch in tok):
+            continue
+        norm = join_for_lex(tok)
+        for lang in ("en", "es", "pt"):
+            table = LEXICON_TOKEN.get(lang, {})
+            if norm in table:
+                lang_counts[lang] += 1
+    total_hits = sum(lang_counts.values())
+    if total_hits < 4:
+        return 0.0, lang_counts
+    sorted_langs = sorted(lang_counts.items(), key=lambda kv: kv[1], reverse=True)
+    primary_hits = sorted_langs[0][1]
+    secondary_hits = sorted_langs[1][1]
+    if secondary_hits == 0:
+        return 0.0, lang_counts
+    ratio = secondary_hits / float(total_hits)
+    return max(0.0, min(1.0, ratio)), lang_counts
+
+
+def compute_emotion_entropy(mixture: Dict[str, float]) -> float:
+    """Shannon style entropy over the mixture vector in bits, for emotional complexity."""
+    eps = 1e-9
+    probs = [max(eps, v) for v in mixture.values()]
+    s = sum(probs)
+    if s <= 0:
+        return 0.0
+    probs = [p / s for p in probs]
+    entropy = 0.0
+    for p in probs:
+        entropy -= p * math.log(p, 2.0)
+    return entropy
+
+
+def compute_intensity_band(global_intensity: float) -> str:
+    """Map global intensity into coarse band labels."""
+    if global_intensity < 0.15:
+        return "very_low"
+    if global_intensity < 0.35:
+        return "low"
+    if global_intensity < 0.6:
+        return "moderate"
+    if global_intensity < 0.85:
+        return "high"
+    return "very_high"
 
 
 # =============================================================================
@@ -1626,6 +1722,12 @@ class EmotionDetector:
                     base_vec["passion"] += 2.5
                 elif cp in {"😲", "😳", "🙀"}:
                     base_vec["surprise"] += 2.5
+                elif cp in {"❤", "❤️", "💖", "💘", "💝", "💞", "💓"}:
+                    base_vec["passion"] += 2.6
+                    base_vec["joy"] += 1.1
+                elif cp in {"💔"}:
+                    base_vec["sadness"] += 2.8
+                    base_vec["passion"] += 1.0
 
             if all(val == 0.0 for val in base_vec.values()):
                 continue
@@ -1844,6 +1946,14 @@ class EmotionDetector:
 
         primary_language = max(lang_props.items(), key=lambda kv: kv[1])[0] if lang_props else "unknown"
 
+        code_switch_score, lang_token_counts = compute_code_switch_score(tokens)
+        emotional_entropy = compute_emotion_entropy(intensity)
+        intensity_band = compute_intensity_band(global_intensity)
+
+        emotional_density = 0.0
+        if word_count > 0:
+            emotional_density = min(1.0, total_strength / float(max(word_count, 1)))
+
         output = DetectorOutput(
             text=text,
             language=lang_props,
@@ -1882,6 +1992,11 @@ class EmotionDetector:
                 "negative_intensity": round(negative_intensity, 4),
                 "valence_raw": round(valence_raw, 4),
                 "valence_normalized": round(valence_norm, 4),
+                "code_switch_score": round(code_switch_score, 3),
+                "lang_token_counts": lang_token_counts,
+                "emotional_entropy_bits": round(emotional_entropy, 4),
+                "intensity_band": intensity_band,
+                "emotional_density": round(emotional_density, 4),
             },
         )
         return output
