@@ -61,6 +61,221 @@ EMOTION_LABELS: Dict[str, Dict[str, str]] = {
     },
 }
 
+# Intensity specific labels for the current emotion
+# Buckets: very_low, low, moderate, high, very_high
+EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
+    "en": {
+        "anger": {
+            "very_low": "Slightly annoyed",
+            "low": "Frustrated",
+            "moderate": "Angry",
+            "high": "Very angry",
+            "very_high": "Furious",
+        },
+        "sadness": {
+            "very_low": "Slightly down",
+            "low": "Down",
+            "moderate": "Sad",
+            "high": "Very sad",
+            "very_high": "Devastated",
+        },
+        "joy": {
+            "very_low": "Slightly pleased",
+            "low": "Content",
+            "moderate": "Happy",
+            "high": "Very happy",
+            "very_high": "Overjoyed",
+        },
+        "fear": {
+            "very_low": "Slightly uneasy",
+            "low": "Nervous",
+            "moderate": "Anxious",
+            "high": "Very anxious",
+            "very_high": "Panicked",
+        },
+        "passion": {
+            "very_low": "Warm affection",
+            "low": "Affectionate",
+            "moderate": "Loving",
+            "high": "Very loving",
+            "very_high": "Deeply in love",
+        },
+        "disgust": {
+            "very_low": "Mild discomfort",
+            "low": "Uncomfortable",
+            "moderate": "Displeased",
+            "high": "Disgusted",
+            "very_high": "Repulsed",
+        },
+        "surprise": {
+            "very_low": "Slightly surprised",
+            "low": "Surprised",
+            "moderate": "Very surprised",
+            "high": "Shocked",
+            "very_high": "Stunned",
+        },
+    },
+    "es": {
+        "anger": {
+            "very_low": "Levemente molesto",
+            "low": "Molesto",
+            "moderate": "Enojado",
+            "high": "Muy enojado",
+            "very_high": "Furioso",
+        },
+        "sadness": {
+            "very_low": "Levemente desanimado",
+            "low": "Desanimado",
+            "moderate": "Triste",
+            "high": "Muy triste",
+            "very_high": "Devastado",
+        },
+        "joy": {
+            "very_low": "Levemente contento",
+            "low": "Contento",
+            "moderate": "Feliz",
+            "high": "Muy feliz",
+            "very_high": "Eufórico",
+        },
+        "fear": {
+            "very_low": "Levemente inquieto",
+            "low": "Nervioso",
+            "moderate": "Ansioso",
+            "high": "Muy ansioso",
+            "very_high": "Aterrado",
+        },
+        "passion": {
+            "very_low": "Afecto leve",
+            "low": "Cariñoso",
+            "moderate": "Amoroso",
+            "high": "Muy amoroso",
+            "very_high": "Profundamente enamorado",
+        },
+        "disgust": {
+            "very_low": "Ligeramente incómodo",
+            "low": "Incómodo",
+            "moderate": "Disgustado",
+            "high": "Muy disgustado",
+            "very_high": "Repugnado",
+        },
+        "surprise": {
+            "very_low": "Levemente sorprendido",
+            "low": "Sorprendido",
+            "moderate": "Muy sorprendido",
+            "high": "Impactado",
+            "very_high": "Atónito",
+        },
+    },
+    "pt": {
+        "anger": {
+            "very_low": "Levemente incomodado",
+            "low": "Incomodado",
+            "moderate": "Com raiva",
+            "high": "Muito irritado",
+            "very_high": "Furioso",
+        },
+        "sadness": {
+            "very_low": "Levemente abatido",
+            "low": "Abatido",
+            "moderate": "Triste",
+            "high": "Muito triste",
+            "very_high": "Devastado",
+        },
+        "joy": {
+            "very_low": "Levemente contente",
+            "low": "Contente",
+            "moderate": "Feliz",
+            "high": "Muito feliz",
+            "very_high": "Radiante",
+        },
+        "fear": {
+            "very_low": "Levemente apreensivo",
+            "low": "Nervoso",
+            "moderate": "Ansioso",
+            "high": "Muito ansioso",
+            "very_high": "Apavorado",
+        },
+        "passion": {
+            "very_low": "Afeto leve",
+            "low": "Carinhoso",
+            "moderate": "Amoroso",
+            "high": "Muito amoroso",
+            "very_high": "Profundamente apaixonado",
+        },
+        "disgust": {
+            "very_low": "Levemente desconfortável",
+            "low": "Desconfortável",
+            "moderate": "Com nojo",
+            "high": "Muito enojado",
+            "very_high": "Repugnado",
+        },
+        "surprise": {
+            "very_low": "Levemente surpreso",
+            "low": "Surpreso",
+            "moderate": "Muito surpreso",
+            "high": "Chocado",
+            "very_high": "Atônito",
+        },
+    },
+}
+
+
+def _intensity_bucket_from_percent(percent: float) -> str:
+    """
+    Map a single emotion intensity percent to a coarse bucket.
+    This is per emotion, not the global intensity band from detector.meta.
+    """
+    if percent >= 80.0:
+        return "very_high"
+    if percent >= 55.0:
+        return "high"
+    if percent >= 30.0:
+        return "moderate"
+    if percent >= 10.0:
+        return "low"
+    return "very_low"
+
+
+def _pick_nuanced_labels(
+    emotion_id: str,
+    percent: float,
+    locale: str,
+) -> Dict[str, Optional[str]]:
+    """
+    Return nuanced labels for a given emotion and intensity percent.
+
+    Falls back to the base labels if there is no matching entry
+    or if the intensity is effectively zero.
+    """
+    if not emotion_id or percent <= 0.01:
+        return {
+            "bucket": None,
+            "nuanced_en": None,
+            "nuanced_local": None,
+        }
+
+    loc = _normalize_locale(locale)
+    bucket = _intensity_bucket_from_percent(percent)
+
+    en_map = EMOTION_INTENSITY_LABELS.get("en", {}).get(emotion_id, {})
+    loc_map = EMOTION_INTENSITY_LABELS.get(loc, {}).get(emotion_id, {})
+
+    nuanced_en = en_map.get(bucket)
+    nuanced_local = loc_map.get(bucket)
+
+    if nuanced_en is None and nuanced_local is None:
+        return {
+            "bucket": None,
+            "nuanced_en": None,
+            "nuanced_local": None,
+        }
+
+    return {
+        "bucket": bucket,
+        "nuanced_en": nuanced_en,
+        "nuanced_local": nuanced_local,
+    }
+
 
 # =============================================================================
 # Hotline data
@@ -78,6 +293,7 @@ class HotlineInfo:
 
     def to_locale_dict(self, locale: str) -> Dict[str, Any]:
         loc = _normalize_locale(locale)
+
         def pick(m: Dict[str, str]) -> str:
             return m.get(loc) or m.get("en") or ""
 
@@ -294,7 +510,7 @@ def _format_result_block(
     detector_result: Dict[str, Any],
     locale: str,
 ) -> Dict[str, Any]:
-    """Format dominant/current result."""
+    """Format dominant/current result, with intensity aware nuanced labels."""
     loc = _normalize_locale(locale)
     emotion_id = detector_result.get("label", "")
     label_en = EMOTION_LABELS["en"].get(emotion_id, emotion_id)
@@ -302,6 +518,11 @@ def _format_result_block(
     score = float(detector_result.get("score", 0.0))
     percent = float(detector_result.get("percent", 0.0))
     emoji = detector_result.get("emoji", "😐")
+
+    nuance = _pick_nuanced_labels(emotion_id, percent, loc)
+    bucket = nuance["bucket"]
+    nuanced_en = nuance["nuanced_en"] or label_en
+    nuanced_local = nuance["nuanced_local"] or label_local
 
     return {
         "type": kind,
@@ -313,6 +534,9 @@ def _format_result_block(
         "scoreDisplay": f"{score:.3f}",
         "percent": round(percent, 3),
         "percentDisplay": f"{percent:.1f}",
+        "intensityBucket": bucket,
+        "nuancedLabel": nuanced_en,
+        "nuancedLabelLocalized": nuanced_local,
     }
 
 
@@ -334,7 +558,7 @@ def format_for_client(
     that matches what the front end needs:
       - ordered lists for mixture bars and analysis rows
       - localized labels for EN, ES, PT
-      - dominant and current emotion blocks with emojis
+      - dominant and current emotion blocks with emojis and nuanced labels
       - hotline information based on region
     """
     loc = _normalize_locale(locale)
