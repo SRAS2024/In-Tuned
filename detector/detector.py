@@ -1,5 +1,5 @@
 # detector/detector.py
-# High fidelity local emotion detector v9-espt
+# High fidelity local emotion detector v10-espt
 # Seven core emotions, 1–250 words, English / Spanish / Portuguese only.
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ class DetectorOutput:
     text: str
     language: Dict[str, float]
     emotions: Dict[str, EmotionResult]
-    # mixture_vector now represents intensity weights in [0, 1]
+    # mixture_vector represents intensity weights in [0, 1]
     # whose sum is ≤ 1, not a normalized probability simplex.
     mixture_vector: Dict[str, float]
     dominant: EmotionResult
@@ -93,6 +93,10 @@ def _register_words(lang: str, emotion: str, words: List[str], base: float) -> N
         table[wl] = vec
 
 
+# -----------------------------------------------------------------------------
+# Base lexicon
+# -----------------------------------------------------------------------------
+
 # English
 _register_words(
     "en",
@@ -124,6 +128,7 @@ _register_words(
     [
         "disgusted",
         "gross",
+        "grossed",
         "nasty",
         "disgusting",
         "revolting",
@@ -134,6 +139,7 @@ _register_words(
         "yuck",
         "ew",
         "eww",
+        "ewww",
     ],
     2.1,
 )
@@ -169,6 +175,8 @@ _register_words(
         "thankful",
         "delighted",
         "excited",
+        "hyped",
+        "hype",
         "joyful",
         "joy",
         "content",
@@ -176,9 +184,26 @@ _register_words(
         "smiling",
         "smile",
         "lol",
+        "lolol",
         "lmao",
+        "lmfao",
+        "rofl",
         "haha",
         "hahaha",
+        "awesome",
+        "amazing",
+        "fantastic",
+        "great",
+        "dope",
+        "lit",
+        "fire",
+        "slay",
+        "slayed",
+        "iconic",
+        "cute",
+        "cutie",
+        "loveit",
+        "lovethis",
     ],
     2.0,
 )
@@ -194,6 +219,7 @@ _register_words(
         "unhappy",
         "miserable",
         "heartbroken",
+        "heartache",
         "lonely",
         "alone",
         "crying",
@@ -203,6 +229,12 @@ _register_words(
         "blue",
         "grief",
         "grieving",
+        "meh",
+        "low",
+        "drained",
+        "burnedout",
+        "burntout",
+        "burntout",
     ],
     2.2,
 )
@@ -225,6 +257,12 @@ _register_words(
         "adoring",
         "hot",
         "sexy",
+        "stan",
+        "simp",
+        "simping",
+        "ship",
+        "ships",
+        "thirsty",
     ],
     2.3,
 )
@@ -238,14 +276,44 @@ _register_words(
         "wow",
         "whoa",
         "omg",
+        "omfg",
         "cantbelieve",
         "unexpected",
         "nooo",
         "what",
         "wtf",
         "no_way",
+        "shook",
+        "shooketh",
     ],
     2.1,
+)
+
+# Extra anger slang
+_register_words(
+    "en",
+    "anger",
+    [
+        "salty",
+        "pressed",
+        "triggered",
+        "annoying",
+        "ugh",
+        "smh",
+        "livid",
+    ],
+    1.8,
+)
+# Extra fear slang
+_register_words(
+    "en",
+    "fear",
+    [
+        "worriedaf",
+        "scaredaf",
+        "anxiousaf",
+    ],
+    1.8,
 )
 
 # Spanish
@@ -265,6 +333,8 @@ _register_words(
         "odiar",
         "frustrado",
         "frustrada",
+        "recaliente",
+        "hinchado",
     ],
     2.2,
 )
@@ -279,6 +349,8 @@ _register_words(
         "repulsivo",
         "repulsiva",
         "me_da_asco",
+        "cringe",
+        "cringi",
     ],
     2.1,
 )
@@ -299,6 +371,9 @@ _register_words(
         "nervioso",
         "nerviosa",
         "pánico",
+        "peligro",
+        "tenso",
+        "tensa",
     ],
     2.2,
 )
@@ -310,6 +385,7 @@ _register_words(
         "contento",
         "contenta",
         "alegre",
+        "alegria",
         "alegría",
         "emocionado",
         "emocionada",
@@ -318,6 +394,18 @@ _register_words(
         "sonriendo",
         "jaja",
         "jajaja",
+        "jajajaja",
+        "jeje",
+        "jejeje",
+        "xd",
+        "xddd",
+        "genial",
+        "que_bueno",
+        "que_bien",
+        "me_encanta",
+        "encanta",
+        "buenisimo",
+        "buenísimo",
     ],
     2.0,
 )
@@ -338,6 +426,10 @@ _register_words(
         "lloré",
         "pena",
         "dolor",
+        "tristeza",
+        "depre",
+        "bajoneado",
+        "bajoneada",
     ],
     2.2,
 )
@@ -356,8 +448,11 @@ _register_words(
         "deseo",
         "deseando",
         "atracción",
+        "atraccion",
         "te_quiero",
         "te_amo",
+        "me_fascina",
+        "me_encantas",
     ],
     2.3,
 )
@@ -372,6 +467,7 @@ _register_words(
         "wow",
         "guau",
         "no_lo_creo",
+        "increible",
         "increíble",
     ],
     2.1,
@@ -391,10 +487,16 @@ _register_words(
         "odiar",
         "odeio",
         "ódio",
+        "odio",
         "frustrado",
         "frustrada",
         "puto",
         "puta_da_vida",
+        "bolado",
+        "bolada",
+        "pistola",
+        "aff",
+        "affs",
     ],
     2.2,
 )
@@ -408,6 +510,7 @@ _register_words(
         "asco",
         "repugnante",
         "que_nojo",
+        "cringe",
     ],
     2.1,
 )
@@ -428,6 +531,9 @@ _register_words(
         "nervoso",
         "nervosa",
         "pânico",
+        "panico",
+        "tenso",
+        "tensa",
     ],
     2.2,
 )
@@ -447,10 +553,23 @@ _register_words(
         "grata",
         "obrigado",
         "obrigada",
+        "kk",
         "kkk",
         "kkkk",
+        "kkkkk",
+        "kkkkkk",
+        "rs",
+        "rsrs",
+        "rsrsrs",
         "haha",
         "hahaha",
+        "top",
+        "daora",
+        "amei",
+        "maravilhoso",
+        "maravilhosa",
+        "perfeito",
+        "perfeita",
     ],
     2.0,
 )
@@ -466,11 +585,17 @@ _register_words(
         "sozinho",
         "sozinha",
         "solidão",
+        "solidao",
         "chorando",
         "chorei",
         "chorar",
         "mágoa",
+        "magoa",
         "dor",
+        "chateado",
+        "chateada",
+        "bad",
+        "na_bad",
     ],
     2.2,
 )
@@ -485,12 +610,16 @@ _register_words(
         "apaixonado",
         "apaixonada",
         "tesão",
+        "tesao",
         "desejo",
         "desejando",
         "gostoso",
         "gostosa",
         "te_amo",
         "te_adoro",
+        "crush",
+        "apaixonadinho",
+        "apaixonadinha",
     ],
     2.3,
 )
@@ -506,7 +635,9 @@ _register_words(
         "nossa",
         "caramba",
         "não_acredito",
+        "nao_acredito",
         "meu_deus",
+        "mds",
     ],
     2.1,
 )
@@ -522,12 +653,8 @@ _register_words(
         "rough",
         "exhausted",
         "tired",
-        "drained",
         "overwhelmed",
         "overwhelming",
-        "burnedout",
-        "burntout",
-        "burntout",
     ],
     1.3,
 )
@@ -601,17 +728,38 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "tough day": _vec(sadness=2.0),
     "not the easiest week": _vec(sadness=2.3, fear=0.7),
     "not an easy week": _vec(sadness=2.0, fear=0.7),
+    "lowkey happy": _vec(joy=1.5, sadness=0.5),
+    "low key happy": _vec(joy=1.5, sadness=0.5),
+    "highkey happy": _vec(joy=2.0),
+    "high key happy": _vec(joy=2.0),
+    "i am dead": _vec(joy=1.0, surprise=1.0),
+    "im dead": _vec(joy=1.0, surprise=1.0),
+    "no cap": _vec(joy=0.5, passion=0.5),
+    "so proud of you": _vec(joy=2.0, passion=1.0),
     # Spanish
     "no aguanto más": _vec(anger=1.5, sadness=2.0),
+    "no aguanto mas": _vec(anger=1.5, sadness=2.0),
     "no lo soporto": _vec(anger=2.0, disgust=1.0),
     "me rompe el corazón": _vec(sadness=3.0),
     "me parte el corazón": _vec(sadness=3.0),
     "no fue una semana fácil": _vec(sadness=2.3, fear=0.7),
+    "no fue una semana facil": _vec(sadness=2.3, fear=0.7),
+    "que miedo": _vec(fear=2.0),
+    "que asco": _vec(disgust=2.0),
+    "que rabia": _vec(anger=2.0),
+    "que bueno": _vec(joy=2.0),
     # Portuguese
     "não aguento mais": _vec(anger=1.5, sadness=2.0),
+    "nao aguento mais": _vec(anger=1.5, sadness=2.0),
     "me parte o coração": _vec(sadness=3.0),
     "me parte meu coração": _vec(sadness=3.0),
+    "me parte o coracao": _vec(sadness=3.0),
+    "nao foi uma semana facil": _vec(sadness=2.3, fear=0.7),
     "não foi uma semana fácil": _vec(sadness=2.3, fear=0.7),
+    "que medo": _vec(fear=2.0),
+    "que nojo": _vec(disgust=2.0),
+    "que raiva": _vec(anger=2.0),
+    "que bom": _vec(joy=2.0),
 }
 
 # Intensifiers and diminishers
@@ -629,14 +777,17 @@ INTENSIFIERS = {
         "too",
         "sooo",
         "soooo",
+        "hella",
+        "highkey",
+        "lowkey",
     },
     "es": {"muy", "re", "súper", "super", "demasiado", "tan"},
-    "pt": {"muito", "super", "demais", "tão", "pra", "bastante"},
+    "pt": {"muito", "super", "demais", "tão", "tao", "pra", "bastante"},
 }
 DIMINISHERS = {
-    "en": {"kind", "kinda", "sort", "little", "bit"},
-    "es": {"un", "poco", "algo"},
-    "pt": {"um", "pouco", "meio"},
+    "en": {"kind", "kinda", "sort", "little", "bit", "maybe", "possibly"},
+    "es": {"un", "poco", "algo", "quizas", "quizás", "tal_vez"},
+    "pt": {"um", "pouco", "meio", "talvez"},
 }
 
 NEGATIONS = {
@@ -654,27 +805,71 @@ NEGATIONS = {
         "won't",
         "nothing",
     },
-    "es": {"no", "nunca", "jamás", "nada"},
-    "pt": {"não", "nem", "nunca", "jamais"},
+    "es": {"no", "nunca", "jamás", "jamas", "nada"},
+    "pt": {"não", "nao", "nem", "nunca", "jamais"},
 }
 
 CONTRAST_WORDS = {
     "en": {"but", "however", "though", "yet"},
     "es": {"pero", "sin", "embargo", "aunque"},
-    "pt": {"mas", "porém", "contudo", "embora"},
+    "pt": {"mas", "porém", "porem", "contudo", "embora"},
 }
 
 PROFANITIES = {
     "en": {"fuck", "fucking", "shit", "bitch", "asshole", "damn"},
     "es": {"mierda", "joder", "carajo", "puta", "pendejo"},
-    "pt": {"merda", "porra", "caralho", "puta", "bosta"},
+    "pt": {"merda", "porra", "caralho", "puta", "bosta", "pqp"},
+}
+
+# Uncertainty and certainty markers
+UNCERTAINTY_WORDS = {
+    "en": {
+        "maybe",
+        "perhaps",
+        "kinda",
+        "sorta",
+        "guess",
+        "idk",
+        "idk.",
+        "idk,",
+        "unsure",
+        "not_sure",
+        "probably",
+        "possibly",
+    },
+    "es": {
+        "quizas",
+        "quizás",
+        "tal",
+        "vez",
+        "tal_vez",
+        "supongo",
+        "no_se",
+        "no_sé",
+        "creo",
+    },
+    "pt": {
+        "talvez",
+        "acho",
+        "acho_que",
+        "nao_sei",
+        "não_sei",
+        "provavelmente",
+        "quem_sabe",
+    },
+}
+
+CERTAINTY_WORDS = {
+    "en": {"definitely", "for_sure", "forreal", "fr", "frfr", "no_cap", "literally"},
+    "es": {"definitivamente", "seguro", "segura", "claro", "obvio"},
+    "pt": {"com_certeza", "certeza", "claro", "obvio", "óbvio"},
 }
 
 # Language function words for detection
 LANG_FUNCTION_WORDS = {
     "en": {"the", "and", "is", "am", "are", "you", "i", "my", "me", "it", "of", "to", "in"},
-    "es": {"el", "la", "los", "las", "y", "es", "soy", "eres", "estoy", "yo", "tú", "mi", "me"},
-    "pt": {"o", "a", "os", "as", "e", "é", "sou", "estou", "você", "voce", "eu", "meu", "minha"},
+    "es": {"el", "la", "los", "las", "y", "es", "soy", "eres", "estoy", "yo", "tú", "tu", "mi", "me"},
+    "pt": {"o", "a", "os", "as", "e", "é", "e", "sou", "estou", "você", "voce", "eu", "meu", "minha"},
 }
 
 # Emoji mappings
@@ -719,6 +914,7 @@ SELF_HARM_PATTERNS = [
     # Portuguese
     r"\bquero morrer\b",
     r"\bnão quero viver\b",
+    r"\bnao quero viver\b",
     r"\bme matar\b",
     r"\btirar minha vida\b",
     r"\bsuic[ií]dio\b",
@@ -771,7 +967,7 @@ def is_emoji(char: str) -> bool:
 
 
 def join_for_lex(token: str) -> str:
-    """Normalize token for lexicon lookups: lower, remove accents, join spaces."""
+    """Normalize token for lexicon and marker lookups: lower, remove accents, join spaces."""
     token = token.lower()
     token = unicodedata.normalize("NFD", token)
     token = "".join(ch for ch in token if unicodedata.category(ch) != "Mn")
@@ -802,8 +998,8 @@ def detect_language_proportions(text: str) -> Dict[str, float]:
                 scores[lang] += 1.5
         if "ñ" in tok or "¿" in tok or "¡" in tok:
             scores["es"] += 1.2
-        if any(ch in tok for ch in ["ã", "õ", "ç", "ê", "ô"]):
-            scores["pt"] += 1.2
+        if any(ch in tok for ch in ["ã", "õ", "ç", "ê", "ô", "á", "é", "í", "ó", "ú"]):
+            scores["pt"] += 1.0
         if any(ch in tok for ch in ["th", "ing"]):
             scores["en"] += 0.4
 
@@ -845,16 +1041,23 @@ def compute_sarcasm_probability(text: str, mixture_hint: Optional[Dict[str, floa
         "sure.",
         "totally",
         '"sure"',
+        "ok sure",
+        "sure jan",
         "claro que sí",
+        "claro que si",
         "claro que nao",
         "claro que não",
+        "tá bom",
+        "ta bom",
+        "tá bom então",
+        "ta bom entao",
     ]
     for p in patterns:
         if p in t:
             score += 0.4
 
-    if "lol" in t or "lmao" in t or "jaja" in t or "kkk" in t:
-        if any(w in t for w in ["hate", "sad", "cry", "triste", "deprimido", "deprimida", "sozinho"]):
+    if any(k in t for k in ["lol", "lmao", "jaja", "jeje", "kkk", "kkkk"]):
+        if any(w in t for w in ["hate", "sad", "cry", "triste", "deprimido", "deprimida", "sozinho", "sozinha"]):
             score += 0.3
 
     if mixture_hint:
@@ -939,6 +1142,8 @@ class EmotionDetector:
         all_dimins = set().union(*DIMINISHERS.values())
         all_contrast = set().union(*CONTRAST_WORDS.values())
         all_profanities = set().union(*PROFANITIES.values())
+        all_uncertainty = set().union(*UNCERTAINTY_WORDS.values())
+        all_certainty = set().union(*CERTAINTY_WORDS.values())
 
         exclam_count = text.count("!")
         question_count = text.count("?")
@@ -946,6 +1151,8 @@ class EmotionDetector:
         elongated_count = 0
         profanity_count = 0
         strong_emoji_count = 0
+        uncertainty_count = 0
+        certainty_count = 0
 
         token_low = [tok.lower() for tok in tokens]
 
@@ -970,6 +1177,9 @@ class EmotionDetector:
         for idx, tok in enumerate(token_low):
             if join_for_lex(tok) in all_contrast:
                 contrast_index = idx
+
+        total_tokens = len(tokens)
+        second_half_index = total_tokens // 2 if total_tokens > 0 else 0
 
         R = {e: R_global[e] for e in EMOTIONS}
 
@@ -1013,22 +1223,37 @@ class EmotionDetector:
             j = i - 1
             steps = 0
             while j >= 0 and steps < 3:
-                prev = join_for_lex(tokens[j])
-                if prev in all_intens:
+                prev_norm = join_for_lex(tokens[j])
+                if prev_norm in all_intens:
                     alpha += 0.5
-                if prev in all_dimins:
+                if prev_norm in all_dimins:
                     alpha -= 0.3
-                if prev in all_negations:
+                if prev_norm in all_negations:
                     neg_factor = -0.8
+                if prev_norm in all_uncertainty:
+                    alpha -= 0.2
+                if prev_norm in all_certainty:
+                    alpha += 0.15
                 if tokens[j] in {".", "!", "?"}:
                     break
                 j -= 1
                 steps += 1
 
+            if tok_norm in all_uncertainty:
+                uncertainty_count += 1
+                alpha -= 0.1
+            if tok_norm in all_certainty:
+                certainty_count += 1
+                alpha += 0.1
+
             if tok_norm in all_profanities:
                 alpha += 0.4
 
+            alpha = max(0.2, alpha)
+
             clause_weight = 1.3 if i > contrast_index >= 0 else 1.0
+            if i >= second_half_index:
+                clause_weight *= 1.1
 
             for e in EMOTIONS:
                 contribution = base_vec[e] * alpha * neg_factor * clause_weight
@@ -1065,12 +1290,23 @@ class EmotionDetector:
         else:
             share = {e: R_boosted[e] / total_strength for e in EMOTIONS}
 
-        # Global intensity, saturating so 100 percent is rare.
+        # Global intensity base with soft saturation.
         if total_strength <= 0:
-            global_intensity = 0.0
+            global_intensity_base = 0.0
         else:
-            # Soft saturation; 8.0 is a heuristic scale tuned for 1–250 words.
-            global_intensity = 1.0 - math.exp(-total_strength / 8.0)
+            global_intensity_base = 1.0 - math.exp(-total_strength / 8.0)
+
+        global_intensity_base = max(0.0, min(global_intensity_base, 0.995))
+
+        # Certainty and uncertainty scaling based on language markers and punctuation.
+        uncertainty_score = min(1.0, uncertainty_count / 4.0) + 0.4 * q_n
+        certainty_score = min(1.0, certainty_count / 4.0) + 0.6 * ex_n
+        net_certainty = max(-1.0, min(1.0, certainty_score - uncertainty_score))
+
+        certainty_adjust = 1.0 + 0.35 * net_certainty
+        certainty_adjust = max(0.5, min(1.4, certainty_adjust))
+
+        global_intensity = global_intensity_base * certainty_adjust
         global_intensity = max(0.0, min(global_intensity, 0.995))
 
         intensity = {e: share[e] * global_intensity for e in EMOTIONS}
@@ -1084,11 +1320,14 @@ class EmotionDetector:
         length_factor = min(1.0, word_count / 12.0)
         strength_factor = min(1.0, delta * 3.0)
         intensity_factor = global_intensity
+        certainty_factor = (net_certainty + 1.0) / 2.0
+
         confidence = (
-            0.3 * length_factor
-            + 0.3 * strength_factor
-            + 0.3 * (1.0 - sarcasm_prob)
-            + 0.1 * intensity_factor
+            0.25 * length_factor
+            + 0.25 * strength_factor
+            + 0.2 * (1.0 - sarcasm_prob)
+            + 0.15 * intensity_factor
+            + 0.15 * certainty_factor
         )
         confidence = round(max(0.0, min(1.0, confidence)), 3)
 
@@ -1158,8 +1397,14 @@ class EmotionDetector:
                 "elongated_count": elongated_count,
                 "profanity_count": profanity_count,
                 "strong_emoji_count": strong_emoji_count,
+                "uncertainty_count": uncertainty_count,
+                "certainty_count": certainty_count,
+                "certainty_score": round(certainty_score, 3),
+                "uncertainty_score": round(uncertainty_score, 3),
+                "net_certainty": round(net_certainty, 3),
                 "domain": domain,
                 "total_strength": round(total_strength, 4),
+                "global_intensity_base": round(global_intensity_base, 4),
                 "global_intensity": round(global_intensity, 4),
             },
         )
