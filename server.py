@@ -1,0 +1,10 @@
+project-root/
+  server.py
+  client/
+    index.html
+    styles.css
+    main.js
+  detector/
+    __init__.py
+    detector.py
+    formatter.py
