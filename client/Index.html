@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>In tuned · Emotion reflection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand" aria-label="In tuned home">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
+          </div>
+          <div class="brandText">
+            <div class="title" data-i18n="appTitle">In tuned</div>
+            <div class="badge">v8.0</div>
+          </div>
+        </div>
+        <div class="actions">
+          <button
+            id="helpBtn"
+            class="help iconBtn"
+            type="button"
+            data-i18n-aria-label="helpButtonLabel"
+            aria-label="About In tuned"
+          >
+            <span class="helpIcon" aria-hidden="true">?</span>
+          </button>
+
+          <div class="settingsControl">
+            <button
+              id="settingsBtn"
+              class="settingsBtn iconBtn"
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-label="Settings"
+            >
+              <span class="settingsIcon" aria-hidden="true">⚙️</span>
+            </button>
+            <div
+              id="settingsMenu"
+              class="settingsMenu"
+              role="menu"
+              aria-label="Settings"
+            >
+              <div class="settingsSection">
+                <div class="settingsLabel" data-i18n="settingsThemeLabel">
+                  Theme
+                </div>
+                <div class="settingsRow">
+                  <button
+                    id="modeDot"
+                    class="modeDot"
+                    type="button"
+                    data-i18n-aria-label="themeToggleLabel"
+                    aria-label="Toggle light or dark theme"
+                  >
+                    <span
+                      class="modeDotLabel"
+                      data-i18n="settingsThemeLabel"
+                      >Theme</span
+                    >
+                    <div class="modeDotTrack" aria-hidden="true">
+                      <div class="modeDotThumb"></div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="settingsSection">
+                <div
+                  class="settingsLabel"
+                  data-i18n="settingsLanguageLabel"
+                >
+                  Language
+                </div>
+                <div class="settingsRow">
+                  <div class="langControl">
+                    <button
+                      id="langToggle"
+                      class="langToggle"
+                      type="button"
+                      data-i18n-aria-label="langSwitchTooltip"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                    >
+                      <span class="langIcon" aria-hidden="true">🌐</span>
+                      <span
+                        id="langCurrentLabel"
+                        class="langCurrentLabel"
+                      >
+                        EN
+                      </span>
+                    </button>
+                    <div
+                      id="langMenu"
+                      class="langMenu"
+                      role="menu"
+                      data-i18n-aria-label="langMenuLabel"
+                      aria-label="Language"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h1 data-i18n="headline">Emotion detector</h1>
+      <p class="subtitle" data-i18n="subtitle">
+        A simple space to notice what you are feeling across seven core
+        emotions.
+      </p>
+
+      <section class="grid">
+        <div class="card">
+          <label for="text" data-i18n="inputLabel">Text</label>
+          <textarea
+            id="text"
+            aria-label="Text to analyze"
+            data-i18n-placeholder="inputPlaceholder"
+            placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."
+          ></textarea>
+
+          <div class="row">
+            <button
+              id="analyze"
+              class="btn"
+              data-i18n="analyzeButton"
+            >
+              Analyze
+            </button>
+            <span
+              id="wordInfo"
+              data-i18n="wordInfoDefault"
+            >
+              250 word maximum
+            </span>
+            <span
+              id="emojiTray"
+              class="emojiInline"
+              aria-live="polite"
+              title="Emotion"
+              >🤔</span
+            >
+            <span id="status" class="status" aria-live="polite"></span>
+          </div>
+
+          <div
+            class="card chartCard"
+            aria-label="Core mixture bar chart"
+          >
+            <div
+              class="panelTitle"
+              data-i18n="coreMixtureTitle"
+            >
+              Core mixture
+            </div>
+            <div id="bars"></div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div
+              class="panelTitle"
+              data-i18n="analysisTitle"
+            >
+              Analysis
+            </div>
+            <div class="kv">
+              <div class="pill" data-emotion-label="anger">Anger</div>
+              <div class="value" id="v-anger">0.000</div>
+
+              <div class="pill" data-emotion-label="disgust">
+                Disgust
+              </div>
+              <div class="value" id="v-disgust">0.000</div>
+
+              <div class="pill" data-emotion-label="fear">Fear</div>
+              <div class="value" id="v-fear">0.000</div>
+
+              <div class="pill" data-emotion-label="joy">Joy</div>
+              <div class="value" id="v-joy">0.000</div>
+
+              <div class="pill" data-emotion-label="sadness">
+                Sadness
+              </div>
+              <div class="value" id="v-sadness">0.000</div>
+
+              <div class="pill" data-emotion-label="passion">
+                Passion
+              </div>
+              <div class="value" id="v-passion">0.000</div>
+
+              <div class="pill" data-emotion-label="surprise">
+                Surprise
+              </div>
+              <div class="value" id="v-surprise">0.000</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div
+              class="panelTitle"
+              data-i18n="resultsTitle"
+            >
+              Results
+            </div>
+
+            <div class="meta metaPrimary">
+              <div
+                class="label"
+                data-i18n="resultsDominantLabel"
+              >
+                Dominant
+              </div>
+              <div class="value" id="v-dominant">N/A</div>
+
+              <div
+                class="label"
+                data-i18n="resultsEmotionLabel"
+              >
+                Current emotion
+              </div>
+              <div class="value" id="v-emotion">N/A</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer data-i18n="footer">
+        © 2025 In tuned. All rights reserved.
+      </footer>
+    </div>
+
+    <div
+      id="overlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+    >
+      <div class="modal">
+        <h2 id="modalTitle" data-i18n="aboutTitle">
+          About In tuned
+        </h2>
+        <p
+          class="muted"
+          data-i18n="aboutDescriptionLabel"
+        >
+          Description:
+        </p>
+        <p data-i18n="aboutBody">
+          In tuned is an intuitive reflection tool that helps you understand
+          what you are feeling in the moment. You write a short passage of
+          up to 250 words and the app highlights a blend of seven core
+          emotions anger, disgust, fear, joy, sadness, passion, and surprise
+          so you can see a simple emotional snapshot of your text. The goal
+          is to support self awareness and healthy reflection only. It is
+          not therapy and it is not a substitute for professional mental
+          health care or medical advice.
+        </p>
+        <div class="actions">
+          <button
+            id="closeModal"
+            class="ghost"
+            data-i18n="aboutDone"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="crisisOverlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="crisisTitle"
+    >
+      <div class="modal">
+        <div class="alertRow">
+          <div class="alertIcon" aria-hidden="true">⚠️</div>
+          <div>
+            <h2 id="crisisTitle" data-i18n="crisisTitle">
+              Wait! You are priceless and important.
+            </h2>
+            <p data-i18n="crisisBody">
+              If you or your loved ones are having any thoughts of self
+              harm or suicide, help is always available to you. This world
+              needs you in it.
+            </p>
+          </div>
+        </div>
+        <p class="crisisNote" data-i18n="crisisNote">
+          This app cannot provide crisis support. The numbers shown are
+          based on common services in your region and may not be complete.
+          If they do not work or you are in immediate danger, please
+          contact any local emergency service or a trusted crisis hotline
+          right away.
+        </p>
+        <div class="crisisActions">
+          <a
+            href="sms:988"
+            id="crisisHotline"
+            class="btnLink"
+          >
+            <span data-i18n="crisisHotlineCta"
+              >Contact suicide hotline</span
+            >
+            ·
+            <span id="crisisHotlineNumber">988</span>
+          </a>
+          <a
+            href="tel:911"
+            id="crisisEmergency"
+            class="ghostLink"
+          >
+            <span data-i18n="crisisEmergencyCta"
+              >Contact emergency services</span
+            >
+            ·
+            <span id="crisisEmergencyNumber">911</span>
+          </a>
+        </div>
+        <div
+          class="actions"
+          style="justify-content:flex-start;margin-top:1rem;"
+        >
+          <button
+            id="closeCrisis"
+            class="ghost"
+            data-i18n="crisisClose"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="main.js" defer></script>
+  </body>
+</html>
