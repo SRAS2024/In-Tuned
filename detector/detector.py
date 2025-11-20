@@ -1,5 +1,5 @@
 # detector/detector.py
-# High fidelity local emotion detector v10-espt
+# High fidelity local emotion detector v11-espt
 # Seven core emotions, 1–250 words, English / Spanish / Portuguese only.
 
 from __future__ import annotations
@@ -872,6 +872,43 @@ LANG_FUNCTION_WORDS = {
     "pt": {"o", "a", "os", "as", "e", "é", "e", "sou", "estou", "você", "voce", "eu", "meu", "minha"},
 }
 
+# Self vs other pronoun hints (already normalized to match join_for_lex output)
+SELF_PRONOUNS_ALL = {
+    "i",
+    "im",
+    "i'm",
+    "me",
+    "my",
+    "mine",
+    "yo",
+    "mi",
+    "mio",
+    "mia",
+    "mios",
+    "mias",
+    "eu",
+    "meu",
+    "minha",
+    "meus",
+    "minhas",
+}
+OTHER_PRONOUNS_ALL = {
+    "he",
+    "she",
+    "they",
+    "him",
+    "her",
+    "them",
+    "el",
+    "ella",
+    "ellos",
+    "ellas",
+    "ele",
+    "ela",
+    "eles",
+    "elas",
+}
+
 # Emoji mappings
 BASE_EMOJI = {
     "anger": "😡",
@@ -933,6 +970,26 @@ AROUSAL_BETA = {
     "sadness": 0.3,
     "passion": 0.8,
     "surprise": 1.0,
+}
+
+# Simple domain based multipliers for fine tuning in different contexts
+DOMAIN_MULTIPLIERS: Dict[str, Dict[str, float]] = {
+    "romantic": {"passion": 1.12, "joy": 1.05},
+    "relationship": {"passion": 1.08, "sadness": 1.03},
+    "support": {"sadness": 1.06, "fear": 1.06},
+    "customer_support": {"anger": 1.08, "sadness": 1.04, "disgust": 1.04},
+    "therapy": {"sadness": 1.05, "fear": 1.05, "joy": 1.02},
+}
+
+# Emotion sign for valence
+EMOTION_SIGN: Dict[str, float] = {
+    "joy": 1.0,
+    "passion": 1.0,
+    "surprise": 0.4,
+    "anger": -1.0,
+    "disgust": -1.0,
+    "fear": -1.0,
+    "sadness": -1.0,
 }
 
 
@@ -1153,6 +1210,8 @@ class EmotionDetector:
         strong_emoji_count = 0
         uncertainty_count = 0
         certainty_count = 0
+        self_pronoun_count = 0
+        other_pronoun_count = 0
 
         token_low = [tok.lower() for tok in tokens]
 
@@ -1181,10 +1240,22 @@ class EmotionDetector:
         total_tokens = len(tokens)
         second_half_index = total_tokens // 2 if total_tokens > 0 else 0
 
+        last_clause_start = 0
+        for idx, tok in enumerate(tokens):
+            if tok in {".", "!", "?"}:
+                last_clause_start = idx + 1
+
         R = {e: R_global[e] for e in EMOTIONS}
 
         for i, tok in enumerate(tokens):
             tok_norm = join_for_lex(tok)
+
+            if any(ch.isalpha() for ch in tok):
+                if tok_norm in SELF_PRONOUNS_ALL:
+                    self_pronoun_count += 1
+                elif tok_norm in OTHER_PRONOUNS_ALL:
+                    other_pronoun_count += 1
+
             if not any(ch.isalpha() for ch in tok) and not is_emoji(tok):
                 continue
 
@@ -1219,6 +1290,7 @@ class EmotionDetector:
 
             alpha = 1.0
             neg_factor = 1.0
+            self_focus_factor = 1.0
 
             j = i - 1
             steps = 0
@@ -1234,6 +1306,10 @@ class EmotionDetector:
                     alpha -= 0.2
                 if prev_norm in all_certainty:
                     alpha += 0.15
+                if prev_norm in SELF_PRONOUNS_ALL:
+                    self_focus_factor = max(self_focus_factor, 1.2)
+                if prev_norm in OTHER_PRONOUNS_ALL and self_focus_factor == 1.0:
+                    self_focus_factor = 0.9
                 if tokens[j] in {".", "!", "?"}:
                     break
                 j -= 1
@@ -1254,9 +1330,13 @@ class EmotionDetector:
             clause_weight = 1.3 if i > contrast_index >= 0 else 1.0
             if i >= second_half_index:
                 clause_weight *= 1.1
+            if i >= last_clause_start:
+                clause_weight *= 1.05
+
+            local_factor = clause_weight * self_focus_factor
 
             for e in EMOTIONS:
-                contribution = base_vec[e] * alpha * neg_factor * clause_weight
+                contribution = base_vec[e] * alpha * neg_factor * local_factor
                 R[e] += contribution
 
         def norm(count: int, scale: float) -> float:
@@ -1279,10 +1359,19 @@ class EmotionDetector:
         )
         A = max(0.0, min(1.0, raw_arousal))
 
-        R_boosted = {}
+        R_boosted: Dict[str, float] = {}
         for e in EMOTIONS:
             boosted = R[e] * (1.0 + AROUSAL_BETA[e] * A)
             R_boosted[e] = max(0.0, boosted)
+
+        # Optional domain adjustments
+        domain_key = (domain or "").lower().strip()
+        if domain_key:
+            for key, mults in DOMAIN_MULTIPLIERS.items():
+                if key in domain_key:
+                    for e, factor in mults.items():
+                        if e in R_boosted:
+                            R_boosted[e] *= factor
 
         total_strength = sum(R_boosted.values())
         if total_strength <= 0:
@@ -1309,7 +1398,41 @@ class EmotionDetector:
         global_intensity = global_intensity_base * certainty_adjust
         global_intensity = max(0.0, min(global_intensity, 0.995))
 
+        # Neutral gate so weak, ambiguous signals stay low
+        max_share = max(share.values()) if share else 0.0
+        if global_intensity < 0.12 and max_share < 0.45:
+            global_intensity *= 0.7
+            global_intensity = max(0.0, min(global_intensity, 0.995))
+
         intensity = {e: share[e] * global_intensity for e in EMOTIONS}
+
+        # Valence and polarity metrics
+        positive_intensity = (
+            intensity.get("joy", 0.0)
+            + intensity.get("passion", 0.0)
+            + 0.5 * intensity.get("surprise", 0.0)
+        )
+        negative_intensity = (
+            intensity.get("anger", 0.0)
+            + intensity.get("disgust", 0.0)
+            + intensity.get("fear", 0.0)
+            + intensity.get("sadness", 0.0)
+            + 0.5 * intensity.get("surprise", 0.0)
+        )
+
+        valence_raw = 0.0
+        for e in EMOTIONS:
+            sign = EMOTION_SIGN.get(e, 0.0)
+            valence_raw += intensity[e] * sign
+
+        if global_intensity > 1e-6:
+            valence_norm = valence_raw / global_intensity
+        else:
+            valence_norm = 0.0
+        valence_norm = max(-1.0, min(1.0, valence_norm))
+
+        self_focus_score = min(1.0, self_pronoun_count / 3.0)
+        other_focus_score = min(1.0, other_pronoun_count / 3.0)
 
         sarcasm_prob = compute_sarcasm_probability(text, share)
         sorted_emotions = sorted(share.items(), key=lambda kv: kv[1], reverse=True)
@@ -1402,10 +1525,18 @@ class EmotionDetector:
                 "certainty_score": round(certainty_score, 3),
                 "uncertainty_score": round(uncertainty_score, 3),
                 "net_certainty": round(net_certainty, 3),
+                "self_pronoun_count": self_pronoun_count,
+                "other_pronoun_count": other_pronoun_count,
+                "self_focus_score": round(self_focus_score, 3),
+                "other_focus_score": round(other_focus_score, 3),
                 "domain": domain,
                 "total_strength": round(total_strength, 4),
                 "global_intensity_base": round(global_intensity_base, 4),
                 "global_intensity": round(global_intensity, 4),
+                "positive_intensity": round(positive_intensity, 4),
+                "negative_intensity": round(negative_intensity, 4),
+                "valence_raw": round(valence_raw, 4),
+                "valence_normalized": round(valence_norm, 4),
             },
         )
         return output
