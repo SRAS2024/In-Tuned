@@ -1,5 +1,5 @@
 # detector/detector.py
-# High fidelity local emotion detector v11-espt
+# High fidelity local emotion detector v12-espt
 # Seven core emotions, 1–250 words, English / Spanish / Portuguese only.
 
 from __future__ import annotations
@@ -97,7 +97,7 @@ def _register_words(lang: str, emotion: str, words: List[str], base: float) -> N
 # Base lexicon
 # -----------------------------------------------------------------------------
 
-# English
+# English core
 _register_words(
     "en",
     "anger",
@@ -289,7 +289,7 @@ _register_words(
     2.1,
 )
 
-# Extra anger slang
+# Extra English slang
 _register_words(
     "en",
     "anger",
@@ -301,10 +301,15 @@ _register_words(
         "ugh",
         "smh",
         "livid",
+        "bs",
+        "trash",
+        "garbage",
+        "stupid",
+        "idiot",
+        "idiots",
     ],
     1.8,
 )
-# Extra fear slang
 _register_words(
     "en",
     "fear",
@@ -312,11 +317,82 @@ _register_words(
         "worriedaf",
         "scaredaf",
         "anxiousaf",
+        "shook",
+        "spooked",
+        "freaking",
+        "freaked",
+        "freakingout",
     ],
     1.8,
 )
+_register_words(
+    "en",
+    "joy",
+    [
+        "blessed",
+        "stoked",
+        "pumped",
+        "vibing",
+        "vibes",
+        "chilling",
+        "chillin",
+        "chill",
+        "hypebeast",
+        "litty",
+        "w",
+        "dub",
+        "winning",
+    ],
+    1.7,
+)
+_register_words(
+    "en",
+    "sadness",
+    [
+        "empty",
+        "numb",
+        "broken",
+        "lost",
+        "drained",
+        "exhausted",
+        "burnt",
+        "burntout",
+        "burnedout",
+        "heartbroken",
+    ],
+    1.9,
+)
+_register_words(
+    "en",
+    "passion",
+    [
+        "bae",
+        "babe",
+        "baby",
+        "my_love",
+        "my_world",
+        "soulmate",
+        "smitten",
+        "crushing",
+        "crushin",
+        "lowkey_inlove",
+    ],
+    2.0,
+)
+_register_words(
+    "en",
+    "disgust",
+    [
+        "icky",
+        "grossedout",
+        "nastyaf",
+        "crusty",
+        "yikes",
+    ],
+    1.7,
+)
 
-# Spanish
+# Spanish core
 _register_words(
     "es",
     "anger",
@@ -473,7 +549,77 @@ _register_words(
     2.1,
 )
 
-# Portuguese
+# Spanish dialects and slang
+_register_words(
+    "es",
+    "anger",
+    [
+        "cabreado",
+        "cabreada",
+        "emputado",
+        "emputada",
+        "rayado",
+        "rayada",
+        "encabronado",
+        "encabronada",
+        "harto",
+        "harta",
+        "bronca",
+    ],
+    2.1,
+)
+_register_words(
+    "es",
+    "joy",
+    [
+        "felicidad",
+        "chevere",
+        "chévere",
+        "chido",
+        "bacano",
+        "brutal",
+        "guay",
+        "que_lindo",
+        "precioso",
+        "preciosa",
+        "lindisimo",
+        "lindísima",
+    ],
+    1.8,
+)
+_register_words(
+    "es",
+    "sadness",
+    [
+        "desanimado",
+        "desanimada",
+        "vacío",
+        "vacio",
+        "rota",
+        "roto",
+        "destrozado",
+        "destrozada",
+    ],
+    1.9,
+)
+_register_words(
+    "es",
+    "passion",
+    [
+        "cariño",
+        "carino",
+        "mi_vida",
+        "mi_amor",
+        "cielito",
+        "corazon",
+        "corazón",
+        "tesoro",
+        "cosita",
+    ],
+    2.1,
+)
+
+# Portuguese core
 _register_words(
     "pt",
     "anger",
@@ -642,6 +788,70 @@ _register_words(
     2.1,
 )
 
+# Portuguese dialects and slang
+_register_words(
+    "pt",
+    "joy",
+    [
+        "felicidade",
+        "massa",
+        "topzera",
+        "da_hora",
+        "legal",
+        "show",
+        "maravilha",
+        "sensacional",
+        "incrivel",
+        "incrível",
+        "lindo",
+        "linda",
+    ],
+    1.8,
+)
+_register_words(
+    "pt",
+    "sadness",
+    [
+        "abalado",
+        "abalada",
+        "desanimado",
+        "desanimada",
+        "nao_to_bem",
+        "não_to_bem",
+        "mal",
+        "pra_baixo",
+    ],
+    1.9,
+)
+_register_words(
+    "pt",
+    "passion",
+    [
+        "meu_amor",
+        "minha_vida",
+        "meu_bem",
+        "querido",
+        "querida",
+        "mozão",
+        "mozao",
+        "lindinho",
+        "lindinha",
+        "fofo",
+        "fofa",
+        "saudade",
+    ],
+    2.1,
+)
+_register_words(
+    "pt",
+    "sadness",
+    [
+        "saudade",
+        "saudades",
+    ],
+    1.8,
+)
+
 # Nuance and dialect extensions for subtle “rough day, but better now” patterns
 _register_words(
     "en",
@@ -712,7 +922,7 @@ _register_words(
     1.5,
 )
 
-# Multiword phrase lexicon (normalized with underscores or joined tokens)
+# Multiword phrase lexicon (normalized literally as plain text)
 PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     # English
     "on cloud nine": _vec(joy=3.0),
@@ -736,6 +946,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "im dead": _vec(joy=1.0, surprise=1.0),
     "no cap": _vec(joy=0.5, passion=0.5),
     "so proud of you": _vec(joy=2.0, passion=1.0),
+    "proud of you": _vec(joy=1.6, passion=0.6),
     # Spanish
     "no aguanto más": _vec(anger=1.5, sadness=2.0),
     "no aguanto mas": _vec(anger=1.5, sadness=2.0),
@@ -748,6 +959,8 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "que asco": _vec(disgust=2.0),
     "que rabia": _vec(anger=2.0),
     "que bueno": _vec(joy=2.0),
+    "te quiero mucho": _vec(passion=2.3, joy=1.0),
+    "te amo mucho": _vec(passion=2.5, joy=1.2),
     # Portuguese
     "não aguento mais": _vec(anger=1.5, sadness=2.0),
     "nao aguento mais": _vec(anger=1.5, sadness=2.0),
@@ -760,7 +973,22 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "que nojo": _vec(disgust=2.0),
     "que raiva": _vec(anger=2.0),
     "que bom": _vec(joy=2.0),
+    "te amo muito": _vec(passion=2.5, joy=1.2),
+    "te amo demais": _vec(passion=2.5, joy=1.3),
 }
+
+# Emoticons and text faces, applied as patterns on the raw text
+EMOTICON_PATTERNS: List[Tuple[re.Pattern, Dict[str, float]]] = [
+    (re.compile(r"(?:(?:\:|\=)\-?\)+)"), _vec(joy=1.8)),
+    (re.compile(r"(?:(?:\:|\=)\-?\(+)"), _vec(sadness=1.8)),
+    (re.compile(r";\-?\)"), _vec(joy=1.4, passion=0.6)),
+    (re.compile(r":'\("), _vec(sadness=2.0)),
+    (re.compile(r":'\)"), _vec(joy=1.5, sadness=0.8)),
+    (re.compile(r":D+"), _vec(joy=2.0)),
+    (re.compile(r"XD+"), _vec(joy=2.0, surprise=0.8)),
+    (re.compile(r">:\("), _vec(anger=2.0)),
+    (re.compile(r":\/"), _vec(sadness=1.1, disgust=0.9)),
+]
 
 # Intensifiers and diminishers
 INTENSIFIERS = {
@@ -780,6 +1008,8 @@ INTENSIFIERS = {
         "hella",
         "highkey",
         "lowkey",
+        "crazy",
+        "crazyyy",
     },
     "es": {"muy", "re", "súper", "super", "demasiado", "tan"},
     "pt": {"muito", "super", "demais", "tão", "tao", "pra", "bastante"},
@@ -816,8 +1046,8 @@ CONTRAST_WORDS = {
 }
 
 PROFANITIES = {
-    "en": {"fuck", "fucking", "shit", "bitch", "asshole", "damn"},
-    "es": {"mierda", "joder", "carajo", "puta", "pendejo"},
+    "en": {"fuck", "fucking", "shit", "bitch", "asshole", "damn", "wtf"},
+    "es": {"mierda", "joder", "carajo", "puta", "pendejo", "pendeja"},
     "pt": {"merda", "porra", "caralho", "puta", "bosta", "pqp"},
 }
 
@@ -872,7 +1102,7 @@ LANG_FUNCTION_WORDS = {
     "pt": {"o", "a", "os", "as", "e", "é", "e", "sou", "estou", "você", "voce", "eu", "meu", "minha"},
 }
 
-# Self vs other pronoun hints (already normalized to match join_for_lex output)
+# Self vs other pronoun hints
 SELF_PRONOUNS_ALL = {
     "i",
     "im",
@@ -979,6 +1209,9 @@ DOMAIN_MULTIPLIERS: Dict[str, Dict[str, float]] = {
     "support": {"sadness": 1.06, "fear": 1.06},
     "customer_support": {"anger": 1.08, "sadness": 1.04, "disgust": 1.04},
     "therapy": {"sadness": 1.05, "fear": 1.05, "joy": 1.02},
+    "social": {"joy": 1.04, "passion": 1.04},
+    "whatsapp": {"joy": 1.03, "passion": 1.05, "sadness": 1.04},
+    "chat": {"joy": 1.03, "passion": 1.03},
 }
 
 # Emotion sign for valence
@@ -1024,7 +1257,10 @@ def is_emoji(char: str) -> bool:
 
 
 def join_for_lex(token: str) -> str:
-    """Normalize token for lexicon and marker lookups: lower, remove accents, join spaces."""
+    """Normalize token for lexicon and marker lookups."""
+    token = token.strip()
+    if token.startswith("#") or token.startswith("@"):
+        token = token[1:]
     token = token.lower()
     token = unicodedata.normalize("NFD", token)
     token = "".join(ch for ch in token if unicodedata.category(ch) != "Mn")
@@ -1156,6 +1392,106 @@ def choose_emoji(
 
 
 # =============================================================================
+# Morphology expansion to cover dialects and inflections
+# =============================================================================
+
+
+def _english_variants(word: str) -> List[str]:
+    variants: List[str] = []
+    if len(word) > 3:
+        variants.append(word + "s")
+        variants.append(word + "ed")
+        variants.append(word + "ing")
+        variants.append(word + "er")
+        variants.append(word + "est")
+    if word.endswith("y") and len(word) > 3:
+        base = word[:-1]
+        variants.append(base + "ies")
+    return variants
+
+
+def _spanish_variants(word: str) -> List[str]:
+    variants: List[str] = []
+    if word.endswith("o"):
+        base = word[:-1]
+        variants.extend(
+            [
+                base + "a",
+                base + "os",
+                base + "as",
+                base + "ito",
+                base + "itos",
+                base + "ita",
+                base + "itas",
+            ]
+        )
+    if word.endswith("a"):
+        base = word[:-1]
+        variants.extend([base + "o", base + "os", base + "as"])
+    if word.endswith("ito") or word.endswith("ita"):
+        base = word[:-3]
+        variants.extend([base + "o", base + "a"])
+    if word.endswith("isimo") or word.endswith("ísimo"):
+        base = word[: -len("isimo")]
+        variants.extend([base + "o", base + "a"])
+    return variants
+
+
+def _portuguese_variants(word: str) -> List[str]:
+    variants: List[str] = []
+    if word.endswith("o"):
+        base = word[:-1]
+        variants.extend(
+            [
+                base + "a",
+                base + "os",
+                base + "as",
+                base + "inho",
+                base + "inha",
+                base + "inhos",
+                base + "inhas",
+            ]
+        )
+    if word.endswith("a"):
+        base = word[:-1]
+        variants.extend([base + "o", base + "os", base + "as"])
+    if word.endswith("inho") or word.endswith("inha"):
+        base = word[:-4]
+        variants.extend([base + "o", base + "a"])
+    if word.endswith("issimo") or word.endswith("íssimo"):
+        base = word[: -len("issimo")]
+        variants.extend([base + "o", base + "a"])
+    return variants
+
+
+def _expand_lexicon_morphology() -> None:
+    """Generate simple morphological variants to widen coverage."""
+    for lang, table in LEXICON_TOKEN.items():
+        new_entries: Dict[str, Dict[str, float]] = {}
+        for word, vec in list(table.items()):
+            if len(word) < 3:
+                continue
+            if lang == "en":
+                candidates = _english_variants(word)
+            elif lang == "es":
+                candidates = _spanish_variants(word)
+            elif lang == "pt":
+                candidates = _portuguese_variants(word)
+            else:
+                candidates = []
+            for v in candidates:
+                if not v:
+                    continue
+                if v in table or v in new_entries:
+                    continue
+                new_entries[v] = {e: val * 0.8 for e, val in vec.items()}
+        table.update(new_entries)
+
+
+_expand_lexicon_morphology()
+
+
+# =============================================================================
 # Emotion detector implementation
 # =============================================================================
 
@@ -1225,10 +1561,16 @@ class EmotionDetector:
             if len(tok) == 1 and is_emoji(tok):
                 strong_emoji_count += 1
 
+        # Global phrase and emoticon contributions
         R_global = {e: 0.0 for e in EMOTIONS}
         text_lower = text.lower()
         for phrase, vec in PHRASE_LEXICON.items():
             if phrase in text_lower:
+                for e in EMOTIONS:
+                    R_global[e] += vec.get(e, 0.0)
+
+        for pattern, vec in EMOTICON_PATTERNS:
+            for _m in pattern.finditer(text):
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0)
 
@@ -1500,6 +1842,8 @@ class EmotionDetector:
             percent=round(intensity[current_label] * 100.0, 3),
         )
 
+        primary_language = max(lang_props.items(), key=lambda kv: kv[1])[0] if lang_props else "unknown"
+
         output = DetectorOutput(
             text=text,
             language=lang_props,
@@ -1530,6 +1874,7 @@ class EmotionDetector:
                 "self_focus_score": round(self_focus_score, 3),
                 "other_focus_score": round(other_focus_score, 3),
                 "domain": domain,
+                "primary_language": primary_language,
                 "total_strength": round(total_strength, 4),
                 "global_intensity_base": round(global_intensity_base, 4),
                 "global_intensity": round(global_intensity, 4),
