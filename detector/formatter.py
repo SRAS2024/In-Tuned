@@ -63,6 +63,12 @@ EMOTION_LABELS: Dict[str, Dict[str, str]] = {
 
 # Intensity specific labels for the current emotion
 # Buckets: very_low, low, moderate, high, very_high
+# Idea:
+#   very_low  → faint trace of that emotion
+#   low       → mild / background emotion (frustration, a bit sad, etc.)
+#   moderate  → clear and present emotion
+#   high      → strong / intense
+#   very_high → extreme, like rage, panic, devastation, euphoria
 EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
     "en": {
         "anger": {
@@ -88,7 +94,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
         },
         "fear": {
             "very_low": "Slightly uneasy",
-            "low": "Nervous",
+            "low": "Worried",
             "moderate": "Anxious",
             "high": "Very anxious",
             "very_high": "Panicked",
@@ -101,7 +107,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_high": "Deeply in love",
         },
         "disgust": {
-            "very_low": "Mild discomfort",
+            "very_low": "Slightly put off",
             "low": "Uncomfortable",
             "moderate": "Displeased",
             "high": "Disgusted",
@@ -118,7 +124,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
     "es": {
         "anger": {
             "very_low": "Levemente molesto",
-            "low": "Molesto",
+            "low": "Frustrado",
             "moderate": "Enojado",
             "high": "Muy enojado",
             "very_high": "Furioso",
@@ -139,7 +145,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
         },
         "fear": {
             "very_low": "Levemente inquieto",
-            "low": "Nervioso",
+            "low": "Preocupado",
             "moderate": "Ansioso",
             "high": "Muy ansioso",
             "very_high": "Aterrado",
@@ -152,7 +158,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_high": "Profundamente enamorado",
         },
         "disgust": {
-            "very_low": "Ligeramente incómodo",
+            "very_low": "Levemente incómodo",
             "low": "Incómodo",
             "moderate": "Disgustado",
             "high": "Muy disgustado",
@@ -169,7 +175,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
     "pt": {
         "anger": {
             "very_low": "Levemente incomodado",
-            "low": "Incomodado",
+            "low": "Irritado",
             "moderate": "Com raiva",
             "high": "Muito irritado",
             "very_high": "Furioso",
@@ -190,7 +196,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
         },
         "fear": {
             "very_low": "Levemente apreensivo",
-            "low": "Nervoso",
+            "low": "Preocupado",
             "moderate": "Ansioso",
             "high": "Muito ansioso",
             "very_high": "Apavorado",
