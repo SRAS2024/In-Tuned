@@ -1,21 +1,22 @@
 # detector/detector.py
-# High fidelity local emotion detector v23-espt
+# High fidelity local emotion detector v24-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
-# Fixes and revisions (v23):
-# - Neutral output stabilized: very low signal now yields neutral emoji and a
-#   neutral meta flag, avoiding arbitrary dominant emotion vibes.
-# - Post-intensifiers handled: "love you SO much", "me amo demais" now boosts
-#   the target token even when intensity follows it.
-# - Rhetorical ES/PT patterns fixed to avoid trailing word-boundary after '?'.
-# - Self-harm regex improved: partial stems now accept word continuations, and
-#   ambiguous PT "me matar" moved to soft patterns while "vou/quero me matar"
-#   stays hard.
-# - Temporal cue counting weighted by detected language proportions.
+# Fixes and revisions (v24):
+# - Short inputs (1 to 2 words or emoji-only) now detect reliably without
+#   spiking to near 100 percent. Added length caps and stronger dominance soft cap.
+# - Emoji-only or emoticon-only entries are valid and no longer throw InvalidTextError.
+# - Certainty and arousal scaling are damped for very short texts to avoid overconfidence.
+# - Added small "affirmation/approval" lexicon for EN/ES/PT to better catch ultra short entries.
+# - Neutral logic preserved, but short-text signal is less likely to be crushed into neutral.
 #
-# Prior fixes preserved:
-# - Phrase lexicon matching uses normalized diacritic stripped text.
-# - Phrase hits counted for multiple occurrences.
+# Prior fixes preserved (v23):
+# - Neutral output stabilized for very low signal.
+# - Post-intensifiers handled.
+# - ES/PT rhetorical patterns fixed.
+# - Self-harm regex improved.
+# - Temporal cue weighting by detected language proportions.
+# - Phrase matching uses normalized diacritic stripped text, multi hits counted.
 # - Sarcasm, self-harm, threat detection use normalized text.
 # - Tokenizer merges simple hyphenated compounds.
 # - Lexicon keys and markers normalized via join_for_lex.
@@ -199,11 +200,21 @@ def join_for_lex(token: str) -> str:
 
 
 def detect_word_count(tokens: List[str]) -> int:
+    """Alphabetic word count (used for truncation and classic length logic)."""
     count = 0
     for t in tokens:
         if any(ch.isalpha() for ch in t):
             count += 1
     return count
+
+
+def detect_emoji_count(tokens: List[str]) -> int:
+    """Count emoji tokens as meaningful short-text units."""
+    c = 0
+    for t in tokens:
+        if len(t) == 1 and is_emoji(t):
+            c += 1
+    return c
 
 
 # =============================================================================
@@ -568,6 +579,17 @@ _register_words(
     1.7,
 )
 
+# Small EN affirmations for 1 to 2 word inputs (low weight)
+_register_words(
+    "en",
+    "joy",
+    [
+        "ok", "okay", "okey", "alright", "aight", "nice", "cool",
+        "yay", "yayy", "yess", "yup", "yeah", "yea",
+    ],
+    0.9,
+)
+
 # Spanish core
 _register_words(
     "es",
@@ -800,6 +822,14 @@ _register_words(
     2.1,
 )
 
+# Small ES affirmations for short inputs (low weight)
+_register_words(
+    "es",
+    "joy",
+    ["bien", "bueno", "vale", "ok", "okay", "listo", "genial"],
+    0.9,
+)
+
 # Portuguese core
 _register_words(
     "pt",
@@ -1025,6 +1055,14 @@ _register_words(
         "saudades",
     ],
     1.8,
+)
+
+# Small PT affirmations for short inputs (low weight)
+_register_words(
+    "pt",
+    "joy",
+    ["bem", "boa", "beleza", "valeu", "ok", "okay", "showzinho"],
+    0.9,
 )
 
 # Nuance and dialect extensions for subtle rough day patterns
@@ -2377,16 +2415,18 @@ def blend_with_context(
 
 def soft_cap_single_word_dominance(
     intensity: Dict[str, float],
-    word_count: int,
+    word_count_effective: int,
 ) -> Dict[str, float]:
     out = dict(intensity)
     total = sum(out.values())
-    if total <= 0 or word_count > 4:
+    if total <= 0 or word_count_effective > 4:
         return out
 
     dominant = max(out, key=out.get)
     max_val = out[dominant]
-    cap = 0.75 * total
+
+    cap_ratio = 0.65 if word_count_effective <= 2 else 0.75
+    cap = cap_ratio * total
     if max_val <= cap:
         return out
 
@@ -2460,12 +2500,18 @@ class EmotionDetector:
             raise InvalidTextError("Text cannot be empty.")
 
         tokens = tokenize(text)
-        word_count = detect_word_count(tokens)
+        alpha_word_count = detect_word_count(tokens)
+        emoji_token_count = detect_emoji_count(tokens)
         truncated = False
-        if word_count == 0:
-            raise InvalidTextError("No meaningful words found in text.")
 
-        if word_count > self.max_words:
+        if alpha_word_count == 0 and emoji_token_count == 0:
+            # still allow emoticon-only cases if any emoticon pattern hits below
+            # but if there are literally no meaningful tokens at all, error out
+            stripped = re.sub(r"\s+", "", text)
+            if not stripped:
+                raise InvalidTextError("No meaningful words found in text.")
+
+        if alpha_word_count > self.max_words:
             truncated = True
             trimmed_tokens: List[str] = []
             wc = 0
@@ -2477,7 +2523,12 @@ class EmotionDetector:
                         break
             tokens = trimmed_tokens
             text = _reconstruct_text(tokens)
-            word_count = self.max_words
+            alpha_word_count = self.max_words
+
+        # Effective count includes emojis to stabilize short-text logic
+        word_count_effective = alpha_word_count + emoji_token_count
+        if word_count_effective == 0:
+            word_count_effective = 1
 
         lang_props = detect_language_proportions(text)
 
@@ -2515,17 +2566,27 @@ class EmotionDetector:
 
         R_global = {e: 0.0 for e in EMOTIONS}
         rhetorical_score = 0.0
+        phrase_hits_total = 0
+        emoticon_hits_total = 0
 
         for phrase_pat, vec in PHRASE_REGEX_NORM:
             hits = len(list(phrase_pat.finditer(text_phrase_norm)))
             if hits > 0:
+                phrase_hits_total += hits
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0) * hits
 
         for pattern, vec in EMOTICON_PATTERNS:
-            for _m in pattern.finditer(text):
+            matches = list(pattern.finditer(text))
+            if matches:
+                emoticon_hits_total += len(matches)
+            for _m in matches:
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0)
+
+        # If there are no words but emoticons/phrases exist, allow analysis
+        if alpha_word_count == 0 and emoji_token_count == 0 and (phrase_hits_total > 0 or emoticon_hits_total > 0):
+            word_count_effective = 1
 
         for pat, vec, weight in RHETORICAL_PATTERNS:
             raw_matches = list(pat.finditer(text_lower))
@@ -2745,7 +2806,11 @@ class EmotionDetector:
         certainty_score = min(1.0, certainty_count / 4.0) + 0.6 * ex_n
         net_certainty = max(-1.0, min(1.0, certainty_score - uncertainty_score))
 
-        certainty_adjust = 1.0 + 0.35 * net_certainty
+        # Short text damping for certainty
+        short_len_factor = min(1.0, word_count_effective / 5.0)
+        net_certainty_short = net_certainty * short_len_factor
+
+        certainty_adjust = 1.0 + 0.35 * net_certainty_short
         certainty_adjust = max(0.5, min(1.4, certainty_adjust))
 
         global_intensity = global_intensity_base * certainty_adjust
@@ -2755,6 +2820,17 @@ class EmotionDetector:
         if global_intensity < 0.12 and max_share0 < 0.45:
             global_intensity *= 0.7
             global_intensity = max(0.0, min(global_intensity, 0.995))
+
+        # Extra length cap so 1 to 2 word entries never feel like 100 percent emotions
+        length_cap = 1.0
+        if word_count_effective <= 1:
+            length_cap = 0.35
+        elif word_count_effective == 2:
+            length_cap = 0.55
+        elif word_count_effective == 3:
+            length_cap = 0.7
+        global_intensity *= length_cap
+        global_intensity = max(0.0, min(global_intensity, 0.995))
 
         intensity = {e: share0[e] * global_intensity for e in EMOTIONS}
 
@@ -2767,7 +2843,7 @@ class EmotionDetector:
         intensity = apply_bias_fairness(intensity, dialect_label, profanity_count, humor_score)
         intensity = apply_plausibility_constraints(intensity, text_phrase_norm)
         intensity = blend_with_context(intensity, prev_mixture, decay=0.7)
-        intensity = soft_cap_single_word_dominance(intensity, word_count)
+        intensity = soft_cap_single_word_dominance(intensity, word_count_effective)
 
         final_global_intensity = sum(intensity.values())
         if final_global_intensity > 1.0:
@@ -2820,7 +2896,7 @@ class EmotionDetector:
         second_val = sorted_emotions[1][1] if len(sorted_emotions) > 1 else 0.0
         delta = max(0.0, top_val - second_val)
 
-        length_factor = min(1.0, word_count / 12.0)
+        length_factor = min(1.0, word_count_effective / 12.0)
         strength_factor = min(1.0, delta * 3.0)
         intensity_factor = min(1.0, final_global_intensity)
         certainty_factor = (net_certainty + 1.0) / 2.0
@@ -2856,8 +2932,12 @@ class EmotionDetector:
 
         max_emotion_intensity = max(intensity.values()) if intensity else 0.0
 
-        dominant_emoji = choose_emoji(dominant_label, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity)
-        current_emoji = choose_emoji(current_label, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity)
+        dominant_emoji = choose_emoji(
+            dominant_label, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity
+        )
+        current_emoji = choose_emoji(
+            current_label, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity
+        )
 
         emotions_detail: Dict[str, EmotionResult] = {}
         for e in EMOTIONS:
@@ -2894,8 +2974,8 @@ class EmotionDetector:
         intensity_band = compute_intensity_band(final_global_intensity)
 
         emotional_density = 0.0
-        if word_count > 0:
-            emotional_density = min(1.0, total_strength / float(max(word_count, 1)))
+        if word_count_effective > 0:
+            emotional_density = min(1.0, total_strength / float(max(word_count_effective, 1)))
 
         return DetectorOutput(
             text=text,
@@ -2910,7 +2990,11 @@ class EmotionDetector:
             confidence=confidence,
             risk_level=risk_level,
             meta={
-                "word_count": word_count,
+                "word_count_alpha": alpha_word_count,
+                "word_count_effective": word_count_effective,
+                "emoji_token_count": emoji_token_count,
+                "phrase_hits_total": phrase_hits_total,
+                "emoticon_hits_total": emoticon_hits_total,
                 "truncated_to_max_words": truncated,
                 "exclamation_count": exclam_count,
                 "question_count": question_count,
