@@ -880,14 +880,14 @@ function applyAnalysisFromApi(data) {
   const dom = results.dominant || {};
   const cur = results.current || {};
 
+  // Dominant: always show core emotion name, not nuanced phrase
   const domLabel =
-    dom.nuancedLabelLocalized ||
-    dom.nuancedLabel ||
     dom.labelLocalized ||
     dom.label ||
     dom.emotionId ||
     "N/A";
 
+  // Current: prefer nuanced wording when available
   const curLabel =
     cur.nuancedLabelLocalized ||
     cur.nuancedLabel ||
