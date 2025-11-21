@@ -881,9 +881,20 @@ function applyAnalysisFromApi(data) {
   const cur = results.current || {};
 
   const domLabel =
-    dom.labelLocalized || dom.label || dom.emotionId || "N/A";
+    dom.nuancedLabelLocalized ||
+    dom.nuancedLabel ||
+    dom.labelLocalized ||
+    dom.label ||
+    dom.emotionId ||
+    "N/A";
+
   const curLabel =
-    cur.labelLocalized || cur.label || cur.emotionId || "N/A";
+    cur.nuancedLabelLocalized ||
+    cur.nuancedLabel ||
+    cur.labelLocalized ||
+    cur.label ||
+    cur.emotionId ||
+    "N/A";
 
   if (fields.dominant_emotion) {
     fields.dominant_emotion.textContent = domLabel;
