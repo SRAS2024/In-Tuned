@@ -73,18 +73,18 @@ EMOTION_LABELS: Dict[str, Dict[str, str]] = {
 EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
     "en": {
         "anger": {
-            "very_low": "Slightly annoyed",
+            "very_low": "Slightly irritated",
             "low": "Frustrated",
             "moderate": "Angry",
             "high": "Very angry",
             "very_high": "Furious",
         },
         "sadness": {
-            "very_low": "Slightly down",
-            "low": "Down",
-            "moderate": "Sad",
-            "high": "Very sad",
-            "very_high": "Devastated",
+            "very_low": "A little low",
+            "low": "Low and tired",
+            "moderate": "Heavy hearted",
+            "high": "Very sad and heavy",
+            "very_high": "Heartbroken",
         },
         "joy": {
             "very_low": "Slightly pleased",
@@ -104,8 +104,8 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_low": "Warm affection",
             "low": "Affectionate",
             "moderate": "Loving",
-            "high": "Very loving",
-            "very_high": "Deeply in love",
+            "high": "Deeply loving",
+            "very_high": "Intensely in love",
         },
         "disgust": {
             "very_low": "Slightly put off",
@@ -131,11 +131,11 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_high": "Furioso",
         },
         "sadness": {
-            "very_low": "Levemente desanimado",
+            "very_low": "Un poco bajo de ánimo",
             "low": "Desanimado",
-            "moderate": "Triste",
-            "high": "Muy triste",
-            "very_high": "Devastado",
+            "moderate": "Con el corazón pesado",
+            "high": "Muy triste y cargado",
+            "very_high": "Destrozado",
         },
         "joy": {
             "very_low": "Levemente contento",
@@ -152,7 +152,7 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_high": "Aterrado",
         },
         "passion": {
-            "very_low": "Afecto leve",
+            "very_low": "Afecto suave",
             "low": "Cariñoso",
             "moderate": "Amoroso",
             "high": "Muy amoroso",
@@ -182,11 +182,11 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_high": "Furioso",
         },
         "sadness": {
-            "very_low": "Levemente abatido",
+            "very_low": "Um pouco para baixo",
             "low": "Abatido",
-            "moderate": "Triste",
-            "high": "Muito triste",
-            "very_high": "Devastado",
+            "moderate": "Coração pesado",
+            "high": "Muito triste e pesado",
+            "very_high": "De coração partido",
         },
         "joy": {
             "very_low": "Levemente contente",
@@ -203,11 +203,11 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
             "very_high": "Apavorado",
         },
         "passion": {
-            "very_low": "Afeto leve",
+            "very_low": "Afeto suave",
             "low": "Carinhoso",
             "moderate": "Amoroso",
             "high": "Muito amoroso",
-            "very_high": "Profundamente apaixonado",
+            "very_high": "Intensamente apaixonado",
         },
         "disgust": {
             "very_low": "Levemente desconfortável",
@@ -317,13 +317,27 @@ COMBO_SPECIAL_LABELS: Dict[str, Dict[Tuple[str, str], str]] = {
         ("sadness", "fear"): "Sad and worried",
         ("fear", "sadness"): "Worried and sad",
         ("joy", "sadness"): "Bittersweet, both happy and sad",
-        ("sadness", "joy"): "Bittersweet, both sad and hopeful",
+        ("sadness", "joy"): "Bittersweet, sad but hopeful",
         ("joy", "surprise"): "Excited and pleasantly surprised",
         ("surprise", "joy"): "Pleasantly surprised and excited",
-        ("joy", "passion"): "Warm, loving joy",
+        ("joy", "passion"): "Warm loving joy",
         ("passion", "joy"): "Deeply loving and joyful",
         ("fear", "disgust"): "Disturbed and uneasy",
         ("disgust", "fear"): "Repulsed and uneasy",
+        ("sadness", "passion"): "Missing someone you love",
+        ("passion", "sadness"): "In love but hurting",
+        ("fear", "passion"): "In love but afraid",
+        ("passion", "fear"): "Afraid of losing someone you love",
+        ("joy", "fear"): "Nervous excitement",
+        ("fear", "joy"): "Excited but nervous",
+        ("anger", "fear"): "Angry and anxious",
+        ("fear", "anger"): "Anxious and angry",
+        ("anger", "disgust"): "Angry and disgusted",
+        ("disgust", "anger"): "Disgusted and angry",
+        ("sadness", "disgust"): "Disappointed and let down",
+        ("disgust", "sadness"): "Let down and uncomfortable",
+        ("passion", "surprise"): "Pleasantly moved and surprised",
+        ("surprise", "passion"): "Surprised and touched",
     },
     "es": {
         ("sadness", "anger"): "Dolido y enojado",
@@ -331,13 +345,27 @@ COMBO_SPECIAL_LABELS: Dict[str, Dict[Tuple[str, str], str]] = {
         ("sadness", "fear"): "Triste y preocupado",
         ("fear", "sadness"): "Preocupado y triste",
         ("joy", "sadness"): "Agridulce, feliz y triste a la vez",
-        ("sadness", "joy"): "Agridulce, triste pero con algo de esperanza",
+        ("sadness", "joy"): "Agridulce, triste pero con esperanza",
         ("joy", "surprise"): "Emocionado y gratamente sorprendido",
         ("surprise", "joy"): "Gratamente sorprendido y emocionado",
         ("joy", "passion"): "Alegría cálida y amorosa",
         ("passion", "joy"): "Profundamente amoroso y alegre",
         ("fear", "disgust"): "Perturbado e inquieto",
         ("disgust", "fear"): "Repugnado e inquieto",
+        ("sadness", "passion"): "Echando de menos a alguien que amas",
+        ("passion", "sadness"): "Enamorado pero dolido",
+        ("fear", "passion"): "Enamorado pero con miedo",
+        ("passion", "fear"): "Con miedo de perder a quien amas",
+        ("joy", "fear"): "Emoción con nervios",
+        ("fear", "joy"): "Nervioso pero ilusionado",
+        ("anger", "fear"): "Enojado y ansioso",
+        ("fear", "anger"): "Ansioso y enojado",
+        ("anger", "disgust"): "Enojado y asqueado",
+        ("disgust", "anger"): "Asqueado y enojado",
+        ("sadness", "disgust"): "Decepcionado y desanimado",
+        ("disgust", "sadness"): "Incómodo y desanimado",
+        ("passion", "surprise"): "Conmovido y sorprendido",
+        ("surprise", "passion"): "Sorprendido y tocado",
     },
     "pt": {
         ("sadness", "anger"): "Magoado e com raiva",
@@ -345,13 +373,27 @@ COMBO_SPECIAL_LABELS: Dict[str, Dict[Tuple[str, str], str]] = {
         ("sadness", "fear"): "Triste e preocupado",
         ("fear", "sadness"): "Preocupado e triste",
         ("joy", "sadness"): "Agridoce, feliz e triste ao mesmo tempo",
-        ("sadness", "joy"): "Agridoce, triste mas com alguma esperança",
+        ("sadness", "joy"): "Agridoce, triste mas esperançoso",
         ("joy", "surprise"): "Animado e agradavelmente surpreso",
         ("surprise", "joy"): "Agradavelmente surpreso e animado",
         ("joy", "passion"): "Alegria calorosa e amorosa",
         ("passion", "joy"): "Profundamente apaixonado e alegre",
         ("fear", "disgust"): "Perturbado e desconfortável",
         ("disgust", "fear"): "Com nojo e apreensivo",
+        ("sadness", "passion"): "Com saudade de quem ama",
+        ("passion", "sadness"): "Apaixonado mas magoado",
+        ("fear", "passion"): "Apaixonado mas com medo",
+        ("passion", "fear"): "Com medo de perder quem ama",
+        ("joy", "fear"): "Animado e nervoso",
+        ("fear", "joy"): "Nervoso mas animado",
+        ("anger", "fear"): "Com raiva e ansioso",
+        ("fear", "anger"): "Ansioso e com raiva",
+        ("anger", "disgust"): "Com raiva e com nojo",
+        ("disgust", "anger"): "Com nojo e com raiva",
+        ("sadness", "disgust"): "Decepcionado e magoado",
+        ("disgust", "sadness"): "Desconfortável e magoado",
+        ("passion", "surprise"): "Comovido e surpreso",
+        ("surprise", "passion"): "Surpreso e tocado",
     },
 }
 
@@ -435,15 +477,96 @@ def _build_combo_phrases(
     return p_en, p_loc
 
 
+def _lc_first(s: str) -> str:
+    if not s:
+        return s
+    return s[0].lower() + s[1:]
+
+
+def _cap_first(s: str) -> str:
+    if not s:
+        return s
+    return s[0].upper() + s[1:]
+
+
+def _build_multi_emotion_phrase(
+    primary_id: str,
+    secondary_id: str,
+    tertiary_id: str,
+    mixture_vector: Dict[str, float],
+    locale: str,
+    meta: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, str]:
+    """
+    Build a triad phrase for cases with three strong emotions.
+    Uses valence information when available to decide if it is
+    clearly mixed feelings or just a rich complex blend.
+    """
+    loc = _normalize_locale(locale)
+
+    pw = float(mixture_vector.get(primary_id, 0.0))
+    sw = float(mixture_vector.get(secondary_id, 0.0))
+    tw = float(mixture_vector.get(tertiary_id, 0.0))
+
+    p_percent = pw * 100.0
+    s_percent = sw * 100.0
+    t_percent = tw * 100.0
+
+    p_en = _get_intensity_phrase_for_lang(primary_id, p_percent, "en")
+    s_en = _get_intensity_phrase_for_lang(secondary_id, s_percent, "en")
+    t_en = _get_intensity_phrase_for_lang(tertiary_id, t_percent, "en")
+
+    p_loc = _get_intensity_phrase_for_lang(primary_id, p_percent, loc)
+    s_loc = _get_intensity_phrase_for_lang(secondary_id, s_percent, loc)
+    t_loc = _get_intensity_phrase_for_lang(tertiary_id, t_percent, loc)
+
+    meta = meta or {}
+    pos_int = float(meta.get("positive_intensity", 0.0))
+    neg_int = float(meta.get("negative_intensity", 0.0))
+
+    mixed_valence = pos_int > 0.12 and neg_int > 0.12
+
+    en_core = f"{_lc_first(p_en)}, {_lc_first(s_en)} and {_lc_first(t_en)}"
+    if loc == "es":
+        loc_core = f"{_lc_first(p_loc)}, {_lc_first(s_loc)} y {_lc_first(t_loc)}"
+        if mixed_valence:
+            loc_phrase = _cap_first(f"sentimientos mezclados: {loc_core}")
+        else:
+            loc_phrase = _cap_first(f"mezcla compleja de {loc_core}")
+    elif loc == "pt":
+        loc_core = f"{_lc_first(p_loc)}, {_lc_first(s_loc)} e {_lc_first(t_loc)}"
+        if mixed_valence:
+            loc_phrase = _cap_first(f"sentimentos mistos: {loc_core}")
+        else:
+            loc_phrase = _cap_first(f"mistura complexa de {loc_core}")
+    else:
+        loc_core = en_core
+        loc_phrase = ""  # will fall back to English phrase below
+
+    if mixed_valence:
+        en_phrase = _cap_first(f"mixed feelings: {en_core}")
+    else:
+        en_phrase = _cap_first(f"complex blend of {en_core}")
+
+    if not loc_phrase:
+        loc_phrase = en_phrase
+
+    return en_phrase, loc_phrase
+
+
 def _apply_mixture_nuance_to_current(
     block: Dict[str, Any],
     mixture_vector: Dict[str, float],
     locale: str,
+    mixture_profile: Optional[Dict[str, Any]] = None,
+    meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Take the current result block and refine its nuanced labels by looking
-    at the mixture of all seven emotions. This keeps the primary emotion
-    but adjusts wording when there is a strong secondary emotion.
+    at the mixture of all seven emotions.
+
+    It keeps the primary emotion but adjusts wording when there is a strong
+    secondary emotion or when there is a clearly mixed triad.
     """
     if not block:
         return block
@@ -454,14 +577,12 @@ def _apply_mixture_nuance_to_current(
     if not primary_id:
         return block
 
-    # Sort mixture from strongest to weakest
     items = sorted(
         mixture_vector.items(), key=lambda kv: float(kv[1]), reverse=True
     )
     if not items:
         return block
 
-    # Find weight for the primary emotion
     primary_weight: Optional[float] = None
     for eid, w in items:
         if eid == primary_id:
@@ -471,21 +592,58 @@ def _apply_mixture_nuance_to_current(
     if primary_weight is None:
         primary_id, primary_weight = items[0]
 
-    # Find strongest secondary emotion above a minimum threshold
+    # Find strongest secondary and tertiary emotions above a minimum threshold
     secondary_id: Optional[str] = None
     secondary_weight: float = 0.0
+    tertiary_id: Optional[str] = None
+    tertiary_weight: float = 0.0
+
     for eid, w in items:
         if eid == primary_id:
             continue
         w_val = float(w)
         if w_val > secondary_weight:
-            secondary_id = eid
-            secondary_weight = w_val
+            tertiary_id, tertiary_weight = secondary_id, secondary_weight
+            secondary_id, secondary_weight = eid, w_val
+        elif w_val > tertiary_weight:
+            tertiary_id, tertiary_weight = eid, w_val
+
+    mixture_profile = mixture_profile or _compute_mixture_profile(mixture_vector)
+    mixture_type = mixture_profile.get("mixtureType", "undefined")
+
+    meta = meta or {}
+    # If everything is extremely weak, keep the original simple label
+    if primary_weight < 0.08 and secondary_weight < 0.08:
+        return block
+
+    # First, handle the more complex triad case
+    if (
+        secondary_id is not None
+        and tertiary_id is not None
+        and secondary_weight >= 0.18
+        and tertiary_weight >= 0.16
+        and mixture_type in {"mixed", "highly_mixed"}
+    ):
+        combo_en, combo_loc = _build_multi_emotion_phrase(
+            primary_id, secondary_id, tertiary_id, mixture_vector, locale, meta
+        )
+        block["nuancedLabel"] = combo_en
+        block["nuancedLabelLocalized"] = combo_loc
+        block["primaryEmotionId"] = primary_id
+        block["primaryEmotionWeight"] = round(primary_weight, 6)
+        block["secondaryEmotionId"] = secondary_id
+        block["secondaryEmotionWeight"] = round(secondary_weight, 6)
+        block["tertiaryEmotionId"] = tertiary_id
+        block["tertiaryEmotionWeight"] = round(tertiary_weight, 6)
+        block["mixtureSummaryKind"] = "triple"
+        return block
 
     # If there is no meaningful secondary emotion, keep the base nuance
     if secondary_id is None or secondary_weight < 0.15:
+        block["mixtureSummaryKind"] = "single"
         return block
 
+    # Use pairwise blend
     combo_en, combo_loc = _build_combo_phrases(
         primary_id, primary_weight, secondary_id, secondary_weight, locale
     )
@@ -495,11 +653,11 @@ def _apply_mixture_nuance_to_current(
     if combo_loc:
         block["nuancedLabelLocalized"] = combo_loc
 
-    # Expose a little more detail for the UI if needed
     block["primaryEmotionId"] = primary_id
     block["primaryEmotionWeight"] = round(primary_weight, 6)
     block["secondaryEmotionId"] = secondary_id
     block["secondaryEmotionWeight"] = round(secondary_weight, 6)
+    block["mixtureSummaryKind"] = "pair"
 
     return block
 
@@ -896,14 +1054,16 @@ def format_for_client(
     current_block = _format_result_block(
         "current", current_raw, loc
     )
+
+    mixture_profile = _compute_mixture_profile(mixture_vector)
+    meta = raw.get("meta", {}) or {}
+
     # Refine the current block with mixture aware nuance
     current_block = _apply_mixture_nuance_to_current(
-        current_block, mixture_vector, loc
+        current_block, mixture_vector, loc, mixture_profile, meta
     )
 
     hotline = get_hotline_for_region(region, loc)
-
-    mixture_profile = _compute_mixture_profile(mixture_vector)
 
     payload: Dict[str, Any] = {
         "text": raw.get("text", text),
@@ -926,7 +1086,7 @@ def format_for_client(
             "level": raw.get("risk_level", "none"),
             "hotline": hotline,
         },
-        "meta": raw.get("meta", {}),
+        "meta": meta,
     }
     return payload
 
