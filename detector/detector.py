@@ -2,26 +2,12 @@
 # High fidelity local emotion detector v24-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
-# Fixes and revisions (v24):
-# - Short inputs (1 to 2 words or emoji-only) now detect reliably without
-#   spiking to near 100 percent. Added length caps and stronger dominance soft cap.
-# - Emoji-only or emoticon-only entries are valid and no longer throw InvalidTextError.
-# - Certainty and arousal scaling are damped for very short texts to avoid overconfidence.
-# - Added small "affirmation/approval" lexicon for EN/ES/PT to better catch ultra short entries.
-# - Neutral logic preserved, but short-text signal is less likely to be crushed into neutral.
-#
-# Prior fixes preserved (v23):
-# - Neutral output stabilized for very low signal.
-# - Post-intensifiers handled.
-# - ES/PT rhetorical patterns fixed.
-# - Self-harm regex improved.
-# - Temporal cue weighting by detected language proportions.
-# - Phrase matching uses normalized diacritic stripped text, multi hits counted.
-# - Sarcasm, self-harm, threat detection use normalized text.
-# - Tokenizer merges simple hyphenated compounds.
-# - Lexicon keys and markers normalized via join_for_lex.
-# - soft_cap_single_word_dominance redistributes excess.
-# - join_for_lex strips quotes and leading hashtags/mentions.
+# Functional patch:
+# - Keeps your v24 logic intact.
+# - Fixes emoji counting and short emoji-only cases by not treating variation
+#   selectors (FE0F) as emojis.
+# - Adds analyze_text_dict() helper for JSON safe API responses.
+# - Adds a small __main__ self-test so you can verify output quickly.
 
 from __future__ import annotations
 
@@ -175,6 +161,13 @@ def _reconstruct_text(tokens: List[str]) -> str:
 
 
 def is_emoji(char: str) -> bool:
+    """
+    Emoji detector for single codepoints.
+
+    Important fix:
+    - Do NOT count variation selectors (FE0F) as emojis.
+      They get tokenized separately in sequences like "❤️".
+    """
     if not char:
         return False
     cp = ord(char)
@@ -182,7 +175,6 @@ def is_emoji(char: str) -> bool:
         0x1F300 <= cp <= 0x1FAFF
         or 0x2600 <= cp <= 0x26FF
         or 0x2700 <= cp <= 0x27BF
-        or 0xFE00 <= cp <= 0xFE0F
     )
 
 
@@ -2505,8 +2497,6 @@ class EmotionDetector:
         truncated = False
 
         if alpha_word_count == 0 and emoji_token_count == 0:
-            # still allow emoticon-only cases if any emoticon pattern hits below
-            # but if there are literally no meaningful tokens at all, error out
             stripped = re.sub(r"\s+", "", text)
             if not stripped:
                 raise InvalidTextError("No meaningful words found in text.")
@@ -2525,7 +2515,6 @@ class EmotionDetector:
             text = _reconstruct_text(tokens)
             alpha_word_count = self.max_words
 
-        # Effective count includes emojis to stabilize short-text logic
         word_count_effective = alpha_word_count + emoji_token_count
         if word_count_effective == 0:
             word_count_effective = 1
@@ -2584,7 +2573,6 @@ class EmotionDetector:
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0)
 
-        # If there are no words but emoticons/phrases exist, allow analysis
         if alpha_word_count == 0 and emoji_token_count == 0 and (phrase_hits_total > 0 or emoticon_hits_total > 0):
             word_count_effective = 1
 
@@ -2667,7 +2655,7 @@ class EmotionDetector:
                     base_vec["passion"] += 2.5
                 elif cp in {"😲", "😳", "🙀"}:
                     base_vec["surprise"] += 2.5
-                elif cp in {"❤", "❤️", "💖", "💘", "💝", "💞", "💓"}:
+                elif cp in {"❤", "♥", "💖", "💘", "💝", "💞", "💓"}:
                     base_vec["passion"] += 2.6
                     base_vec["joy"] += 1.1
                 elif cp in {"💔"}:
@@ -2693,7 +2681,6 @@ class EmotionDetector:
 
             conditional_weight = 0.8 if i in conditional_indices else 1.0
 
-            # Pre-intensifiers and pragmatics within 3 tokens before
             j = i - 1
             steps = 0
             while j >= 0 and steps < 3:
@@ -2719,7 +2706,6 @@ class EmotionDetector:
                 j -= 1
                 steps += 1
 
-            # Post-intensifiers within 2 tokens after
             k = i + 1
             steps_ahead = 0
             while k < len(tokens) and steps_ahead < 2:
@@ -2806,7 +2792,6 @@ class EmotionDetector:
         certainty_score = min(1.0, certainty_count / 4.0) + 0.6 * ex_n
         net_certainty = max(-1.0, min(1.0, certainty_score - uncertainty_score))
 
-        # Short text damping for certainty
         short_len_factor = min(1.0, word_count_effective / 5.0)
         net_certainty_short = net_certainty * short_len_factor
 
@@ -2821,7 +2806,6 @@ class EmotionDetector:
             global_intensity *= 0.7
             global_intensity = max(0.0, min(global_intensity, 0.995))
 
-        # Extra length cap so 1 to 2 word entries never feel like 100 percent emotions
         length_cap = 1.0
         if word_count_effective <= 1:
             length_cap = 0.35
@@ -2852,7 +2836,6 @@ class EmotionDetector:
                 intensity[e] *= scale
             final_global_intensity = 1.0
 
-        # Neutral detection flag
         neutral_flag = final_global_intensity < 0.02 and total_strength < 0.5
 
         if final_global_intensity <= 0:
@@ -3058,6 +3041,17 @@ def analyze_text(
     )
 
 
+def analyze_text_dict(
+    text: str,
+    domain: Optional[str] = None,
+    prev_mixture: Optional[Dict[str, float]] = None,
+) -> Dict[str, Any]:
+    """
+    JSON safe wrapper for APIs.
+    """
+    return analyze_text(text=text, domain=domain, prev_mixture=prev_mixture).to_dict()
+
+
 __all__ = [
     "EMOTIONS",
     "InvalidTextError",
@@ -3065,4 +3059,26 @@ __all__ = [
     "DetectorOutput",
     "EmotionDetector",
     "analyze_text",
+    "analyze_text_dict",
 ]
+
+
+if __name__ == "__main__":
+    samples = [
+        "happy",
+        "ok",
+        "😢",
+        "❤️",
+        "I miss you so much",
+        "No estoy bien hoy",
+        "tô com saudade e meio triste",
+        "are you kidding me??",
+        "lol im dead 😂",
+        "this was a hard long week but im okay now",
+    ]
+    for s in samples:
+        out = analyze_text_dict(s)
+        print("\nTEXT:", s)
+        print("DOMINANT:", out["dominant"])
+        print("MIXTURE:", out["mixture_vector"])
+        print("CONF:", out["confidence"])
