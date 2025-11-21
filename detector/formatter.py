@@ -4,8 +4,9 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     # Relative import when used as a package
@@ -65,9 +66,9 @@ EMOTION_LABELS: Dict[str, Dict[str, str]] = {
 # Buckets: very_low, low, moderate, high, very_high
 # Idea:
 #   very_low  → faint trace of that emotion
-#   low       → mild / background emotion (frustration, a bit sad, etc.)
+#   low       → mild or background emotion
 #   moderate  → clear and present emotion
-#   high      → strong / intense
+#   high      → strong or intense
 #   very_high → extreme, like rage, panic, devastation, euphoria
 EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
     "en": {
@@ -281,6 +282,226 @@ def _pick_nuanced_labels(
         "nuanced_en": nuanced_en,
         "nuanced_local": nuanced_local,
     }
+
+
+def _get_intensity_phrase_for_lang(
+    emotion_id: str,
+    percent: float,
+    lang: str,
+) -> str:
+    """
+    Get a human label for a single emotion at a given percent,
+    for a specific language.
+    """
+    bucket = _intensity_bucket_from_percent(percent)
+    lang = _normalize_locale(lang)
+
+    label_map = EMOTION_INTENSITY_LABELS.get(lang, {}).get(emotion_id, {})
+    phrase = label_map.get(bucket)
+    if phrase:
+        return phrase
+
+    # Fallback to base labels
+    base = EMOTION_LABELS.get(lang, {}).get(emotion_id)
+    if base:
+        return base
+    return EMOTION_LABELS["en"].get(emotion_id, emotion_id)
+
+
+# Special pairwise mixture labels for some common combinations
+# Keyed by language then (primary, secondary)
+COMBO_SPECIAL_LABELS: Dict[str, Dict[Tuple[str, str], str]] = {
+    "en": {
+        ("sadness", "anger"): "Hurt and angry",
+        ("anger", "sadness"): "Angry and hurt",
+        ("sadness", "fear"): "Sad and worried",
+        ("fear", "sadness"): "Worried and sad",
+        ("joy", "sadness"): "Bittersweet, both happy and sad",
+        ("sadness", "joy"): "Bittersweet, both sad and hopeful",
+        ("joy", "surprise"): "Excited and pleasantly surprised",
+        ("surprise", "joy"): "Pleasantly surprised and excited",
+        ("joy", "passion"): "Warm, loving joy",
+        ("passion", "joy"): "Deeply loving and joyful",
+        ("fear", "disgust"): "Disturbed and uneasy",
+        ("disgust", "fear"): "Repulsed and uneasy",
+    },
+    "es": {
+        ("sadness", "anger"): "Dolido y enojado",
+        ("anger", "sadness"): "Enojado y dolido",
+        ("sadness", "fear"): "Triste y preocupado",
+        ("fear", "sadness"): "Preocupado y triste",
+        ("joy", "sadness"): "Agridulce, feliz y triste a la vez",
+        ("sadness", "joy"): "Agridulce, triste pero con algo de esperanza",
+        ("joy", "surprise"): "Emocionado y gratamente sorprendido",
+        ("surprise", "joy"): "Gratamente sorprendido y emocionado",
+        ("joy", "passion"): "Alegría cálida y amorosa",
+        ("passion", "joy"): "Profundamente amoroso y alegre",
+        ("fear", "disgust"): "Perturbado e inquieto",
+        ("disgust", "fear"): "Repugnado e inquieto",
+    },
+    "pt": {
+        ("sadness", "anger"): "Magoado e com raiva",
+        ("anger", "sadness"): "Com raiva e magoado",
+        ("sadness", "fear"): "Triste e preocupado",
+        ("fear", "sadness"): "Preocupado e triste",
+        ("joy", "sadness"): "Agridoce, feliz e triste ao mesmo tempo",
+        ("sadness", "joy"): "Agridoce, triste mas com alguma esperança",
+        ("joy", "surprise"): "Animado e agradavelmente surpreso",
+        ("surprise", "joy"): "Agradavelmente surpreso e animado",
+        ("joy", "passion"): "Alegria calorosa e amorosa",
+        ("passion", "joy"): "Profundamente apaixonado e alegre",
+        ("fear", "disgust"): "Perturbado e desconfortável",
+        ("disgust", "fear"): "Com nojo e apreensivo",
+    },
+}
+
+
+def _lookup_special_combo(
+    primary: str,
+    secondary: str,
+    locale: str,
+) -> Optional[str]:
+    loc = _normalize_locale(locale)
+    by_lang = COMBO_SPECIAL_LABELS.get(loc, {})
+    phrase = by_lang.get((primary, secondary))
+    if phrase:
+        return phrase
+
+    if loc != "en":
+        return COMBO_SPECIAL_LABELS.get("en", {}).get((primary, secondary))
+    return None
+
+
+def _build_combo_phrases(
+    primary_id: str,
+    primary_weight: float,
+    secondary_id: str,
+    secondary_weight: float,
+    locale: str,
+) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Given a primary and secondary emotion and their mixture weights, return
+    a pair of phrases (en, localized) that describe the blend.
+    """
+    loc = _normalize_locale(locale)
+    p_percent = max(primary_weight, 0.0) * 100.0
+    s_percent = max(secondary_weight, 0.0) * 100.0
+
+    # Base intensity phrases
+    p_en = _get_intensity_phrase_for_lang(primary_id, p_percent, "en")
+    s_en = _get_intensity_phrase_for_lang(secondary_id, s_percent, "en")
+
+    p_loc = _get_intensity_phrase_for_lang(primary_id, p_percent, loc)
+    s_loc = _get_intensity_phrase_for_lang(secondary_id, s_percent, loc)
+
+    # Check for special pairwise meaning first
+    special_en = _lookup_special_combo(primary_id, secondary_id, "en")
+    special_loc = _lookup_special_combo(primary_id, secondary_id, loc)
+
+    if special_en or special_loc:
+        return special_en or p_en, special_loc or p_loc
+
+    # Generic blend patterns based on weights
+    def lower_first(s: str) -> str:
+        if not s:
+            return s
+        return s[0].lower() + s[1:]
+
+    if loc == "es":
+        mostly_en = f"{p_en} with some {lower_first(s_en)}"
+        mixed_en = f"Mixed {lower_first(p_en)} and {lower_first(s_en)}"
+
+        mostly_loc = f"{p_loc} con algo de {lower_first(s_loc)}"
+        mixed_loc = f"Mezcla de {lower_first(p_loc)} y {lower_first(s_loc)}"
+    elif loc == "pt":
+        mostly_en = f"{p_en} with some {lower_first(s_en)}"
+        mixed_en = f"Mixed {lower_first(p_en)} and {lower_first(s_en)}"
+
+        mostly_loc = f"{p_loc} com um pouco de {lower_first(s_loc)}"
+        mixed_loc = f"Mistura de {lower_first(p_loc)} e {lower_first(s_loc)}"
+    else:
+        mostly_en = f"{p_en} with some {lower_first(s_en)}"
+        mixed_en = f"Mixed {lower_first(p_en)} and {lower_first(s_en)}"
+        mostly_loc = mostly_en
+        mixed_loc = mixed_en
+
+    # Decide which pattern to use
+    if primary_weight >= 0.6 and secondary_weight >= 0.2:
+        return mostly_en, mostly_loc
+    if primary_weight >= 0.45 and secondary_weight >= 0.3:
+        return mixed_en, mixed_loc
+
+    # If we got here, just keep the primary intensity phrase
+    return p_en, p_loc
+
+
+def _apply_mixture_nuance_to_current(
+    block: Dict[str, Any],
+    mixture_vector: Dict[str, float],
+    locale: str,
+) -> Dict[str, Any]:
+    """
+    Take the current result block and refine its nuanced labels by looking
+    at the mixture of all seven emotions. This keeps the primary emotion
+    but adjusts wording when there is a strong secondary emotion.
+    """
+    if not block:
+        return block
+    if not mixture_vector:
+        return block
+
+    primary_id = block.get("emotionId")
+    if not primary_id:
+        return block
+
+    # Sort mixture from strongest to weakest
+    items = sorted(
+        mixture_vector.items(), key=lambda kv: float(kv[1]), reverse=True
+    )
+    if not items:
+        return block
+
+    # Find weight for the primary emotion
+    primary_weight: Optional[float] = None
+    for eid, w in items:
+        if eid == primary_id:
+            primary_weight = float(w)
+            break
+
+    if primary_weight is None:
+        primary_id, primary_weight = items[0]
+
+    # Find strongest secondary emotion above a minimum threshold
+    secondary_id: Optional[str] = None
+    secondary_weight: float = 0.0
+    for eid, w in items:
+        if eid == primary_id:
+            continue
+        w_val = float(w)
+        if w_val > secondary_weight:
+            secondary_id = eid
+            secondary_weight = w_val
+
+    # If there is no meaningful secondary emotion, keep the base nuance
+    if secondary_id is None or secondary_weight < 0.15:
+        return block
+
+    combo_en, combo_loc = _build_combo_phrases(
+        primary_id, primary_weight, secondary_id, secondary_weight, locale
+    )
+
+    if combo_en:
+        block["nuancedLabel"] = combo_en
+    if combo_loc:
+        block["nuancedLabelLocalized"] = combo_loc
+
+    # Expose a little more detail for the UI if needed
+    block["primaryEmotionId"] = primary_id
+    block["primaryEmotionWeight"] = round(primary_weight, 6)
+    block["secondaryEmotionId"] = secondary_id
+    block["secondaryEmotionWeight"] = round(secondary_weight, 6)
+
+    return block
 
 
 # =============================================================================
@@ -516,7 +737,7 @@ def _format_result_block(
     detector_result: Dict[str, Any],
     locale: str,
 ) -> Dict[str, Any]:
-    """Format dominant/current result, with intensity aware nuanced labels."""
+    """Format dominant or current result, with intensity aware nuanced labels."""
     loc = _normalize_locale(locale)
     emotion_id = detector_result.get("label", "")
     label_en = EMOTION_LABELS["en"].get(emotion_id, emotion_id)
@@ -546,6 +767,54 @@ def _format_result_block(
     }
 
 
+def _compute_mixture_profile(
+    mixture_vector: Dict[str, float]
+) -> Dict[str, Any]:
+    """
+    Compute some extra metrics that describe how mixed the emotions are:
+    - dominantStrength: normalized weight of strongest emotion
+    - secondaryStrength: normalized weight of second emotion
+    - entropy: information entropy of the mixture
+    - mixtureType: simple qualitative description
+    """
+    weights = [max(float(v), 0.0) for v in mixture_vector.values()]
+    total = sum(weights)
+    if total <= 0.0:
+        return {
+            "dominantStrength": 0.0,
+            "secondaryStrength": 0.0,
+            "entropy": 0.0,
+            "mixtureType": "undefined",
+        }
+
+    normalized = [w / total for w in weights]
+    sorted_norm = sorted(normalized, reverse=True)
+    dominant_strength = sorted_norm[0] if sorted_norm else 0.0
+    secondary_strength = sorted_norm[1] if len(sorted_norm) > 1 else 0.0
+
+    entropy = 0.0
+    for w in normalized:
+        if w > 0.0:
+            entropy -= w * math.log2(w)
+
+    # Simple qualitative description
+    if dominant_strength >= 0.8:
+        mix_type = "pure"
+    elif dominant_strength >= 0.6 and secondary_strength <= 0.3:
+        mix_type = "mostly_single"
+    elif dominant_strength >= 0.45 and secondary_strength >= 0.25:
+        mix_type = "mixed"
+    else:
+        mix_type = "highly_mixed"
+
+    return {
+        "dominantStrength": round(dominant_strength, 4),
+        "secondaryStrength": round(secondary_strength, 4),
+        "entropy": round(entropy, 4),
+        "mixtureType": mix_type,
+    }
+
+
 # =============================================================================
 # Public API
 # =============================================================================
@@ -566,12 +835,13 @@ def format_for_client(
       - localized labels for EN, ES, PT
       - dominant and current emotion blocks with emojis and nuanced labels
       - hotline information based on region
+      - mixture profile metrics
     """
     loc = _normalize_locale(locale)
     raw = analyze_text(text, domain=domain)
 
-    mixture_vector: Dict[str, float] = raw.get("mixture_vector", {})
-    emotions_raw: Dict[str, Dict[str, Any]] = raw.get("emotions", {})
+    mixture_vector: Dict[str, float] = raw.get("mixture_vector", {}) or {}
+    emotions_raw: Dict[str, Dict[str, Any]] = raw.get("emotions", {}) or {}
 
     # Keep a stable order for the UI
     emotion_order = list(EMOTIONS)
@@ -608,11 +878,19 @@ def format_for_client(
     dominant_block = _format_result_block(
         "dominant", raw.get("dominant", {}), loc
     )
+
+    current_raw = raw.get("current", {})
     current_block = _format_result_block(
-        "current", raw.get("current", {}), loc
+        "current", current_raw, loc
+    )
+    # Refine the current block with mixture aware nuance
+    current_block = _apply_mixture_nuance_to_current(
+        current_block, mixture_vector, loc
     )
 
     hotline = get_hotline_for_region(region, loc)
+
+    mixture_profile = _compute_mixture_profile(mixture_vector)
 
     payload: Dict[str, Any] = {
         "text": raw.get("text", text),
@@ -629,6 +907,7 @@ def format_for_client(
             "arousal": raw.get("arousal", 0.0),
             "sarcasm": raw.get("sarcasm", 0.0),
             "confidence": raw.get("confidence", 0.0),
+            "mixtureProfile": mixture_profile,
         },
         "risk": {
             "level": raw.get("risk_level", "none"),
