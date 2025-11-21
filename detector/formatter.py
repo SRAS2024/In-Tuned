@@ -20,7 +20,6 @@ except ImportError:  # pragma: no cover
 # Localization data
 # =============================================================================
 
-
 def _normalize_locale(locale: Optional[str]) -> str:
     if not locale:
         return "en"
@@ -221,14 +220,18 @@ EMOTION_INTENSITY_LABELS: Dict[str, Dict[str, Dict[str, str]]] = {
 }
 
 
-def _safe_float(x: Any, default: float = 0.0) -> float:
+# =============================================================================
+# Utility helpers
+# =============================================================================
+
+def _safe_float(x: Any, default: Optional[float] = 0.0) -> float:
     try:
         v = float(x)
         if math.isnan(v) or math.isinf(v):
-            return default
+            return float(default or 0.0)
         return v
     except Exception:
-        return default
+        return float(default or 0.0)
 
 
 def _clamp(v: float, lo: float, hi: float) -> float:
@@ -239,11 +242,73 @@ def _clamp(v: float, lo: float, hi: float) -> float:
     return v
 
 
+def _as_percent(v: Any, default: float = 0.0) -> float:
+    """
+    Accepts 0-1 or 0-100 values and normalizes to 0-100.
+    """
+    val = _safe_float(v, default)
+    if val <= 1.0:
+        val *= 100.0
+    return _clamp(val, 0.0, 100.0)
+
+
+def _normalize_emotions_shape(emotions: Any) -> Dict[str, Dict[str, Any]]:
+    """
+    Detector may return:
+      - dict keyed by emotion id
+      - list of EmotionResult dicts with "label"
+    Normalize to dict keyed by id.
+    """
+    if isinstance(emotions, dict):
+        return {str(k): (v or {}) for k, v in emotions.items() if k}
+    if isinstance(emotions, list):
+        out: Dict[str, Dict[str, Any]] = {}
+        for item in emotions:
+            if not isinstance(item, dict):
+                continue
+            eid = item.get("label") or item.get("id")
+            if eid:
+                out[str(eid)] = item
+        return out
+    return {}
+
+
+def _normalize_mixture_vector(
+    mixture_vector: Any,
+    emotions_raw: Dict[str, Dict[str, Any]]
+) -> Dict[str, float]:
+    """
+    Detector may return mixture as 0-1 weights or 0-100 percents.
+    Normalize to 0-1 weights.
+    If missing or all zero, derive from scores.
+    """
+    mv_in: Dict[str, float] = {}
+    if isinstance(mixture_vector, dict):
+        for k, v in mixture_vector.items():
+            mv_in[str(k)] = max(_safe_float(v, 0.0), 0.0)
+
+    # Detect scale
+    if any(v > 1.5 for v in mv_in.values()):
+        mv = {k: v / 100.0 for k, v in mv_in.items()}
+    else:
+        mv = dict(mv_in)
+
+    total = sum(mv.values())
+    if total <= 0.0:
+        # derive from scores if possible
+        scores = {eid: max(_safe_float(emotions_raw.get(eid, {}).get("score"), 0.0), 0.0)
+                  for eid in EMOTIONS}
+        st = sum(scores.values())
+        if st > 0.0:
+            mv = {eid: scores[eid] / st for eid in EMOTIONS}
+        else:
+            mv = {eid: 0.0 for eid in EMOTIONS}
+
+    # Clamp
+    return {eid: _clamp(_safe_float(mv.get(eid), 0.0), 0.0, 1.0) for eid in EMOTIONS}
+
+
 def _intensity_bucket_from_percent(percent: float) -> str:
-    """
-    Map a single emotion intensity percent to a coarse bucket.
-    This is per emotion, not the global intensity band from detector.meta.
-    """
     if percent >= 80.0:
         return "very_high"
     if percent >= 55.0:
@@ -260,10 +325,6 @@ def _pick_nuanced_labels(
     percent: float,
     locale: str,
 ) -> Dict[str, Optional[str]]:
-    """
-    Return nuanced labels for a given emotion and intensity percent.
-    Falls back to base labels if no matching entry.
-    """
     if not emotion_id or percent <= 0.01:
         return {"bucket": None, "nuanced_en": None, "nuanced_local": None}
 
@@ -287,9 +348,6 @@ def _get_intensity_phrase_for_lang(
     percent: float,
     lang: str,
 ) -> str:
-    """
-    Get a human label for a single emotion at a given percent, for a language.
-    """
     bucket = _intensity_bucket_from_percent(percent)
     lang = _normalize_locale(lang)
 
@@ -393,11 +451,7 @@ COMBO_SPECIAL_LABELS: Dict[str, Dict[Tuple[str, str], str]] = {
 }
 
 
-def _lookup_special_combo(
-    primary: str,
-    secondary: str,
-    locale: str,
-) -> Optional[str]:
+def _lookup_special_combo(primary: str, secondary: str, locale: str) -> Optional[str]:
     loc = _normalize_locale(locale)
     phrase = COMBO_SPECIAL_LABELS.get(loc, {}).get((primary, secondary))
     if phrase:
@@ -414,30 +468,22 @@ def _build_combo_phrases(
     secondary_weight: float,
     locale: str,
 ) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Given a primary and secondary emotion and their mixture weights, return
-    a pair of phrases (en, localized) that describe the blend.
-    """
     loc = _normalize_locale(locale)
-    p_percent = max(primary_weight, 0.0) * 100.0
-    s_percent = max(secondary_weight, 0.0) * 100.0
+    p_percent = primary_weight * 100.0
+    s_percent = secondary_weight * 100.0
 
     p_en = _get_intensity_phrase_for_lang(primary_id, p_percent, "en")
     s_en = _get_intensity_phrase_for_lang(secondary_id, s_percent, "en")
-
     p_loc = _get_intensity_phrase_for_lang(primary_id, p_percent, loc)
     s_loc = _get_intensity_phrase_for_lang(secondary_id, s_percent, loc)
 
     special_en = _lookup_special_combo(primary_id, secondary_id, "en")
     special_loc = _lookup_special_combo(primary_id, secondary_id, loc)
-
     if special_en or special_loc:
         return special_en or p_en, special_loc or p_loc
 
     def lower_first(s: str) -> str:
-        if not s:
-            return s
-        return s[0].lower() + s[1:]
+        return s[0].lower() + s[1:] if s else s
 
     mostly_en = f"{p_en} with some {lower_first(s_en)}"
     mixed_en = f"Mixed {lower_first(p_en)} and {lower_first(s_en)}"
@@ -456,20 +502,15 @@ def _build_combo_phrases(
         return mostly_en, mostly_loc
     if primary_weight >= 0.45 and secondary_weight >= 0.3:
         return mixed_en, mixed_loc
-
     return p_en, p_loc
 
 
 def _lc_first(s: str) -> str:
-    if not s:
-        return s
-    return s[0].lower() + s[1:]
+    return s[0].lower() + s[1:] if s else s
 
 
 def _cap_first(s: str) -> str:
-    if not s:
-        return s
-    return s[0].upper() + s[1:]
+    return s[0].upper() + s[1:] if s else s
 
 
 def _build_multi_emotion_phrase(
@@ -480,30 +521,23 @@ def _build_multi_emotion_phrase(
     locale: str,
     meta: Optional[Dict[str, Any]] = None,
 ) -> Tuple[str, str]:
-    """
-    Build a triad phrase for cases with three strong emotions.
-    """
     loc = _normalize_locale(locale)
 
     pw = float(mixture_vector.get(primary_id, 0.0))
     sw = float(mixture_vector.get(secondary_id, 0.0))
     tw = float(mixture_vector.get(tertiary_id, 0.0))
 
-    p_percent = pw * 100.0
-    s_percent = sw * 100.0
-    t_percent = tw * 100.0
+    p_en = _get_intensity_phrase_for_lang(primary_id, pw * 100.0, "en")
+    s_en = _get_intensity_phrase_for_lang(secondary_id, sw * 100.0, "en")
+    t_en = _get_intensity_phrase_for_lang(tertiary_id, tw * 100.0, "en")
 
-    p_en = _get_intensity_phrase_for_lang(primary_id, p_percent, "en")
-    s_en = _get_intensity_phrase_for_lang(secondary_id, s_percent, "en")
-    t_en = _get_intensity_phrase_for_lang(tertiary_id, t_percent, "en")
-
-    p_loc = _get_intensity_phrase_for_lang(primary_id, p_percent, loc)
-    s_loc = _get_intensity_phrase_for_lang(secondary_id, s_percent, loc)
-    t_loc = _get_intensity_phrase_for_lang(tertiary_id, t_percent, loc)
+    p_loc = _get_intensity_phrase_for_lang(primary_id, pw * 100.0, loc)
+    s_loc = _get_intensity_phrase_for_lang(secondary_id, sw * 100.0, loc)
+    t_loc = _get_intensity_phrase_for_lang(tertiary_id, tw * 100.0, loc)
 
     meta = meta or {}
-    pos_int = float(meta.get("positive_intensity", 0.0))
-    neg_int = float(meta.get("negative_intensity", 0.0))
+    pos_int = _safe_float(meta.get("positive_intensity"), 0.0)
+    neg_int = _safe_float(meta.get("negative_intensity"), 0.0)
     mixed_valence = pos_int > 0.12 and neg_int > 0.12
 
     en_core = f"{_lc_first(p_en)}, {_lc_first(s_en)} and {_lc_first(t_en)}"
@@ -536,12 +570,7 @@ def _build_multi_emotion_phrase(
     return en_phrase, loc_phrase
 
 
-def _compute_mixture_profile(
-    mixture_vector: Dict[str, float]
-) -> Dict[str, Any]:
-    """
-    Extra metrics describing mixture.
-    """
+def _compute_mixture_profile(mixture_vector: Dict[str, float]) -> Dict[str, Any]:
     weights = [max(float(v), 0.0) for v in mixture_vector.values()]
     total = sum(weights)
     if total <= 0.0:
@@ -586,9 +615,6 @@ def _apply_mixture_nuance_to_current(
     mixture_profile: Optional[Dict[str, Any]] = None,
     meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """
-    Adjust nuanced labels for current emotion based on mixture.
-    """
     if not block or not mixture_vector:
         return block
 
@@ -670,7 +696,6 @@ def _apply_mixture_nuance_to_current(
 # =============================================================================
 # Hotline data
 # =============================================================================
-
 
 @dataclass
 class HotlineInfo:
@@ -821,7 +846,6 @@ def get_hotline_for_region(region: Optional[str], locale: str) -> Dict[str, Any]
 # Formatting helpers
 # =============================================================================
 
-
 def _format_emotion_row(
     emotion_id: str,
     detector_emotion: Dict[str, Any],
@@ -831,12 +855,14 @@ def _format_emotion_row(
     loc = _normalize_locale(locale)
     label_en = EMOTION_LABELS["en"].get(emotion_id, emotion_id)
     label_local = EMOTION_LABELS.get(loc, {}).get(emotion_id, label_en)
-    percent = _safe_float(detector_emotion.get("percent"), mixture_value * 100.0)
+
+    percent = detector_emotion.get("percent", detector_emotion.get("pct"))
+    if percent is None:
+        percent = mixture_value * 100.0
+    percent = _as_percent(percent, mixture_value * 100.0)
+
     score = _safe_float(detector_emotion.get("score"), 0.0)
     emoji = detector_emotion.get("emoji", "😐")
-
-    percent = _clamp(percent, 0.0, 100.0)
-    score = max(score, 0.0)
 
     return {
         "id": emotion_id,
@@ -857,16 +883,15 @@ def _format_result_block(
     locale: str,
 ) -> Dict[str, Any]:
     loc = _normalize_locale(locale)
-    emotion_id = detector_result.get("label", "")
+    emotion_id = detector_result.get("label") or detector_result.get("emotionId") or ""
+
     label_en = EMOTION_LABELS["en"].get(emotion_id, emotion_id)
     label_local = EMOTION_LABELS.get(loc, {}).get(emotion_id, label_en)
 
     score = _safe_float(detector_result.get("score"), 0.0)
-    percent = _safe_float(detector_result.get("percent"), 0.0)
+    percent = detector_result.get("percent", detector_result.get("pct", 0.0))
+    percent = _as_percent(percent, 0.0)
     emoji = detector_result.get("emoji", "😐")
-
-    percent = _clamp(percent, 0.0, 100.0)
-    score = max(score, 0.0)
 
     if kind == "current":
         nuance = _pick_nuanced_labels(emotion_id, percent, loc)
@@ -894,10 +919,10 @@ def _format_result_block(
 
 
 def _fallback_raw(text: str, loc: str, reason: str) -> Dict[str, Any]:
-    """
-    Build a minimal raw detector-like structure so the client always renders.
-    """
-    emotions = {eid: {"label": eid, "emoji": "😐", "score": 0.0, "percent": 0.0} for eid in EMOTIONS}
+    emotions = {
+        eid: {"label": eid, "emoji": "😐", "score": 0.0, "percent": 0.0}
+        for eid in EMOTIONS
+    }
     mixture_vector = {eid: 0.0 for eid in EMOTIONS}
 
     return {
@@ -919,19 +944,12 @@ def _fallback_raw(text: str, loc: str, reason: str) -> Dict[str, Any]:
 # Public API
 # =============================================================================
 
-
 def format_for_client(
     text: str,
     locale: str = "en",
     region: Optional[str] = None,
     domain: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    High level function used by the backend or server.
-
-    Always returns a JSON friendly dict matching client needs.
-    Never raises for normal inputs.
-    """
     loc = _normalize_locale(locale)
 
     try:
@@ -943,8 +961,8 @@ def format_for_client(
     except Exception as e:
         raw = _fallback_raw(text, loc, f"Exception: {e}")
 
-    mixture_vector: Dict[str, float] = raw.get("mixture_vector", {}) or {}
-    emotions_raw: Dict[str, Dict[str, Any]] = raw.get("emotions", {}) or {}
+    emotions_raw = _normalize_emotions_shape(raw.get("emotions", {}))
+    mixture_vector = _normalize_mixture_vector(raw.get("mixture_vector"), emotions_raw)
 
     emotion_order = list(EMOTIONS)
 
@@ -953,8 +971,7 @@ def format_for_client(
 
     for emotion_id in emotion_order:
         det_em = emotions_raw.get(emotion_id, {}) or {}
-        mix_val = _safe_float(mixture_vector.get(emotion_id), 0.0)
-        mix_val = max(mix_val, 0.0)
+        mix_val = max(_safe_float(mixture_vector.get(emotion_id), 0.0), 0.0)
 
         row = _format_emotion_row(emotion_id, det_em, mix_val, loc)
 
@@ -968,7 +985,6 @@ def format_for_client(
                 "percentDisplay": row["percentDisplay"],
             }
         )
-
         analysis_rows.append(
             {
                 "id": row["id"],
@@ -981,8 +997,21 @@ def format_for_client(
             }
         )
 
-    dominant_block = _format_result_block("dominant", raw.get("dominant", {}) or {}, loc)
-    current_block = _format_result_block("current", raw.get("current", {}) or {}, loc)
+    # If detector forgot dominant/current, derive best guesses
+    dominant_raw = raw.get("dominant") or {}
+    current_raw = raw.get("current") or {}
+
+    if not dominant_raw.get("label"):
+        best = max(mixture_vector.items(), key=lambda kv: kv[1])[0]
+        dominant_raw = {"label": best, "emoji": emotions_raw.get(best, {}).get("emoji", "😐"),
+                        "score": emotions_raw.get(best, {}).get("score", 0.0),
+                        "percent": mixture_vector.get(best, 0.0) * 100.0}
+
+    if not current_raw.get("label"):
+        current_raw = dominant_raw
+
+    dominant_block = _format_result_block("dominant", dominant_raw, loc)
+    current_block = _format_result_block("current", current_raw, loc)
 
     mixture_profile = _compute_mixture_profile(mixture_vector)
     meta = raw.get("meta", {}) or {}
