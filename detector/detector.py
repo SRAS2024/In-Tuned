@@ -1,15 +1,22 @@
 # detector/detector.py
-# High fidelity local emotion detector v21-espt
+# High fidelity local emotion detector v22-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
-# Fixes and revisions:
-# - Tokenizer now keeps apostrophes inside words (fixes "don't", "I'm", etc.)
-# - Lexicon keys and all marker sets are normalized with the same join_for_lex logic
-#   so accented variants match reliably.
-# - Dialect hint cues normalized too.
-# - _scale_word_intensity uses normalized keys.
-# - soft_cap_single_word_dominance now redistributes excess instead of shrinking total.
-# - join_for_lex strips leading/trailing quotes/apostrophes for better matches ("'cause", etc.)
+# Fixes and revisions (v22):
+# - Phrase lexicon matching now uses a diacritic-stripped, whitespace-normalized
+#   text view so accented and unaccented variants match reliably.
+# - Phrase hits are counted for multiple occurrences, not just once per phrase.
+# - Sarcasm cues are checked on normalized text too (helps "não", "sí", etc.).
+# - Self-harm and threat detection run on normalized text to catch accents and
+#   curly quotes.
+# - Tokenizer postprocess merges simple hyphenated compounds ("pissed-off" -> "pissedoff")
+#   before lexicon lookup.
+#
+# Prior fixes preserved:
+# - Tokenizer keeps apostrophes inside words ("don't", "I'm", etc.)
+# - Lexicon keys and marker sets normalized via join_for_lex
+# - soft_cap_single_word_dominance redistributes excess
+# - join_for_lex strips leading/trailing quotes/apostrophes
 
 from __future__ import annotations
 
@@ -81,12 +88,66 @@ def normalize_text(text: str) -> str:
     return text.strip()
 
 
+def strip_diacritics(text: str) -> str:
+    text = unicodedata.normalize("NFD", text)
+    return "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+
+
+def normalize_for_search(text: str) -> str:
+    """
+    Lowercase, normalize quotes, strip diacritics, and collapse whitespace.
+    Keeps punctuation so regex word boundaries remain meaningful.
+    """
+    t = normalize_text(text).lower()
+    t = strip_diacritics(t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def normalize_for_phrase(text: str) -> str:
+    """
+    Like normalize_for_search, but also normalizes underscores to spaces so that
+    user text with spaces matches lexicon phrases registered with either style.
+    """
+    t = normalize_for_search(text)
+    t = t.replace("_", " ")
+    return t
+
+
 # Tokenizer keeps internal apostrophes inside words for EN/ES/PT contractions.
 TOKEN_RE = re.compile(r"[0-9A-Za-zÀ-ÖØ-öø-ÿ_']+|[^\w\s]", re.UNICODE)
 
 
+def _merge_hyphenated_compounds(tokens: List[str]) -> List[str]:
+    """
+    Merge simple hyphenated compounds: word '-' word -> wordword.
+    This helps match lexicon keys like 'pissedoff' when input is 'pissed-off'.
+    """
+    if not tokens:
+        return tokens
+    out: List[str] = []
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
+        if (
+            tok == "-"
+            and out
+            and i + 1 < len(tokens)
+            and any(ch.isalpha() for ch in out[-1])
+            and any(ch.isalpha() for ch in tokens[i + 1])
+        ):
+            merged = out[-1] + tokens[i + 1]
+            out[-1] = merged
+            i += 2
+            continue
+        out.append(tok)
+        i += 1
+    return out
+
+
 def tokenize(text: str) -> List[str]:
-    return TOKEN_RE.findall(text)
+    tokens = TOKEN_RE.findall(text)
+    return _merge_hyphenated_compounds(tokens)
 
 
 def _reconstruct_text(tokens: List[str]) -> str:
@@ -1161,7 +1222,7 @@ _register_words(
     1.3,
 )
 
-# Multiword phrase lexicon (normalized literally as plain text)
+# Multiword phrase lexicon (registered in raw form, normalized later)
 PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     # English
     "on cloud nine": _vec(joy=3.0),
@@ -1221,7 +1282,6 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "she's in a better place": _vec(sadness=2.4, joy=1.4),
     "they are in a better place": _vec(sadness=2.3, joy=1.3),
     "in a better place now": _vec(sadness=2.2, joy=1.4),
-    "bittersweet feeling": _vec(sadness=2.2, joy=1.4),
     "bittersweet feeling": _vec(sadness=2.2, joy=1.4),
     # Pop culture and historical shortcuts
     "9/11": _vec(sadness=2.8, fear=1.5),
@@ -1299,6 +1359,13 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "ela esta em um lugar melhor": _vec(sadness=2.4, joy=1.4),
     "sentimento agridoce": _vec(sadness=2.2, joy=1.4),
 }
+
+# Build a normalized phrase lexicon so matching is accent and spacing robust.
+PHRASE_LEXICON_NORM: Dict[str, Dict[str, float]] = {}
+for k, v in PHRASE_LEXICON.items():
+    nk = normalize_for_phrase(k)
+    PHRASE_LEXICON_NORM[nk] = v
+
 
 # Emoticons and text faces, applied as patterns on the raw text
 EMOTICON_PATTERNS: List[Tuple[re.Pattern, Dict[str, float]]] = [
@@ -1765,15 +1832,15 @@ def _build_semantic_index() -> None:
 
 
 def detect_self_harm_risk(text: str, humor_score: float = 0.0) -> str:
-    text_norm = normalize_text(text).lower()
+    text_search = normalize_for_search(text)
     hard_hits = 0
     soft_hits = 0
 
     for rx in SELF_HARM_HARD_REGEX:
-        if rx.search(text_norm):
+        if rx.search(text_search):
             hard_hits += 1
     for rx in SELF_HARM_SOFT_REGEX:
-        if rx.search(text_norm):
+        if rx.search(text_search):
             soft_hits += 1
 
     if hard_hits == 0 and soft_hits == 0:
@@ -1793,10 +1860,10 @@ def detect_self_harm_risk(text: str, humor_score: float = 0.0) -> str:
 
 
 def detect_threat_level(text: str, humor_score: float = 0.0) -> str:
-    text_norm = normalize_text(text).lower()
+    text_search = normalize_for_search(text)
     hits = 0
     for rx in THREAT_REGEX:
-        if rx.search(text_norm):
+        if rx.search(text_search):
             hits += 1
     if hits == 0:
         return "none"
@@ -1847,7 +1914,8 @@ def compute_sarcasm_probability(
     rhetorical_score: float = 0.0,
     humor_score: float = 0.0,
 ) -> float:
-    t = text.lower()
+    t_raw = text.lower()
+    t_norm = normalize_for_phrase(text)
     score = 0.0
 
     patterns = [
@@ -1868,12 +1936,13 @@ def compute_sarcasm_probability(
         "ah, claro",
     ]
     for p in patterns:
-        if p in t:
+        pn = normalize_for_phrase(p)
+        if p in t_raw or pn in t_norm:
             score += 0.4
 
-    if any(k in t for k in ["lol", "lmao", "jaja", "jeje", "kkk", "kkkk"]):
+    if any(k in t_raw for k in ["lol", "lmao", "jaja", "jeje", "kkk", "kkkk"]):
         if any(
-            w in t for w in [
+            w in t_raw for w in [
                 "hate",
                 "sad",
                 "cry",
@@ -2495,6 +2564,7 @@ class EmotionDetector:
         other_pronoun_count = 0
 
         text_lower = text.lower()
+        text_phrase_norm = normalize_for_phrase(text)
 
         for tok in tokens:
             if len(tok) > 2 and tok.isupper() and any(ch.isalpha() for ch in tok):
@@ -2509,10 +2579,15 @@ class EmotionDetector:
         R_global = {e: 0.0 for e in EMOTIONS}
 
         rhetorical_score = 0.0
-        for phrase, vec in PHRASE_LEXICON.items():
-            if phrase in text_lower:
+
+        # Phrase lexicon with normalized matching and multi-hit counting.
+        for phrase_norm, vec in PHRASE_LEXICON_NORM.items():
+            if not phrase_norm:
+                continue
+            hits = len(list(re.finditer(re.escape(phrase_norm), text_phrase_norm)))
+            if hits > 0:
                 for e in EMOTIONS:
-                    R_global[e] += vec.get(e, 0.0)
+                    R_global[e] += vec.get(e, 0.0) * hits
 
         for pattern, vec in EMOTICON_PATTERNS:
             for _m in pattern.finditer(text):
@@ -2914,14 +2989,4 @@ _DEFAULT_DETECTOR = EmotionDetector()
 def analyze_text(
     text: str,
     domain: Optional[str] = None,
-    prev_mixture: Optional[Dict[str, float]] = None,
-) -> Dict[str, Any]:
-    """
-    Convenience wrapper that returns a plain dict ready for JSON serialization.
-
-    Example:
-        from detector import analyze_text
-        result = analyze_text("I am really happy but a bit anxious")
-    """
-    output = _DEFAULT_DETECTOR.analyze(text, domain=domain, prev_mixture=prev_mixture)
-    return output.to_dict()
+    prev_mixture: Optional[Dict[str, float]] = N_
