@@ -74,8 +74,9 @@ const LOCALES = {
       crisisTitle: "Wait! You are priceless and important.",
       crisisBody:
         "If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.",
+      // Updated: no mention of app limits or regional coverage
       crisisNote:
-        "This app cannot provide crisis support. The numbers shown are based on common services in your region and may not be complete. If they do not work or you are in immediate danger, please contact any local emergency service or a trusted crisis hotline right away.",
+        "If you feel that you might be in danger, please contact a trusted crisis hotline or your local emergency services right away.",
       crisisHotlineCta: "Contact suicide hotline",
       crisisEmergencyCta: "Contact emergency services",
       crisisClose: "Close",
@@ -139,8 +140,9 @@ const LOCALES = {
       crisisTitle: "Espera, tu vida es muy valiosa.",
       crisisBody:
         "Si tú o alguien cercano tiene pensamientos de hacerse daño o de suicidio, siempre hay ayuda disponible. El mundo te necesita aquí.",
+      // Updated: simple safety guidance, no disclaimer about the app
       crisisNote:
-        "Esta aplicación no puede ofrecer apoyo en crisis. Los números mostrados se basan en servicios comunes de tu región y pueden no ser completos. Si no funcionan o estás en peligro inmediato, contacta a cualquier servicio de emergencia local o a una línea de ayuda de confianza.",
+        "Si sientes que puedes estar en peligro, comunícate de inmediato con una línea de ayuda de confianza o con los servicios de emergencia de tu país.",
       crisisHotlineCta: "Contactar línea de ayuda",
       crisisEmergencyCta: "Contactar servicios de emergencia",
       crisisClose: "Cerrar",
@@ -202,15 +204,16 @@ const LOCALES = {
       crisisTitle: "Espere, a sua vida é preciosa.",
       crisisBody:
         "Se você ou alguém próximo está tendo pensamentos de autoagressão ou suicídio, sempre existe ajuda disponível. O mundo precisa de você aqui.",
+      // Updated: simple safety guidance, no disclaimer about the app
       crisisNote:
-        "Este aplicativo não oferece apoio em situações de crise. Os números mostrados usam serviços comuns na sua região e podem não ser completos. Se não funcionarem ou se houver perigo imediato, procure qualquer serviço de emergência local ou um canal de ajuda de confiança.",
+        "Se você sentir que pode estar em perigo, procure imediatamente uma linha de apoio de confiança ou os serviços de emergência da sua região.",
       crisisHotlineCta: "Contato linha de apoio",
       crisisEmergencyCta: "Contato serviços de emergência",
       crisisClose: "Fechar",
       langMenuLabel: "Idioma",
       langSwitchTooltip: "Alterar idioma",
       helpButtonLabel: "Sobre o In tuned",
-      themeToggleLabel: "Alternar entre tema claro e escuro"
+      themeToggleLabel: "Alternar idioma"
     },
     emotions: {
       anger: "Raiva",
@@ -837,14 +840,25 @@ try {
 /* ---------- Region helper for backend ---------- */
 
 function detectRegionFromNavigator() {
-  const nav = navigator.language || "en-US";
-  const parts = nav.split("-");
+  // Use the first preferred language, then fall back
+  const navLang =
+    (navigator.languages && navigator.languages[0]) ||
+    navigator.language ||
+    "en-US";
+
+  const parts = navLang.split("-");
   if (parts.length > 1) {
-    return parts[1].toUpperCase();
+    const regionCandidate = parts[1].toUpperCase();
+    // Only return regions we know how to handle
+    if (EMERGENCY_NUMBERS[regionCandidate]) {
+      return regionCandidate;
+    }
   }
+
   const base = parts[0].toLowerCase();
   if (base === "pt") return "BR";
   if (base === "es") return "ES";
+  if (base === "fr") return "CA";
   return "US";
 }
 
