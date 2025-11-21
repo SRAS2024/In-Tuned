@@ -1640,6 +1640,26 @@ def tokenize(text: str) -> List[str]:
     return TOKEN_RE.findall(text)
 
 
+def _reconstruct_text(tokens: List[str]) -> str:
+    """
+    Rebuild tokens into a readable string, avoiding spaces before punctuation.
+    This is used only when truncating to max words.
+    """
+    if not tokens:
+        return ""
+    out: List[str] = []
+    for tok in tokens:
+        if not out:
+            out.append(tok)
+            continue
+        # No space before punctuation tokens
+        if re.fullmatch(r"[^\w\s]", tok, flags=re.UNICODE):
+            out[-1] += tok
+        else:
+            out.append(" " + tok)
+    return "".join(out).strip()
+
+
 def is_emoji(char: str) -> bool:
     if not char:
         return False
@@ -1748,9 +1768,6 @@ def detect_self_harm_risk(text: str, humor_score: float = 0.0) -> str:
     if hard_hits >= 2:
         return "severe"
     if hard_hits == 1:
-        # if humor is very high we downgrade slightly
-        if humor_score > 0.7:
-            return "likely"
         return "likely"
 
     # only soft idioms
@@ -1804,7 +1821,6 @@ def compute_humor_score(text: str, tokens: List[str]) -> float:
     laugh_score = min(1.0, (laugh_count + emoji_laugh * 1.5) / 4.0)
     hyperbole_score = min(1.0, hyperbole * 0.6)
 
-    # mild boost if lots of exclamation plus emojis
     exclam = t.count("!")
     exclam_score = min(1.0, exclam / 6.0)
 
@@ -1872,10 +1888,7 @@ def compute_sarcasm_probability(
         if pos > 0.25 and neg > 0.25:
             score += 0.2
 
-    # rhetorical questions add a bit of sarcasm sometimes
     score += 0.25 * min(1.0, rhetorical_score)
-
-    # pure humor without negativity reduces sarcasm slightly
     score -= 0.2 * humor_score
 
     return max(0.0, min(1.0, score))
@@ -2020,7 +2033,6 @@ def _scale_word_intensity(lang: str, words: List[str], factor: float) -> None:
                 table[base][e] = table[base].get(e, 0.0) * factor
 
 
-# simple tiering for some key extremes and mild words
 _scale_word_intensity("en", ["furious", "livid", "outraged", "devastated"], 1.5)
 _scale_word_intensity("en", ["annoyed", "irritated", "upset"], 0.7)
 _scale_word_intensity("es", ["furioso", "furiosa", "luto"], 1.4)
@@ -2033,12 +2045,12 @@ def _semantic_guess(lang: str, token_norm: str) -> Dict[str, float]:
     table = LEXICON_TOKEN.get(lang, {})
     tri_index = LEXICON_TRIGRAMS.get(lang, {})
     if not table or not tri_index:
-        return _vec()
+        return {}
     if len(token_norm) < 4:
-        return _vec()
+        return {}
     t_tri = _compute_trigrams(token_norm)
     if not t_tri:
-        return _vec()
+        return {}
     best_score = 0.0
     best_token = None
     set_t = set(t_tri)
@@ -2055,7 +2067,7 @@ def _semantic_guess(lang: str, token_norm: str) -> Dict[str, float]:
             best_score = sim
             best_token = lex_token
     if not best_token or best_score < 0.45:
-        return _vec()
+        return {}
     base_vec = table[best_token]
     return {e: base_vec.get(e, 0.0) * best_score * 0.6 for e in EMOTIONS}
 
@@ -2172,14 +2184,12 @@ def apply_valence_aware_negation(base_vec: Dict[str, float]) -> Dict[str, float]
         return base_vec
     new_vec = dict(base_vec)
     if pos > neg:
-        # negate positive feeling: less joy, more sadness and mild fear or anger
         for e in ("joy", "passion", "surprise"):
             new_vec[e] *= 0.3
         new_vec["sadness"] += pos * 0.45
         new_vec["fear"] += pos * 0.25
         new_vec["anger"] += pos * 0.1
     else:
-        # negate negative feeling: some relief
         for e in ("anger", "sadness", "fear", "disgust"):
             new_vec[e] *= 0.4
         relief = neg * 0.55
@@ -2249,7 +2259,6 @@ def apply_temporal_modulation(
         factor = 1.0 - min(0.35, 0.12 * resolve)
         out["sadness"] *= factor
         out["fear"] *= factor
-        # a little relief
         out["joy"] *= 1.0 + min(0.25, 0.10 * resolve)
     elif persist > resolve and persist > 0:
         factor = 1.0 + min(0.25, 0.10 * persist)
@@ -2278,18 +2287,14 @@ def apply_emotion_interactions(
         out[from_e] = max(0.0, a - delta)
         out[to_e] = b + delta
 
-    # joy plus surprise -> more surprise
     if out.get("joy", 0.0) > 0.12 and out.get("surprise", 0.0) > 0.12:
         shift("joy", "surprise", 0.25)
 
-    # anger plus fear -> tilt toward fear defensive vibe
     if out.get("anger", 0.0) > 0.12 and out.get("fear", 0.0) > 0.12:
         shift("anger", "fear", 0.3)
 
-    # passion plus sadness for missing someone
     if any(p in text_lower for p in ["i miss you", "missing you", "te extraño", "te extraño mucho", "saudade", "sinto sua falta"]):
         if out.get("sadness", 0.0) > 0 and out.get("passion", 0.0) > 0:
-            # keep passion alive but push sadness a bit higher by borrowing from joy or surprise
             borrow = 0.2 * min(out["sadness"], out["passion"])
             donor = "joy" if out.get("joy", 0.0) >= out.get("surprise", 0.0) else "surprise"
             if out.get(donor, 0.0) >= borrow:
@@ -2328,11 +2333,9 @@ def apply_plausibility_constraints(
     total = sum(out.values())
     if total <= 0:
         return out
-    share = {e: out[e] / total for e in EMOTIONS}
     joy = out.get("joy", 0.0)
     sad = out.get("sadness", 0.0)
     bittersweet_flag = any(k in text_lower for k in ["bittersweet", "agridulce", "agridoce", "sentimento agridoce"])
-    # unrealistic extreme joy and sadness without bittersweet cues
     if joy > 0.45 * total and sad > 0.45 * total and not bittersweet_flag:
         if joy >= sad:
             out["sadness"] *= 0.55
@@ -2364,7 +2367,6 @@ def soft_cap_single_word_dominance(
         return out
     max_val = max(out.values())
     if word_count <= 4 and max_val > 0.75 * total:
-        # prevent a single short word from saturating
         cap = 0.75 * total
         factor = cap / max_val
         for e in EMOTIONS:
@@ -2395,17 +2397,14 @@ def adjust_for_speaker_target(
 ) -> Dict[str, float]:
     out = dict(intensity)
     if target == "self":
-        # more sadness, a bit less external anger
         boost = out.get("anger", 0.0) * 0.5
         out["anger"] *= 0.6
         out["sadness"] += boost * 0.7
         out["fear"] += boost * 0.3
     elif target == "other":
-        # sharper anger versus sadness
         out["anger"] *= 1.15
         out["sadness"] *= 0.9
     elif target == "world":
-        # more generalized sadness and fear
         out["fear"] *= 1.05
         out["sadness"] *= 1.05
     return out
@@ -2451,12 +2450,11 @@ class EmotionDetector:
                     if wc >= self.max_words:
                         break
             tokens = trimmed_tokens
-            text = "".join(tokens)
+            text = _reconstruct_text(tokens)
             word_count = self.max_words
 
         lang_props = detect_language_proportions(text)
 
-        all_negations = set().union(*NEGATIONS.values())
         all_intens = set().union(*INTENSIFIERS.values())
         all_dimins = set().union(*DIMINISHERS.values())
         all_contrast = set().union(*CONTRAST_WORDS.values())
@@ -2489,7 +2487,6 @@ class EmotionDetector:
             if len(tok) == 1 and is_emoji(tok):
                 strong_emoji_count += 1
 
-        # Global phrase, rhetorical, metaphor and emoticon contributions
         R_global = {e: 0.0 for e in EMOTIONS}
         text_lower = text.lower()
 
@@ -2528,7 +2525,6 @@ class EmotionDetector:
 
         R = {e: R_global[e] for e in EMOTIONS}
 
-        # humor, dialect, temporal cues can be computed early
         humor_score = compute_humor_score(text, tokens)
         dialect_label, dialect_conf, dialect_scores = detect_dialect(tokens, lang_props)
         temporal_cues = compute_temporal_cues(tokens, text_lower)
@@ -2546,7 +2542,7 @@ class EmotionDetector:
                 continue
 
             base_vec = {e: 0.0 for e in EMOTIONS}
-            # language and dialect routing plus semantic clustering
+
             for lang, weight in lang_props.items():
                 if lang not in LEXICON_TOKEN or weight <= 0:
                     continue
@@ -2586,11 +2582,9 @@ class EmotionDetector:
             if all(val == 0.0 for val in base_vec.values()):
                 continue
 
-            # per token scaling
             alpha = 1.0
             self_focus_factor = 1.0
 
-            # use clause weights
             clause_weight = 1.0
             if contrast_index >= 0:
                 if i > contrast_index:
@@ -2676,7 +2670,6 @@ class EmotionDetector:
             boosted = R[e] * (1.0 + AROUSAL_BETA[e] * A)
             R_boosted[e] = max(0.0, boosted)
 
-        # Optional domain adjustments
         domain_key = (domain or "").lower().strip()
         if domain_key:
             for key, mults in DOMAIN_MULTIPLIERS.items():
@@ -2691,7 +2684,6 @@ class EmotionDetector:
         else:
             share0 = {e: R_boosted[e] / total_strength for e in EMOTIONS}
 
-        # Global intensity base with soft saturation.
         if total_strength <= 0:
             global_intensity_base = 0.0
         else:
@@ -2699,7 +2691,6 @@ class EmotionDetector:
 
         global_intensity_base = max(0.0, min(global_intensity_base, 0.995))
 
-        # Certainty and uncertainty scaling based on language markers and punctuation.
         uncertainty_score = min(1.0, uncertainty_count / 4.0) + 0.4 * q_n
         certainty_score = min(1.0, certainty_count / 4.0) + 0.6 * ex_n
         net_certainty = max(-1.0, min(1.0, certainty_score - uncertainty_score))
@@ -2710,38 +2701,24 @@ class EmotionDetector:
         global_intensity = global_intensity_base * certainty_adjust
         global_intensity = max(0.0, min(global_intensity, 0.995))
 
-        # Neutral gate so weak, ambiguous signals stay low
         max_share0 = max(share0.values()) if share0 else 0.0
         if global_intensity < 0.12 and max_share0 < 0.45:
             global_intensity *= 0.7
             global_intensity = max(0.0, min(global_intensity, 0.995))
 
-        # initial intensity
         intensity = {e: share0[e] * global_intensity for e in EMOTIONS}
 
-        # temporal modulation
         intensity = apply_temporal_modulation(intensity, temporal_cues)
-
-        # emotion interactions
         intensity = apply_emotion_interactions(intensity, text_lower)
 
-        # adjust for speaker target
         speaker_target = detect_speaker_target(text_lower)
         intensity = adjust_for_speaker_target(intensity, speaker_target)
 
-        # fairness and dialect bias control
         intensity = apply_bias_fairness(intensity, dialect_label, profanity_count, humor_score)
-
-        # plausibility constraints on extreme mixtures
         intensity = apply_plausibility_constraints(intensity, text_lower)
-
-        # blend with previous context if provided
         intensity = blend_with_context(intensity, prev_mixture, decay=0.7)
-
-        # soft cap for short texts
         intensity = soft_cap_single_word_dominance(intensity, word_count)
 
-        # recompute final global intensity from mixture, clamp to 1
         final_global_intensity = sum(intensity.values())
         if final_global_intensity > 1.0:
             scale = 1.0 / final_global_intensity
@@ -2749,14 +2726,12 @@ class EmotionDetector:
                 intensity[e] *= scale
             final_global_intensity = 1.0
 
-        # if everything zero, revert to neutral share
         if final_global_intensity <= 0:
             intensity = {e: 0.0 for e in EMOTIONS}
             mixture_share = {e: 1.0 / len(EMOTIONS) for e in EMOTIONS}
         else:
             mixture_share = {e: intensity[e] / final_global_intensity for e in EMOTIONS}
 
-        # Valence and polarity metrics
         positive_intensity = (
             intensity.get("joy", 0.0)
             + intensity.get("passion", 0.0)
