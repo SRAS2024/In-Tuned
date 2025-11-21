@@ -1,5 +1,5 @@
 # detector/detector.py
-# High fidelity local emotion detector v13-espt
+# High fidelity local emotion detector v14-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 
 from __future__ import annotations
@@ -106,7 +106,9 @@ _register_words(
         "mad",
         "furious",
         "irritated",
+        "irritating",
         "annoyed",
+        "annoying",
         "pissed",
         "pissedoff",
         "rage",
@@ -118,7 +120,10 @@ _register_words(
         "resent",
         "resentful",
         "frustrated",
+        "frustrating",
         "upset",
+        "fuming",
+        "outraged",
     ],
     2.2,
 )
@@ -136,6 +141,7 @@ _register_words(
         "sickened",
         "queasy",
         "repulsed",
+        "repulsive",
         "yuck",
         "ew",
         "eww",
@@ -155,11 +161,15 @@ _register_words(
         "anxiety",
         "worried",
         "worry",
+        "concerned",
+        "concern",
         "panic",
         "panicking",
         "petrified",
         "nervous",
         "frightened",
+        "overthinking",
+        "paranoid",
     ],
     2.2,
 )
@@ -175,12 +185,17 @@ _register_words(
         "thankful",
         "delighted",
         "excited",
+        "ecstatic",
+        "overjoyed",
         "hyped",
         "hype",
         "joyful",
         "joy",
         "content",
         "satisfied",
+        "relieved",
+        "hopeful",
+        "peaceful",
         "smiling",
         "smile",
         "lol",
@@ -204,6 +219,7 @@ _register_words(
         "cutie",
         "loveit",
         "lovethis",
+        "blessed",
     ],
     2.0,
 )
@@ -218,6 +234,7 @@ _register_words(
         "depressed",
         "unhappy",
         "miserable",
+        "devastated",
         "heartbroken",
         "heartache",
         "lonely",
@@ -235,6 +252,13 @@ _register_words(
         "burnedout",
         "burntout",
         "burntout",
+        "empty",
+        "numb",
+        "broken",
+        "lost",
+        "exhausted",
+        "hopeless",
+        "overwhelmed",
     ],
     2.2,
 )
@@ -263,6 +287,8 @@ _register_words(
         "ship",
         "ships",
         "thirsty",
+        "infatuated",
+        "devoted",
     ],
     2.3,
 )
@@ -278,6 +304,7 @@ _register_words(
         "omg",
         "omfg",
         "cantbelieve",
+        "cannotbelieve",
         "unexpected",
         "nooo",
         "what",
@@ -297,7 +324,6 @@ _register_words(
         "salty",
         "pressed",
         "triggered",
-        "annoying",
         "ugh",
         "smh",
         "livid",
@@ -309,6 +335,7 @@ _register_words(
         "idiots",
         "clown",
         "clowns",
+        "bullshit",
     ],
     1.8,
 )
@@ -325,6 +352,8 @@ _register_words(
         "freaked",
         "freakingout",
         "lowkey_scared",
+        "stressed",
+        "stressful",
     ],
     1.8,
 )
@@ -332,7 +361,6 @@ _register_words(
     "en",
     "joy",
     [
-        "blessed",
         "stoked",
         "pumped",
         "vibing",
@@ -354,17 +382,15 @@ _register_words(
     "en",
     "sadness",
     [
-        "empty",
-        "numb",
-        "broken",
-        "lost",
-        "exhausted",
         "burnt",
         "burntout",
         "burnedout",
         "heartbroken",
         "drained",
-        "hopeless",
+        "notokay",
+        "not_okay",
+        "notfine",
+        "not_fine",
     ],
     1.9,
 )
@@ -418,6 +444,8 @@ _register_words(
         "frustrada",
         "recaliente",
         "hinchado",
+        "harta",
+        "harto",
     ],
     2.2,
 )
@@ -434,6 +462,7 @@ _register_words(
         "me_da_asco",
         "cringe",
         "cringi",
+        "guacala",
     ],
     2.1,
 )
@@ -454,9 +483,12 @@ _register_words(
         "nervioso",
         "nerviosa",
         "pánico",
+        "panico",
         "peligro",
         "tenso",
         "tensa",
+        "estresado",
+        "estresada",
     ],
     2.2,
 )
@@ -489,6 +521,7 @@ _register_words(
         "encanta",
         "buenisimo",
         "buenísimo",
+        "felicidad",
     ],
     2.0,
 )
@@ -513,6 +546,12 @@ _register_words(
         "depre",
         "bajoneado",
         "bajoneada",
+        "vacío",
+        "vacio",
+        "rota",
+        "roto",
+        "apagado",
+        "apagada",
     ],
     2.2,
 )
@@ -536,6 +575,7 @@ _register_words(
         "te_amo",
         "me_fascina",
         "me_encantas",
+        "te_adoro",
     ],
     2.3,
 )
@@ -547,6 +587,7 @@ _register_words(
         "sorprendida",
         "choqueado",
         "impactado",
+        "impactada",
         "wow",
         "guau",
         "no_lo_creo",
@@ -569,9 +610,9 @@ _register_words(
         "rayada",
         "encabronado",
         "encabronada",
-        "harto",
-        "harta",
         "bronca",
+        "ardido",
+        "ardida",
     ],
     2.1,
 )
@@ -579,7 +620,6 @@ _register_words(
     "es",
     "joy",
     [
-        "felicidad",
         "chevere",
         "chévere",
         "chido",
@@ -602,14 +642,10 @@ _register_words(
     [
         "desanimado",
         "desanimada",
-        "vacío",
-        "vacio",
-        "rota",
-        "roto",
-        "destrozado",
-        "destrozada",
         "apagado",
         "apagada",
+        "hundido",
+        "hundida",
     ],
     1.9,
 )
@@ -626,6 +662,7 @@ _register_words(
         "corazón",
         "tesoro",
         "cosita",
+        "amor_de_mi_vida",
     ],
     2.1,
 )
@@ -691,6 +728,8 @@ _register_words(
         "panico",
         "tenso",
         "tensa",
+        "estressado",
+        "estressada",
     ],
     2.2,
 )
@@ -727,6 +766,7 @@ _register_words(
         "maravilhosa",
         "perfeito",
         "perfeita",
+        "felicidade",
     ],
     2.0,
 )
@@ -753,6 +793,12 @@ _register_words(
         "chateada",
         "bad",
         "na_bad",
+        "abalado",
+        "abalada",
+        "desanimado",
+        "desanimada",
+        "mal",
+        "pra_baixo",
     ],
     2.2,
 )
@@ -823,14 +869,8 @@ _register_words(
     "pt",
     "sadness",
     [
-        "abalado",
-        "abalada",
-        "desanimado",
-        "desanimada",
         "nao_to_bem",
         "não_to_bem",
-        "mal",
-        "pra_baixo",
     ],
     1.9,
 )
@@ -876,6 +916,7 @@ _register_words(
         "tired",
         "overwhelmed",
         "overwhelming",
+        "draining",
     ],
     1.3,
 )
@@ -947,6 +988,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "rough day": _vec(sadness=2.0),
     "hard day": _vec(sadness=2.0),
     "tough day": _vec(sadness=2.0),
+    "long day": _vec(sadness=1.6, fatigue=0.0),
     "not the easiest week": _vec(sadness=2.3, fear=0.7),
     "not an easy week": _vec(sadness=2.0, fear=0.7),
     "lowkey happy": _vec(joy=1.5, sadness=0.5),
@@ -960,6 +1002,20 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "proud of you": _vec(joy=1.6, passion=0.6),
     "all good now": _vec(joy=1.4, sadness=0.3),
     "it is okay now": _vec(joy=1.2, sadness=0.4),
+    "i am not ok": _vec(sadness=2.5, fear=0.7),
+    "im not ok": _vec(sadness=2.5, fear=0.7),
+    "i am not okay": _vec(sadness=2.5, fear=0.7),
+    "im not okay": _vec(sadness=2.5, fear=0.7),
+    "not doing great": _vec(sadness=2.3),
+    "not doing so great": _vec(sadness=2.3),
+    "not feeling great": _vec(sadness=2.2),
+    "i feel empty": _vec(sadness=2.7),
+    "i feel alone": _vec(sadness=2.7),
+    "i miss you": _vec(sadness=2.2, passion=1.0),
+    "missing you": _vec(sadness=2.0, passion=1.0),
+    "feeling blessed": _vec(joy=2.0, passion=0.5),
+    "grateful for you": _vec(joy=1.8, passion=0.8),
+    "in love with you": _vec(passion=2.7, joy=1.3),
     # Spanish
     "no aguanto más": _vec(anger=1.5, sadness=2.0),
     "no aguanto mas": _vec(anger=1.5, sadness=2.0),
@@ -975,6 +1031,13 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "te quiero mucho": _vec(passion=2.3, joy=1.0),
     "te amo mucho": _vec(passion=2.5, joy=1.2),
     "todo bien ahora": _vec(joy=1.4, sadness=0.4),
+    "no estoy bien": _vec(sadness=2.5, fear=0.7),
+    "no me siento bien": _vec(sadness=2.5, fear=0.7),
+    "me siento mal": _vec(sadness=2.2, fear=0.6),
+    "me siento solo": _vec(sadness=2.5),
+    "me siento sola": _vec(sadness=2.5),
+    "te extraño mucho": _vec(sadness=2.4, passion=1.0),
+    "te extraño": _vec(sadness=2.0, passion=0.8),
     # Portuguese
     "não aguento mais": _vec(anger=1.5, sadness=2.0),
     "nao aguento mais": _vec(anger=1.5, sadness=2.0),
@@ -990,6 +1053,13 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "te amo muito": _vec(passion=2.5, joy=1.2),
     "te amo demais": _vec(passion=2.5, joy=1.3),
     "tudo bem agora": _vec(joy=1.4, sadness=0.4),
+    "não estou bem": _vec(sadness=2.5, fear=0.7),
+    "nao estou bem": _vec(sadness=2.5, fear=0.7),
+    "nao to bem": _vec(sadness=2.5, fear=0.7),
+    "não to bem": _vec(sadness=2.5, fear=0.7),
+    "me sinto mal": _vec(sadness=2.2, fear=0.6),
+    "sinto sua falta": _vec(sadness=2.4, passion=1.0),
+    "morro de saudade": _vec(sadness=2.5, passion=1.1),
 }
 
 # Emoticons and text faces, applied as patterns on the raw text
@@ -1025,6 +1095,8 @@ INTENSIFIERS = {
         "lowkey",
         "crazy",
         "crazyyy",
+        "mega",
+        "ultra",
     },
     "es": {"muy", "re", "súper", "super", "demasiado", "tan"},
     "pt": {"muito", "super", "demais", "tão", "tao", "pra", "bastante"},
@@ -1110,11 +1182,19 @@ CERTAINTY_WORDS = {
     "pt": {"com_certeza", "certeza", "claro", "obvio", "óbvio"},
 }
 
+# Feel / experience markers to boost nearby adjectives
+FEEL_MARKERS = {
+    "en": {"feel", "feeling", "felt", "feelings"},
+    "es": {"siento", "sentir", "sentido", "sintiendo", "me_siento"},
+    "pt": {"sinto", "sentir", "sentido", "sentindo", "me_sinto"},
+}
+FEEL_MARKERS_ALL = set().union(*FEEL_MARKERS.values())
+
 # Language function words for detection
 LANG_FUNCTION_WORDS = {
     "en": {"the", "and", "is", "am", "are", "you", "i", "my", "me", "it", "of", "to", "in"},
     "es": {"el", "la", "los", "las", "y", "es", "soy", "eres", "estoy", "yo", "tú", "tu", "mi", "me"},
-    "pt": {"o", "a", "os", "as", "e", "é", "e", "sou", "estou", "você", "voce", "eu", "meu", "minha"},
+    "pt": {"o", "a", "os", "as", "e", "é", "sou", "estou", "você", "voce", "eu", "meu", "minha"},
 }
 
 # Self vs other pronoun hints
@@ -1309,9 +1389,19 @@ def detect_language_proportions(text: str) -> Dict[str, float]:
 
     for tok in tokens:
         base = join_for_lex(tok)
+
+        # Function words as strong hints
         for lang, fn_words in LANG_FUNCTION_WORDS.items():
             if base in fn_words:
                 scores[lang] += 1.5
+
+        # Direct emotional lexicon hits as language hints
+        for lang in ("en", "es", "pt"):
+            table = LEXICON_TOKEN.get(lang, {})
+            if base in table:
+                scores[lang] += 0.9
+
+        # Character based hints
         if "ñ" in tok or "¿" in tok or "¡" in tok:
             scores["es"] += 1.2
         if any(ch in tok for ch in ["ã", "õ", "ç", "ê", "ô", "á", "é", "í", "ó", "ú"]):
@@ -1754,6 +1844,9 @@ class EmotionDetector:
                     self_focus_factor = max(self_focus_factor, 1.2)
                 if prev_norm in OTHER_PRONOUNS_ALL and self_focus_factor == 1.0:
                     self_focus_factor = 0.9
+                if prev_norm in FEEL_MARKERS_ALL:
+                    alpha += 0.2
+                    self_focus_factor = max(self_focus_factor, 1.3)
                 if tokens[j] in {".", "!", "?"}:
                     break
                 j -= 1
