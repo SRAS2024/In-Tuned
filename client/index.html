@@ -14,7 +14,7 @@
   </head>
   <body>
     <div class="wrap">
-      <div class="topbar">
+      <header class="topbar">
         <div class="brand" aria-label="In tuned home">
           <div class="logo" aria-hidden="true">
             <div class="mark" aria-hidden="true"></div>
@@ -67,8 +67,9 @@
                     <span
                       class="modeDotLabel"
                       data-i18n="settingsThemeLabel"
-                      >Theme</span
                     >
+                      Theme
+                    </span>
                     <div class="modeDotTrack" aria-hidden="true">
                       <div class="modeDotThumb"></div>
                     </div>
@@ -114,130 +115,133 @@
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <h1 data-i18n="headline">Emotion detector</h1>
-      <p class="subtitle" data-i18n="subtitle">
-        A simple space to notice what you are feeling across seven core
-        emotions.
-      </p>
+      <main>
+        <h1 data-i18n="headline">Emotion detector</h1>
+        <p class="subtitle" data-i18n="subtitle">
+          A simple space to notice what you are feeling across seven core
+          emotions.
+        </p>
 
-      <section class="grid">
-        <div class="card">
-          <label for="text" data-i18n="inputLabel">Text</label>
-          <textarea
-            id="text"
-            aria-label="Text to analyze"
-            data-i18n-placeholder="inputPlaceholder"
-            placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."
-          ></textarea>
-
-          <div class="row">
-            <button
-              id="analyze"
-              class="btn"
-              data-i18n="analyzeButton"
-            >
-              Analyze
-            </button>
-            <span
-              id="wordInfo"
-              data-i18n="wordInfoDefault"
-            >
-              250 word maximum
-            </span>
-            <span
-              id="emojiTray"
-              class="emojiInline"
-              aria-live="polite"
-              title="Emotion"
-              >🤔</span
-            >
-            <span id="status" class="status" aria-live="polite"></span>
-          </div>
-
-          <div
-            class="card chartCard"
-            aria-label="Core mixture bar chart"
-          >
-            <div
-              class="panelTitle"
-              data-i18n="coreMixtureTitle"
-            >
-              Core mixture
-            </div>
-            <div id="bars"></div>
-          </div>
-        </div>
-
-        <div class="stack">
+        <section class="grid" aria-label="Emotion analysis layout">
           <div class="card">
-            <div
-              class="panelTitle"
-              data-i18n="analysisTitle"
-            >
-              Analysis
+            <label for="text" data-i18n="inputLabel">Text</label>
+            <textarea
+              id="text"
+              aria-label="Text to analyze"
+              data-i18n-placeholder="inputPlaceholder"
+              placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."
+            ></textarea>
+
+            <div class="row">
+              <button
+                id="analyze"
+                class="btn"
+                data-i18n="analyzeButton"
+              >
+                Analyze
+              </button>
+              <span
+                id="wordInfo"
+                data-i18n="wordInfoDefault"
+              >
+                250 word maximum
+              </span>
+              <span
+                id="emojiTray"
+                class="emojiInline"
+                aria-live="polite"
+                title="Emotion"
+              >
+                🤔
+              </span>
+              <span id="status" class="status" aria-live="polite"></span>
             </div>
-            <div class="kv">
-              <div class="pill" data-emotion-label="anger">Anger</div>
-              <div class="value" id="v-anger">0.000</div>
 
-              <div class="pill" data-emotion-label="disgust">
-                Disgust
+            <div
+              class="card chartCard"
+              aria-label="Core mixture bar chart"
+            >
+              <div
+                class="panelTitle"
+                data-i18n="coreMixtureTitle"
+              >
+                Core mixture
               </div>
-              <div class="value" id="v-disgust">0.000</div>
-
-              <div class="pill" data-emotion-label="fear">Fear</div>
-              <div class="value" id="v-fear">0.000</div>
-
-              <div class="pill" data-emotion-label="joy">Joy</div>
-              <div class="value" id="v-joy">0.000</div>
-
-              <div class="pill" data-emotion-label="sadness">
-                Sadness
-              </div>
-              <div class="value" id="v-sadness">0.000</div>
-
-              <div class="pill" data-emotion-label="passion">
-                Passion
-              </div>
-              <div class="value" id="v-passion">0.000</div>
-
-              <div class="pill" data-emotion-label="surprise">
-                Surprise
-              </div>
-              <div class="value" id="v-surprise">0.000</div>
+              <div id="bars"></div>
             </div>
           </div>
 
-          <div class="card">
-            <div
-              class="panelTitle"
-              data-i18n="resultsTitle"
-            >
-              Results
+          <div class="stack">
+            <div class="card">
+              <div
+                class="panelTitle"
+                data-i18n="analysisTitle"
+              >
+                Analysis
+              </div>
+              <div class="kv">
+                <div class="pill" data-emotion-label="anger">Anger</div>
+                <div class="value" id="v-anger">0.000</div>
+
+                <div class="pill" data-emotion-label="disgust">
+                  Disgust
+                </div>
+                <div class="value" id="v-disgust">0.000</div>
+
+                <div class="pill" data-emotion-label="fear">Fear</div>
+                <div class="value" id="v-fear">0.000</div>
+
+                <div class="pill" data-emotion-label="joy">Joy</div>
+                <div class="value" id="v-joy">0.000</div>
+
+                <div class="pill" data-emotion-label="sadness">
+                  Sadness
+                </div>
+                <div class="value" id="v-sadness">0.000</div>
+
+                <div class="pill" data-emotion-label="passion">
+                  Passion
+                </div>
+                <div class="value" id="v-passion">0.000</div>
+
+                <div class="pill" data-emotion-label="surprise">
+                  Surprise
+                </div>
+                <div class="value" id="v-surprise">0.000</div>
+              </div>
             </div>
 
-            <div class="meta metaPrimary">
+            <div class="card">
               <div
-                class="label"
-                data-i18n="resultsDominantLabel"
+                class="panelTitle"
+                data-i18n="resultsTitle"
               >
-                Dominant
+                Results
               </div>
-              <div class="value" id="v-dominant">N/A</div>
 
-              <div
-                class="label"
-                data-i18n="resultsEmotionLabel"
-              >
-                Current emotion
+              <div class="meta metaPrimary">
+                <div
+                  class="label"
+                  data-i18n="resultsDominantLabel"
+                >
+                  Dominant
+                </div>
+                <div class="value" id="v-dominant">N/A</div>
+
+                <div
+                  class="label"
+                  data-i18n="resultsEmotionLabel"
+                >
+                  Current emotion
+                </div>
+                <div class="value" id="v-emotion">N/A</div>
               </div>
-              <div class="value" id="v-emotion">N/A</div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <footer data-i18n="footer">
         © 2025 In tuned. All rights reserved.
@@ -314,9 +318,9 @@
             id="crisisHotline"
             class="btnLink"
           >
-            <span data-i18n="crisisHotlineCta"
-              >Contact suicide hotline</span
-            >
+            <span data-i18n="crisisHotlineCta">
+              Contact suicide hotline
+            </span>
             ·
             <span id="crisisHotlineNumber">988</span>
           </a>
@@ -325,17 +329,14 @@
             id="crisisEmergency"
             class="ghostLink"
           >
-            <span data-i18n="crisisEmergencyCta"
-              >Contact emergency services</span
-            >
+            <span data-i18n="crisisEmergencyCta">
+              Contact emergency services
+            </span>
             ·
             <span id="crisisEmergencyNumber">911</span>
           </a>
         </div>
-        <div
-          class="actions"
-          style="justify-content:flex-start;margin-top:1rem;"
-        >
+        <div class="actions">
           <button
             id="closeCrisis"
             class="ghost"
