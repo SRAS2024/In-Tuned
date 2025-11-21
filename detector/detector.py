@@ -2346,7 +2346,7 @@ def apply_temporal_modulation(
 
 def apply_emotion_interactions(
     intensity: Dict[str, float],
-    text_lower: str,
+    text_norm: str,
 ) -> Dict[str, float]:
     """Synergy and inhibition between emotions, mass preserving."""
     out = dict(intensity)
@@ -2368,7 +2368,14 @@ def apply_emotion_interactions(
     if out.get("anger", 0.0) > 0.12 and out.get("fear", 0.0) > 0.12:
         shift("anger", "fear", 0.3)
 
-    if any(p in text_lower for p in ["i miss you", "missing you", "te extrano", "saudade", "sinto sua falta"]):
+    miss_you_cues = [
+        "i miss you",
+        "missing you",
+        "te extrano",
+        "saudade",
+        "sinto sua falta",
+    ]
+    if any(p in text_norm for p in miss_you_cues):
         if out.get("sadness", 0.0) > 0 and out.get("passion", 0.0) > 0:
             borrow = 0.2 * min(out["sadness"], out["passion"])
             donor = "joy" if out.get("joy", 0.0) >= out.get("surprise", 0.0) else "surprise"
@@ -2402,7 +2409,7 @@ def apply_bias_fairness(
 
 def apply_plausibility_constraints(
     intensity: Dict[str, float],
-    text_lower: str,
+    text_norm: str,
 ) -> Dict[str, float]:
     out = dict(intensity)
     total = sum(out.values())
@@ -2410,7 +2417,7 @@ def apply_plausibility_constraints(
         return out
     joy = out.get("joy", 0.0)
     sad = out.get("sadness", 0.0)
-    bittersweet_flag = any(k in text_lower for k in ["bittersweet", "agridulce", "agridoce", "sentimento agridoce"])
+    bittersweet_flag = any(k in text_norm for k in ["bittersweet", "agridulce", "agridoce", "sentimento agridoce"])
     if joy > 0.45 * total and sad > 0.45 * total and not bittersweet_flag:
         if joy >= sad:
             out["sadness"] *= 0.55
@@ -2580,11 +2587,12 @@ class EmotionDetector:
 
         rhetorical_score = 0.0
 
-        # Phrase lexicon with normalized matching and multi-hit counting.
+        # Phrase lexicon with normalized matching, boundary guarding, and multi-hit counting.
         for phrase_norm, vec in PHRASE_LEXICON_NORM.items():
             if not phrase_norm:
                 continue
-            hits = len(list(re.finditer(re.escape(phrase_norm), text_phrase_norm)))
+            phrase_pat = re.compile(rf"(?<!\w){re.escape(phrase_norm)}(?!\w)")
+            hits = len(list(phrase_pat.finditer(text_phrase_norm)))
             if hits > 0:
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0) * hits
@@ -2594,16 +2602,24 @@ class EmotionDetector:
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0)
 
+        # Rhetorical patterns checked on raw and normalized text, without double counting.
         for pat, vec, weight in RHETORICAL_PATTERNS:
-            for _m in pat.finditer(text_lower):
-                rhetorical_score += weight
+            raw_matches = list(pat.finditer(text_lower))
+            norm_matches = list(pat.finditer(text_phrase_norm))
+            count = max(len(raw_matches), len(norm_matches))
+            if count > 0:
+                rhetorical_score += weight * count
                 for e in EMOTIONS:
-                    R_global[e] += vec.get(e, 0.0)
+                    R_global[e] += vec.get(e, 0.0) * count
 
+        # Metaphor patterns checked on raw and normalized text, without double counting.
         for pat, vec in METAPHOR_PATTERNS:
-            for _m in pat.finditer(text_lower):
+            raw_matches = list(pat.finditer(text_lower))
+            norm_matches = list(pat.finditer(text_phrase_norm))
+            count = max(len(raw_matches), len(norm_matches))
+            if count > 0:
                 for e in EMOTIONS:
-                    R_global[e] += vec.get(e, 0.0)
+                    R_global[e] += vec.get(e, 0.0) * count
 
         contrast_index, conditional_indices = compute_clause_features(tokens)
         negated_indices = compute_negation_scope(tokens)
@@ -2797,13 +2813,13 @@ class EmotionDetector:
         intensity = {e: share0[e] * global_intensity for e in EMOTIONS}
 
         intensity = apply_temporal_modulation(intensity, temporal_cues)
-        intensity = apply_emotion_interactions(intensity, text_lower)
+        intensity = apply_emotion_interactions(intensity, text_phrase_norm)
 
         speaker_target = detect_speaker_target(text_lower)
         intensity = adjust_for_speaker_target(intensity, speaker_target)
 
         intensity = apply_bias_fairness(intensity, dialect_label, profanity_count, humor_score)
-        intensity = apply_plausibility_constraints(intensity, text_lower)
+        intensity = apply_plausibility_constraints(intensity, text_phrase_norm)
         intensity = blend_with_context(intensity, prev_mixture, decay=0.7)
         intensity = soft_cap_single_word_dominance(intensity, word_count)
 
@@ -2989,4 +3005,23 @@ _DEFAULT_DETECTOR = EmotionDetector()
 def analyze_text(
     text: str,
     domain: Optional[str] = None,
-    prev_mixture: Optional[Dict[str, float]] = N_
+    prev_mixture: Optional[Dict[str, float]] = None,
+) -> DetectorOutput:
+    """
+    Convenience wrapper for one shot analysis.
+    """
+    return _DEFAULT_DETECTOR.analyze(
+        text=text,
+        domain=domain,
+        prev_mixture=prev_mixture,
+    )
+
+
+__all__ = [
+    "EMOTIONS",
+    "InvalidTextError",
+    "EmotionResult",
+    "DetectorOutput",
+    "EmotionDetector",
+    "analyze_text",
+]
