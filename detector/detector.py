@@ -1,5 +1,5 @@
 # detector/detector.py
-# High fidelity local emotion detector v14-espt
+# High fidelity local emotion detector v15-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 
 from __future__ import annotations
@@ -974,6 +974,91 @@ _register_words(
     1.5,
 )
 
+# Grief, loss and bittersweet nuance across languages
+_register_words(
+    "en",
+    "sadness",
+    [
+        "bittersweet",
+        "pain",
+        "painful",
+        "hurt",
+        "hurts",
+        "hurting",
+        "absence",
+        "gone",
+        "losing",
+        "loss",
+        "mourning",
+        "mourn",
+        "mourned",
+        "linger",
+        "lingers",
+        "lingering",
+        "passed",
+        "funeral",
+    ],
+    1.9,
+)
+_register_words(
+    "en",
+    "joy",
+    [
+        "bittersweet",
+    ],
+    0.9,
+)
+_register_words(
+    "es",
+    "sadness",
+    [
+        "duelo",
+        "luto",
+        "perdida",
+        "perdido",
+        "perdimos",
+        "perdí",
+        "falleció",
+        "fallecio",
+        "se_fue",
+        "ausencia",
+        "agridulce",
+    ],
+    1.9,
+)
+_register_words(
+    "es",
+    "joy",
+    [
+        "agridulce",
+    ],
+    0.8,
+)
+_register_words(
+    "pt",
+    "sadness",
+    [
+        "luto",
+        "perda",
+        "perdi",
+        "perdemos",
+        "faleceu",
+        "se_foi",
+        "ausência",
+        "ausencia",
+        "agridoce",
+    ],
+    1.9,
+)
+_register_words(
+    "pt",
+    "joy",
+    [
+        "agridoce",
+    ],
+    0.8,
+)
+
 # Multiword phrase lexicon (normalized literally as plain text)
 PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     # English
@@ -988,7 +1073,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "rough day": _vec(sadness=2.0),
     "hard day": _vec(sadness=2.0),
     "tough day": _vec(sadness=2.0),
-    "long day": _vec(sadness=1.6, fatigue=0.0),
+    "long day": _vec(sadness=1.6),
     "not the easiest week": _vec(sadness=2.3, fear=0.7),
     "not an easy week": _vec(sadness=2.0, fear=0.7),
     "lowkey happy": _vec(joy=1.5, sadness=0.5),
@@ -1016,6 +1101,21 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "feeling blessed": _vec(joy=2.0, passion=0.5),
     "grateful for you": _vec(joy=1.8, passion=0.8),
     "in love with you": _vec(passion=2.7, joy=1.3),
+    # Bereavement and bittersweet English phrases
+    "i can't believe he's gone": _vec(sadness=3.2, surprise=1.0),
+    "i cant believe hes gone": _vec(sadness=3.2, surprise=1.0),
+    "can't believe he's gone": _vec(sadness=3.0, surprise=1.0),
+    "cant believe hes gone": _vec(sadness=3.0, surprise=1.0),
+    "cant believe he is gone": _vec(sadness=3.0, surprise=1.0),
+    "i can't believe she is gone": _vec(sadness=3.2, surprise=1.0),
+    "i cant believe she is gone": _vec(sadness=3.2, surprise=1.0),
+    "he is in a better place": _vec(sadness=2.4, joy=1.4),
+    "he's in a better place": _vec(sadness=2.4, joy=1.4),
+    "she is in a better place": _vec(sadness=2.4, joy=1.4),
+    "she's in a better place": _vec(sadness=2.4, joy=1.4),
+    "they are in a better place": _vec(sadness=2.3, joy=1.3),
+    "in a better place now": _vec(sadness=2.2, joy=1.4),
+    "bittersweet feeling": _vec(sadness=2.2, joy=1.4),
     # Spanish
     "no aguanto más": _vec(anger=1.5, sadness=2.0),
     "no aguanto mas": _vec(anger=1.5, sadness=2.0),
@@ -1038,6 +1138,12 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "me siento sola": _vec(sadness=2.5),
     "te extraño mucho": _vec(sadness=2.4, passion=1.0),
     "te extraño": _vec(sadness=2.0, passion=0.8),
+    # Spanish grief and bittersweet
+    "no puedo creer que se haya ido": _vec(sadness=3.1, surprise=0.9),
+    "no puedo creer que se fue": _vec(sadness=3.0, surprise=0.9),
+    "está en un lugar mejor": _vec(sadness=2.4, joy=1.4),
+    "esta en un lugar mejor": _vec(sadness=2.4, joy=1.4),
+    "sentimiento agridulce": _vec(sadness=2.2, joy=1.4),
     # Portuguese
     "não aguento mais": _vec(anger=1.5, sadness=2.0),
     "nao aguento mais": _vec(anger=1.5, sadness=2.0),
@@ -1060,6 +1166,14 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "me sinto mal": _vec(sadness=2.2, fear=0.6),
     "sinto sua falta": _vec(sadness=2.4, passion=1.0),
     "morro de saudade": _vec(sadness=2.5, passion=1.1),
+    # Portuguese grief and bittersweet
+    "não consigo acreditar que ele se foi": _vec(sadness=3.1, surprise=0.9),
+    "nao consigo acreditar que ele se foi": _vec(sadness=3.1, surprise=0.9),
+    "ele está em um lugar melhor": _vec(sadness=2.4, joy=1.4),
+    "ele esta em um lugar melhor": _vec(sadness=2.4, joy=1.4),
+    "ela está em um lugar melhor": _vec(sadness=2.4, joy=1.4),
+    "ela esta em um lugar melhor": _vec(sadness=2.4, joy=1.4),
+    "sentimento agridoce": _vec(sadness=2.2, joy=1.4),
 }
 
 # Emoticons and text faces, applied as patterns on the raw text
@@ -1726,6 +1840,7 @@ class EmotionDetector:
 
         exclam_count = text.count("!")
         question_count = text.count("?")
+        ellipsis_count = text.count("...")
         allcaps_count = 0
         elongated_count = 0
         profanity_count = 0
@@ -1881,6 +1996,7 @@ class EmotionDetector:
 
         ex_n = norm(exclam_count, 3)
         q_n = norm(question_count, 3)
+        ellipsis_n = norm(ellipsis_count, 2)
         caps_n = norm(allcaps_count, 3)
         elong_n = norm(elongated_count, 3)
         prof_n = norm(profanity_count, 2)
@@ -1889,6 +2005,7 @@ class EmotionDetector:
         raw_arousal = (
             0.4 * ex_n
             + 0.3 * q_n
+            + 0.15 * ellipsis_n
             + 0.3 * caps_n
             + 0.4 * elong_n
             + 0.4 * prof_n
@@ -2063,6 +2180,7 @@ class EmotionDetector:
                 "truncated_to_max_words": truncated,
                 "exclamation_count": exclam_count,
                 "question_count": question_count,
+                "ellipsis_count": ellipsis_count,
                 "allcaps_count": allcaps_count,
                 "elongated_count": elongated_count,
                 "profanity_count": profanity_count,
