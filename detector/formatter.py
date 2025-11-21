@@ -737,7 +737,12 @@ def _format_result_block(
     detector_result: Dict[str, Any],
     locale: str,
 ) -> Dict[str, Any]:
-    """Format dominant or current result, with intensity aware nuanced labels."""
+    """
+    Format dominant or current result, with intensity aware nuanced labels.
+
+    Dominant uses only the core emotion label so it always matches
+    one of the seven base emotions. Current emotion can use nuanced wording.
+    """
     loc = _normalize_locale(locale)
     emotion_id = detector_result.get("label", "")
     label_en = EMOTION_LABELS["en"].get(emotion_id, emotion_id)
@@ -746,7 +751,15 @@ def _format_result_block(
     percent = float(detector_result.get("percent", 0.0))
     emoji = detector_result.get("emoji", "😐")
 
-    nuance = _pick_nuanced_labels(emotion_id, percent, loc)
+    if kind == "current":
+        nuance = _pick_nuanced_labels(emotion_id, percent, loc)
+    else:
+        nuance = {
+            "bucket": None,
+            "nuanced_en": None,
+            "nuanced_local": None,
+        }
+
     bucket = nuance["bucket"]
     nuanced_en = nuance["nuanced_en"] or label_en
     nuanced_local = nuance["nuanced_local"] or label_local
