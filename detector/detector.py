@@ -12,6 +12,13 @@
 # - Tokenizer postprocess merges simple hyphenated compounds ("pissed-off" -> "pissedoff")
 #   before lexicon lookup.
 #
+# Additional perfection pass (v22a):
+# - Self-harm and threat regex patterns are also diacritic-stripped at compile time,
+#   so matching on normalized text works for accented patterns.
+# - Phrase patterns are precompiled once at module load for speed.
+# - Rhetorical "really??" pattern fixed to avoid word-boundary-after-punctuation bug.
+# - Humor/laughter score no longer double counts overlapping substrings ("kk" vs "kkkk").
+#
 # Prior fixes preserved:
 # - Tokenizer keeps apostrophes inside words ("don't", "I'm", etc.)
 # - Lexicon keys and marker sets normalized via join_for_lex
@@ -162,7 +169,6 @@ def _reconstruct_text(tokens: List[str]) -> str:
         if not out:
             out.append(tok)
             continue
-        # No space before punctuation tokens
         if re.fullmatch(r"[^\w\s]", tok, flags=re.UNICODE):
             out[-1] += tok
         else:
@@ -217,8 +223,6 @@ def _vec(**kwargs: float) -> Dict[str, float]:
     return v
 
 
-# Base lexicon (not exhaustive, but tuned for common expressions)
-# Each token maps to an emotion vector; language specific dictionaries.
 LEXICON_TOKEN: Dict[str, Dict[str, Dict[str, float]]] = {
     "en": {},
     "es": {},
@@ -1366,29 +1370,37 @@ for k, v in PHRASE_LEXICON.items():
     nk = normalize_for_phrase(k)
     PHRASE_LEXICON_NORM[nk] = v
 
+# Precompile normalized phrase patterns once.
+PHRASE_REGEX_NORM: List[Tuple[re.Pattern, Dict[str, float]]] = []
+for phrase_norm, vec in PHRASE_LEXICON_NORM.items():
+    if not phrase_norm:
+        continue
+    pat = re.compile(rf"(?<!\w){re.escape(phrase_norm)}(?!\w)")
+    PHRASE_REGEX_NORM.append((pat, vec))
+
 
 # Emoticons and text faces, applied as patterns on the raw text
 EMOTICON_PATTERNS: List[Tuple[re.Pattern, Dict[str, float]]] = [
-    (re.compile(r"(?:(?:\:|\=)\-?\)+)"), _vec(joy=1.8)),           # :-) :)
-    (re.compile(r"(?:(?:\:|\=)\-?\(+)"), _vec(sadness=1.8)),       # :-( :(
-    (re.compile(r";\-?\)"), _vec(joy=1.4, passion=0.6)),           # ;)
-    (re.compile(r":'\("), _vec(sadness=2.0)),                      # :'(
-    (re.compile(r":'\)"), _vec(joy=1.5, sadness=0.8)),             # :')
-    (re.compile(r":D+"), _vec(joy=2.0)),                           # :D
-    (re.compile(r"XD+"), _vec(joy=2.0, surprise=0.8)),             # XD
-    (re.compile(r">:\("), _vec(anger=2.0)),                        # >:(
-    (re.compile(r":\/"), _vec(sadness=1.1, disgust=0.9)),          # :/
-    (re.compile(r":P+"), _vec(joy=1.2, passion=0.4)),              # :P
-    (re.compile(r"<3"), _vec(passion=2.0, joy=0.8)),               # <3
-    (re.compile(r"\^_\^"), _vec(joy=1.6)),                         # ^_^
-    (re.compile(r"T_T"), _vec(sadness=2.1)),                       # T_T
+    (re.compile(r"(?:(?:\:|\=)\-?\)+)"), _vec(joy=1.8)),
+    (re.compile(r"(?:(?:\:|\=)\-?\(+)"), _vec(sadness=1.8)),
+    (re.compile(r";\-?\)"), _vec(joy=1.4, passion=0.6)),
+    (re.compile(r":'\("), _vec(sadness=2.0)),
+    (re.compile(r":'\)"), _vec(joy=1.5, sadness=0.8)),
+    (re.compile(r":D+"), _vec(joy=2.0)),
+    (re.compile(r"XD+"), _vec(joy=2.0, surprise=0.8)),
+    (re.compile(r">:\("), _vec(anger=2.0)),
+    (re.compile(r":\/"), _vec(sadness=1.1, disgust=0.9)),
+    (re.compile(r":P+"), _vec(joy=1.2, passion=0.4)),
+    (re.compile(r"<3"), _vec(passion=2.0, joy=0.8)),
+    (re.compile(r"\^_\^"), _vec(joy=1.6)),
+    (re.compile(r"T_T"), _vec(sadness=2.1)),
 ]
 
 # Rhetorical question and stance patterns
 RHETORICAL_PATTERNS: List[Tuple[re.Pattern, Dict[str, float], float]] = [
     (re.compile(r"\bare you kidding\b", re.IGNORECASE), _vec(anger=1.0, surprise=1.4), 0.6),
     (re.compile(r"\bare you serious\b", re.IGNORECASE), _vec(anger=0.7, surprise=1.1), 0.5),
-    (re.compile(r"\breally\?\?+\b", re.IGNORECASE), _vec(anger=0.6, surprise=1.0), 0.4),
+    (re.compile(r"\breally\?{2,}", re.IGNORECASE), _vec(anger=0.6, surprise=1.0), 0.4),
     (re.compile(r"\bhow could you\b", re.IGNORECASE), _vec(anger=1.4, sadness=0.8), 0.7),
     (re.compile(r"\bis this a joke\b", re.IGNORECASE), _vec(anger=0.8, surprise=1.0), 0.5),
     (re.compile(r"\ben serio\?\b", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
@@ -1418,25 +1430,9 @@ METAPHOR_PATTERNS: List[Tuple[re.Pattern, Dict[str, float]]] = [
 # Intensifiers and diminishers
 INTENSIFIERS = {
     "en": {
-        "very",
-        "really",
-        "so",
-        "super",
-        "extremely",
-        "incredibly",
-        "totally",
-        "absolutely",
-        "completely",
-        "too",
-        "sooo",
-        "soooo",
-        "hella",
-        "highkey",
-        "crazy",
-        "crazyyy",
-        "mega",
-        "ultra",
-        "literally",
+        "very", "really", "so", "super", "extremely", "incredibly", "totally",
+        "absolutely", "completely", "too", "sooo", "soooo", "hella", "highkey",
+        "crazy", "crazyyy", "mega", "ultra", "literally",
     },
     "es": {"muy", "re", "super", "demasiado", "tan"},
     "pt": {"muito", "super", "demais", "tao", "pra", "bastante"},
@@ -1449,18 +1445,8 @@ DIMINISHERS = {
 
 NEGATIONS = {
     "en": {
-        "not",
-        "never",
-        "no",
-        "dont",
-        "don't",
-        "isnt",
-        "isn't",
-        "cant",
-        "can't",
-        "wont",
-        "won't",
-        "nothing",
+        "not", "never", "no", "dont", "don't", "isnt", "isn't",
+        "cant", "can't", "wont", "won't", "nothing",
     },
     "es": {"no", "nunca", "jamas", "nada"},
     "pt": {"nao", "nem", "nunca", "jamais"},
@@ -1491,39 +1477,15 @@ PROFANITIES = {
 
 UNCERTAINTY_WORDS = {
     "en": {
-        "maybe",
-        "perhaps",
-        "kinda",
-        "sorta",
-        "guess",
-        "idk",
-        "idk.",
-        "idk,",
-        "unsure",
-        "not_sure",
-        "probably",
-        "possibly",
-        "i_guess",
-        "i_think",
+        "maybe", "perhaps", "kinda", "sorta", "guess", "idk", "idk.", "idk,",
+        "unsure", "not_sure", "probably", "possibly", "i_guess", "i_think",
     },
     "es": {
-        "quizas",
-        "tal",
-        "vez",
-        "tal_vez",
-        "supongo",
-        "no_se",
-        "creo",
-        "creo_que",
-        "capaz",
+        "quizas", "tal", "vez", "tal_vez", "supongo", "no_se", "creo",
+        "creo_que", "capaz",
     },
     "pt": {
-        "talvez",
-        "acho",
-        "acho_que",
-        "nao_sei",
-        "provavelmente",
-        "quem_sabe",
+        "talvez", "acho", "acho_que", "nao_sei", "provavelmente", "quem_sabe",
     },
 }
 
@@ -1567,7 +1529,6 @@ LANG_FUNCTION_WORDS = {
     "pt": {"o", "a", "os", "as", "e", "e", "sou", "estou", "voce", "eu", "meu", "minha"},
 }
 
-# Normalize all marker sets so accent handling matches join_for_lex.
 def _normalize_marker_dict(d: Dict[str, set]) -> Dict[str, set]:
     return {lang: {join_for_lex(w) for w in words} for lang, words in d.items()}
 
@@ -1589,49 +1550,20 @@ LANG_FUNCTION_WORDS = _normalize_marker_dict(LANG_FUNCTION_WORDS)
 
 FEEL_MARKERS_ALL = set().union(*FEEL_MARKERS.values())
 
-# Self vs other pronoun hints
 _SELF_PRONOUNS_RAW = {
-    "i",
-    "im",
-    "i'm",
-    "me",
-    "my",
-    "mine",
-    "yo",
-    "mi",
-    "mio",
-    "mia",
-    "mios",
-    "mias",
-    "eu",
-    "meu",
-    "minha",
-    "meus",
-    "minhas",
+    "i", "im", "i'm", "me", "my", "mine",
+    "yo", "mi", "mio", "mia", "mios", "mias",
+    "eu", "meu", "minha", "meus", "minhas",
 }
 _OTHER_PRONOUNS_RAW = {
-    "he",
-    "she",
-    "they",
-    "him",
-    "her",
-    "them",
-    "el",
-    "ella",
-    "ellos",
-    "ellas",
-    "ele",
-    "ela",
-    "eles",
-    "elas",
-    "you",
-    "tu",
-    "voce",
+    "he", "she", "they", "him", "her", "them",
+    "el", "ella", "ellos", "ellas",
+    "ele", "ela", "eles", "elas",
+    "you", "tu", "voce",
 }
 SELF_PRONOUNS_ALL = {join_for_lex(p) for p in _SELF_PRONOUNS_RAW}
 OTHER_PRONOUNS_ALL = {join_for_lex(p) for p in _OTHER_PRONOUNS_RAW}
 
-# Dialect hints
 DIALECT_HINTS: Dict[str, Dict[str, set]] = {
     "en": {
         "aave": {"finna", "ion", "wanna", "tryna", "nah", "bruh", "fam", "yall", "ya'll"},
@@ -1659,7 +1591,6 @@ def _normalize_dialect_hints() -> None:
 
 _normalize_dialect_hints()
 
-# Emoji mappings
 BASE_EMOJI = {
     "anger": "😡",
     "disgust": "🤢",
@@ -1678,7 +1609,6 @@ AROUSAL_EMOJI = {
     "disgust": "🤮",
 }
 
-# Self harm and suicide risk patterns
 SELF_HARM_HARD_PATTERNS = [
     r"\bkill myself\b",
     r"\bwant to die\b",
@@ -1718,10 +1648,12 @@ SELF_HARM_SOFT_PATTERNS = [
     r"\bme quiero morir pero\b",
 ]
 
-SELF_HARM_HARD_REGEX = [re.compile(pat, flags=re.IGNORECASE) for pat in SELF_HARM_HARD_PATTERNS]
-SELF_HARM_SOFT_REGEX = [re.compile(pat, flags=re.IGNORECASE) for pat in SELF_HARM_SOFT_PATTERNS]
+def _compile_norm_regex(patterns: List[str]) -> List[re.Pattern]:
+    return [re.compile(strip_diacritics(p), flags=re.IGNORECASE) for p in patterns]
 
-# Threat toward others patterns
+SELF_HARM_HARD_REGEX = _compile_norm_regex(SELF_HARM_HARD_PATTERNS)
+SELF_HARM_SOFT_REGEX = _compile_norm_regex(SELF_HARM_SOFT_PATTERNS)
+
 THREAT_PATTERNS = [
     r"\bkill you\b",
     r"\bkill him\b",
@@ -1729,9 +1661,8 @@ THREAT_PATTERNS = [
     r"\bte voy a matar\b",
     r"\bvou te matar\b",
 ]
-THREAT_REGEX = [re.compile(pat, flags=re.IGNORECASE) for pat in THREAT_PATTERNS]
+THREAT_REGEX = _compile_norm_regex(THREAT_PATTERNS)
 
-# Beta coefficients for arousal boosting
 AROUSAL_BETA = {
     "anger": 0.9,
     "disgust": 0.5,
@@ -1742,7 +1673,6 @@ AROUSAL_BETA = {
     "surprise": 1.0,
 }
 
-# Simple domain based multipliers for fine tuning in different contexts
 DOMAIN_MULTIPLIERS: Dict[str, Dict[str, float]] = {
     "romantic": {"passion": 1.12, "joy": 1.05},
     "relationship": {"passion": 1.08, "sadness": 1.03},
@@ -1755,7 +1685,6 @@ DOMAIN_MULTIPLIERS: Dict[str, Dict[str, float]] = {
     "prayer": {"passion": 1.05, "joy": 1.03, "sadness": 1.02},
 }
 
-# Emotion sign for valence
 EMOTION_SIGN: Dict[str, float] = {
     "joy": 1.0,
     "passion": 1.0,
@@ -1876,10 +1805,15 @@ def detect_threat_level(text: str, humor_score: float = 0.0) -> str:
 
 def compute_humor_score(text: str, tokens: List[str]) -> float:
     t = text.lower()
-    laugh_tokens = ["lol", "lmao", "lmfao", "rofl", "haha", "jaja", "jeje", "kk", "kkk", "kkkk"]
-    laugh_count = 0
-    for lt in laugh_tokens:
-        laugh_count += t.count(lt)
+
+    laugh_like = 0
+    for tok in tokens:
+        base = join_for_lex(tok)
+        if base in {"lol", "lmao", "lmfao", "rofl", "haha", "jaja", "jeje", "kk", "kkk"}:
+            laugh_like += 1
+            continue
+        if re.fullmatch(r"(ha){2,}|(ja){2,}|(je){2,}|k{2,}", base):
+            laugh_like += 1
 
     emoji_laugh = 0
     for ch in text:
@@ -1898,7 +1832,7 @@ def compute_humor_score(text: str, tokens: List[str]) -> float:
         if re.search(pat, t):
             hyperbole += 1
 
-    laugh_score = min(1.0, (laugh_count + emoji_laugh * 1.5) / 4.0)
+    laugh_score = min(1.0, (laugh_like + emoji_laugh * 1.5) / 4.0)
     hyperbole_score = min(1.0, hyperbole * 0.6)
 
     exclam = t.count("!")
@@ -2073,7 +2007,6 @@ def _portuguese_variants(word: str) -> List[str]:
 
 
 def _expand_lexicon_morphology() -> None:
-    """Generate simple morphological variants to widen coverage."""
     for lang, table in LEXICON_TOKEN.items():
         new_entries: Dict[str, Dict[str, float]] = {}
         for word, vec in list(table.items()):
@@ -2117,7 +2050,6 @@ _scale_word_intensity("pt", ["pistola", "luto"], 1.4)
 
 @lru_cache(maxsize=8192)
 def _semantic_guess(lang: str, token_norm: str) -> Dict[str, float]:
-    """Lightweight trigram based guess for unknown tokens."""
     table = LEXICON_TOKEN.get(lang, {})
     tri_index = LEXICON_TRIGRAMS.get(lang, {})
     if not table or not tri_index:
@@ -2154,7 +2086,6 @@ def _semantic_guess(lang: str, token_norm: str) -> Dict[str, float]:
 
 
 def compute_code_switch_score(tokens: List[str]) -> Tuple[float, Dict[str, int]]:
-    """Rough estimate of code switching intensity based on lexicon hits per language."""
     lang_counts = {"en": 0, "es": 0, "pt": 0}
     for tok in tokens:
         if not any(ch.isalpha() for ch in tok):
@@ -2177,7 +2108,6 @@ def compute_code_switch_score(tokens: List[str]) -> Tuple[float, Dict[str, int]]
 
 
 def compute_emotion_entropy(mixture: Dict[str, float]) -> float:
-    """Shannon style entropy over the mixture vector in bits, for emotional complexity."""
     eps = 1e-9
     probs = [max(eps, v) for v in mixture.values()]
     s = sum(probs)
@@ -2191,7 +2121,6 @@ def compute_emotion_entropy(mixture: Dict[str, float]) -> float:
 
 
 def compute_intensity_band(global_intensity: float) -> str:
-    """Map global intensity into coarse band labels."""
     if global_intensity < 0.15:
         return "very_low"
     if global_intensity < 0.35:
@@ -2204,7 +2133,6 @@ def compute_intensity_band(global_intensity: float) -> str:
 
 
 def compute_clause_features(tokens: List[str]) -> Tuple[int, set]:
-    """Return last contrast index and conditional scope indices."""
     token_bases = [join_for_lex(t) for t in tokens]
     all_contrast = set().union(*CONTRAST_WORDS.values())
     all_conditional = set().union(*CONDITIONAL_MARKERS.values())
@@ -2247,7 +2175,6 @@ def compute_negation_scope(tokens: List[str]) -> set:
 
 
 def apply_valence_aware_negation(base_vec: Dict[str, float]) -> Dict[str, float]:
-    """Turn 'not happy' into some sadness, 'not angry' into some relief etc."""
     pos = base_vec.get("joy", 0.0) + base_vec.get("passion", 0.0) + 0.4 * base_vec.get("surprise", 0.0)
     neg = (
         base_vec.get("anger", 0.0)
@@ -2348,7 +2275,6 @@ def apply_emotion_interactions(
     intensity: Dict[str, float],
     text_norm: str,
 ) -> Dict[str, float]:
-    """Synergy and inhibition between emotions, mass preserving."""
     out = dict(intensity)
 
     def shift(from_e: str, to_e: str, k: float) -> None:
@@ -2443,10 +2369,6 @@ def soft_cap_single_word_dominance(
     intensity: Dict[str, float],
     word_count: int,
 ) -> Dict[str, float]:
-    """
-    If text is very short and one emotion dominates, cap it and redistribute
-    excess across the others to keep total intensity stable.
-    """
     out = dict(intensity)
     total = sum(out.values())
     if total <= 0 or word_count > 4:
@@ -2470,7 +2392,6 @@ def soft_cap_single_word_dominance(
 
 
 def detect_speaker_target(text_lower: str) -> str:
-    """Roughly detect whether the strongest hostility is toward self, other, or world."""
     if re.search(r"\bi hate myself\b", text_lower) or re.search(r"\bme odio\b", text_lower) or re.search(
         r"\bme odeio\b", text_lower
     ):
@@ -2552,7 +2473,6 @@ class EmotionDetector:
 
         all_intens = set().union(*INTENSIFIERS.values())
         all_dimins = set().union(*DIMINISHERS.values())
-        all_contrast = set().union(*CONTRAST_WORDS.values())
         all_profanities = set().union(*PROFANITIES.values())
         all_uncertainty = set().union(*UNCERTAINTY_WORDS.values())
         all_certainty = set().union(*CERTAINTY_WORDS.values())
@@ -2584,14 +2504,9 @@ class EmotionDetector:
                 strong_emoji_count += 1
 
         R_global = {e: 0.0 for e in EMOTIONS}
-
         rhetorical_score = 0.0
 
-        # Phrase lexicon with normalized matching, boundary guarding, and multi-hit counting.
-        for phrase_norm, vec in PHRASE_LEXICON_NORM.items():
-            if not phrase_norm:
-                continue
-            phrase_pat = re.compile(rf"(?<!\w){re.escape(phrase_norm)}(?!\w)")
+        for phrase_pat, vec in PHRASE_REGEX_NORM:
             hits = len(list(phrase_pat.finditer(text_phrase_norm)))
             if hits > 0:
                 for e in EMOTIONS:
@@ -2602,7 +2517,6 @@ class EmotionDetector:
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0)
 
-        # Rhetorical patterns checked on raw and normalized text, without double counting.
         for pat, vec, weight in RHETORICAL_PATTERNS:
             raw_matches = list(pat.finditer(text_lower))
             norm_matches = list(pat.finditer(text_phrase_norm))
@@ -2612,7 +2526,6 @@ class EmotionDetector:
                 for e in EMOTIONS:
                     R_global[e] += vec.get(e, 0.0) * count
 
-        # Metaphor patterns checked on raw and normalized text, without double counting.
         for pat, vec in METAPHOR_PATTERNS:
             raw_matches = list(pat.finditer(text_lower))
             norm_matches = list(pat.finditer(text_phrase_norm))
