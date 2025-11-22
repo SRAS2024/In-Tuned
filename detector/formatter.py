@@ -244,7 +244,7 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 
 def _as_percent(v: Any, default: float = 0.0) -> float:
     """
-    Accepts 0-1 or 0-100 values and normalizes to 0-100.
+    Accepts 0 to 1 or 0 to 100 values and normalizes to 0 to 100.
     """
     val = _safe_float(v, default)
     if val <= 1.0:
@@ -278,8 +278,8 @@ def _normalize_mixture_vector(
     emotions_raw: Dict[str, Dict[str, Any]]
 ) -> Dict[str, float]:
     """
-    Detector may return mixture as 0-1 weights or 0-100 percents.
-    Normalize to 0-1 weights.
+    Detector may return mixture as 0 to 1 weights or 0 to 100 percents.
+    Normalize to 0 to 1 weights.
     If missing or all zero, derive from scores.
     """
     mv_in: Dict[str, float] = {}
@@ -296,16 +296,20 @@ def _normalize_mixture_vector(
     total = sum(mv.values())
     if total <= 0.0:
         # derive from scores if possible
-        scores = {eid: max(_safe_float(emotions_raw.get(eid, {}).get("score"), 0.0), 0.0)
-                  for eid in EMOTIONS}
+        scores = {
+            eid: max(_safe_float(emotions_raw.get(eid, {}).get("score"), 0.0), 0.0)
+            for eid in EMOTIONS
+        }
         st = sum(scores.values())
         if st > 0.0:
             mv = {eid: scores[eid] / st for eid in EMOTIONS}
         else:
             mv = {eid: 0.0 for eid in EMOTIONS}
 
-    # Clamp
-    return {eid: _clamp(_safe_float(mv.get(eid), 0.0), 0.0, 1.0) for eid in EMOTIONS}
+    return {
+        eid: _clamp(_safe_float(mv.get(eid), 0.0), 0.0, 1.0)
+        for eid in EMOTIONS
+    }
 
 
 def _intensity_bucket_from_percent(percent: float) -> str:
@@ -778,9 +782,9 @@ HOTLINES: Dict[str, HotlineInfo] = {
         number="+351 213 544 545",
         url="https://www.sosvozamiga.org",
         notes={
-            "en": "Several numbers and schedules; check the website for details.",
-            "es": "Hay varios números y horarios; consulta el sitio web para más detalles.",
-            "pt": "Existem vários números e horários; veja o site para detalhes.",
+            "en": "Several numbers and schedules, check the website for details.",
+            "es": "Hay varios números y horarios, consulta el sitio web para más detalles.",
+            "pt": "Existem vários números e horários, veja o site para detalhes.",
         },
     ),
     "ES": HotlineInfo(
@@ -930,10 +934,21 @@ def _fallback_raw(text: str, loc: str, reason: str) -> Dict[str, Any]:
         "language": {"locale": loc, "confidence": 0.0},
         "emotions": emotions,
         "mixture_vector": mixture_vector,
-        "dominant": {"label": "surprise", "emoji": "😐", "score": 0.0, "percent": 1.0},
-        "current": {"label": "surprise", "emoji": "😐", "score": 0.0, "percent": 1.0},
+        "dominant": {
+            "label": "surprise",
+            "emoji": "😐",
+            "score": 0.0,
+            "percent": 1.0,
+        },
+        "current": {
+            "label": "surprise",
+            "emoji": "😐",
+            "score": 0.0,
+            "percent": 1.0,
+        },
         "arousal": 0.0,
         "sarcasm": 0.0,
+        "humor": 0.0,
         "confidence": 0.0,
         "risk_level": "none",
         "meta": {"fallback": True, "fallback_reason": reason},
@@ -953,16 +968,27 @@ def format_for_client(
     loc = _normalize_locale(locale)
 
     try:
-        raw = analyze_text(text, domain=domain)
-        if not isinstance(raw, dict):
-            raw = _fallback_raw(text, loc, "analyze_text returned non-dict")
+        detector_res = analyze_text(text, domain=domain)
+        # New detector returns DetectorOutput dataclass, so convert to dict
+        if hasattr(detector_res, "to_dict"):
+            raw = detector_res.to_dict()  # type: ignore[assignment]
+        elif isinstance(detector_res, dict):
+            raw = detector_res  # type: ignore[assignment]
+        else:
+            raw = _fallback_raw(
+                text,
+                loc,
+                f"analyze_text returned unsupported type {type(detector_res).__name__}",
+            )
     except InvalidTextError as e:
         raw = _fallback_raw(text, loc, f"InvalidTextError: {e}")
     except Exception as e:
         raw = _fallback_raw(text, loc, f"Exception: {e}")
 
     emotions_raw = _normalize_emotions_shape(raw.get("emotions", {}))
-    mixture_vector = _normalize_mixture_vector(raw.get("mixture_vector"), emotions_raw)
+    mixture_vector = _normalize_mixture_vector(
+        raw.get("mixture_vector"), emotions_raw
+    )
 
     emotion_order = list(EMOTIONS)
 
@@ -997,15 +1023,19 @@ def format_for_client(
             }
         )
 
-    # If detector forgot dominant/current, derive best guesses
+    # If detector forgot dominant or current, derive from mixture
     dominant_raw = raw.get("dominant") or {}
     current_raw = raw.get("current") or {}
 
     if not dominant_raw.get("label"):
-        best = max(mixture_vector.items(), key=lambda kv: kv[1])[0]
-        dominant_raw = {"label": best, "emoji": emotions_raw.get(best, {}).get("emoji", "😐"),
-                        "score": emotions_raw.get(best, {}).get("score", 0.0),
-                        "percent": mixture_vector.get(best, 0.0) * 100.0}
+        best_id = max(mixture_vector.items(), key=lambda kv: kv[1])[0]
+        best_em = emotions_raw.get(best_id, {}) or {}
+        dominant_raw = {
+            "label": best_id,
+            "emoji": best_em.get("emoji", "😐"),
+            "score": best_em.get("score", 0.0),
+            "percent": mixture_vector.get(best_id, 0.0) * 100.0,
+        }
 
     if not current_raw.get("label"):
         current_raw = dominant_raw
@@ -1036,6 +1066,7 @@ def format_for_client(
         "metrics": {
             "arousal": _safe_float(raw.get("arousal"), 0.0),
             "sarcasm": _safe_float(raw.get("sarcasm"), 0.0),
+            "humor": _safe_float(raw.get("humor"), 0.0),
             "confidence": _safe_float(raw.get("confidence"), 0.0),
             "mixtureProfile": mixture_profile,
         },
