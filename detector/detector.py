@@ -1,9 +1,9 @@
 # detector/detector.py
-# High fidelity local emotion detector v25-espt
+# High fidelity local emotion detector v26-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
-# Functional patch:
-# - Keeps your v24 logic intact.
+# Functional patch on v25:
+# - Keeps v25 logic intact.
 # - Fixes emoji counting and short emoji-only cases by not treating variation
 #   selectors (FE0F) as emojis.
 # - Adds analyze_text_dict() helper for JSON safe API responses.
@@ -12,6 +12,14 @@
 #   emotions instead of only scaling.
 # - Slight lexicon upgrade for good / better / worse and their ES / PT analogues.
 # - Adds a small __main__ self-test so you can verify output quickly.
+# - New in v26:
+#     * Profanity words in all three languages are mapped directly to anger /
+#       disgust / sadness, so swear-only inputs carry strong negative emotion.
+#     * Phrase lexicon covers "fuck this", "fuck this shit", "son of a bitch",
+#       "what the hell" and related English profanity phrases.
+#     * Rhetorical pattern for "how the hell do you think I feel" seeds anger
+#       and sadness instead of looking neutral.
+#     * Neutral fallback label is "neutral" instead of "joy".
 
 from __future__ import annotations
 
@@ -1264,6 +1272,87 @@ _register_words(
     1.3,
 )
 
+# Profanity mapped into core emotions so swear-only inputs are not neutral
+_register_words(
+    "en",
+    "anger",
+    [
+        "fuck",
+        "fucking",
+        "fuckin",
+        "damn",
+        "dammit",
+        "damnit",
+        "hell",
+    ],
+    2.6,
+)
+_register_words(
+    "en",
+    "disgust",
+    [
+        "shit",
+        "bitch",
+        "asshole",
+        "crap",
+    ],
+    2.3,
+)
+_register_words(
+    "en",
+    "sadness",
+    [
+        "damn",
+        "dammit",
+        "damnit",
+    ],
+    1.2,
+)
+_register_words(
+    "es",
+    "anger",
+    [
+        "mierda",
+        "joder",
+        "carajo",
+        "puta",
+        "pendejo",
+        "pendeja",
+    ],
+    2.5,
+)
+_register_words(
+    "es",
+    "disgust",
+    [
+        "mierda",
+        "puta",
+    ],
+    2.2,
+)
+_register_words(
+    "pt",
+    "anger",
+    [
+        "merda",
+        "porra",
+        "caralho",
+        "bosta",
+        "puta",
+        "pqp",
+    ],
+    2.5,
+)
+_register_words(
+    "pt",
+    "disgust",
+    [
+        "merda",
+        "bosta",
+    ],
+    2.2,
+)
+
 # Multiword phrase lexicon (registered in raw form, normalized later)
 PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     # English
@@ -1310,6 +1399,12 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "feeling blessed": _vec(joy=2.0, passion=0.5),
     "grateful for you": _vec(joy=1.8, passion=0.8),
     "in love with you": _vec(passion=2.7, joy=1.3),
+    # New profanity and frustration phrases
+    "fuck this": _vec(anger=3.0, disgust=1.2, sadness=0.8),
+    "fuck this shit": _vec(anger=3.2, disgust=1.6, sadness=1.0),
+    "what the hell": _vec(anger=1.4, surprise=1.4),
+    "what the hell man": _vec(anger=1.6, surprise=1.6),
+    "son of a bitch": _vec(anger=2.8, disgust=1.3),
     # Bereavement and bittersweet English phrases
     "i can't believe he's gone": _vec(sadness=3.2, surprise=1.0),
     "i cant believe hes gone": _vec(sadness=3.2, surprise=1.0),
@@ -1441,6 +1536,12 @@ RHETORICAL_PATTERNS: List[Tuple[re.Pattern, Dict[str, float], float]] = [
     (re.compile(r"\breally\?{2,}", re.IGNORECASE), _vec(anger=0.6, surprise=1.0), 0.4),
     (re.compile(r"\bhow could you\b", re.IGNORECASE), _vec(anger=1.4, sadness=0.8), 0.7),
     (re.compile(r"\bis this a joke\b", re.IGNORECASE), _vec(anger=0.8, surprise=1.0), 0.5),
+    # English frustration rhetorical
+    (
+        re.compile(r"\bhow (?:the )?hell do you think i feel\b", re.IGNORECASE),
+        _vec(anger=2.2, sadness=1.1),
+        0.9,
+    ),
     # Spanish / Portuguese fixes, no trailing word-boundary after '?'
     (re.compile(r"\ben serio\?+", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
     (re.compile(r"\bfala serio\?+", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
@@ -1509,7 +1610,7 @@ CAUSAL_MARKERS = {
 }
 
 PROFANITIES = {
-    "en": {"fuck", "fucking", "shit", "bitch", "asshole", "damn", "wtf"},
+    "en": {"fuck", "fucking", "fuckin", "shit", "bitch", "asshole", "damn", "dammit", "damnit", "wtf", "hell"},
     "es": {"mierda", "joder", "carajo", "puta", "pendejo", "pendeja"},
     "pt": {"merda", "porra", "caralho", "puta", "bosta", "pqp"},
 }
@@ -2360,8 +2461,8 @@ def compute_temporal_cues(tokens: List[str], text_raw: str, lang_props: Dict[str
         "esta mejorando",
         "está mejorando",
         "me siento mejor",
-        "me estoy sintiendo mejor",
-        "cada dia mejor",
+        "me estoy sintiendo melhor",
+        "cada dia melhor",
         "cada dia un poco mejor",
         "cada dia estoy mejor",
     ]
@@ -2988,11 +3089,23 @@ class EmotionDetector:
 
         total_strength = sum(R_boosted.values())
         if total_strength <= 0:
-            share0 = {e: 1.0 / len(EMOTIONS) for e in EMOTIONS}
+            # No lexical signal, but we may still have arousal.
+            # Use a weak negative prior if profanity fired, otherwise uniform neutral.
+            if profanity_count > 0 or strong_emoji_count > 0 or ex_n > 0:
+                share0 = {e: 0.0 for e in EMOTIONS}
+                # bias toward anger, disgust, sadness in pure swear or shout cases
+                share0["anger"] = 0.4
+                share0["disgust"] = 0.25
+                share0["sadness"] = 0.2
+                share0["fear"] = 0.1
+                share0["surprise"] = 0.05
+            else:
+                share0 = {e: 1.0 / len(EMOTIONS) for e in EMOTIONS}
+            global_intensity_base = 0.25 * A
         else:
             share0 = {e: R_boosted[e] / total_strength for e in EMOTIONS}
+            global_intensity_base = 1.0 - math.exp(-total_strength / 8.0)
 
-        global_intensity_base = 0.0 if total_strength <= 0 else (1.0 - math.exp(-total_strength / 8.0))
         global_intensity_base = max(0.0, min(global_intensity_base, 0.995))
 
         uncertainty_score = min(1.0, uncertainty_count / 4.0) + 0.4 * q_n
@@ -3117,8 +3230,8 @@ class EmotionDetector:
             current_label = dominant_label
 
         if neutral_flag:
-            dominant_label = "joy"
-            current_label = "joy"
+            dominant_label = "neutral"
+            current_label = "neutral"
 
         max_emotion_intensity = max(intensity.values()) if intensity else 0.0
 
@@ -3286,11 +3399,16 @@ if __name__ == "__main__":
         "era um dia bom mas agora tudo vai piorando",
         "fue un buen dia pero ahora va peor y cada vez peor",
         "foi um dia dificil mas tem melhorado bastante",
+        "Fuck!",
+        "Damnit!",
+        "Son of a bitch",
+        "How the hell do you think I feel?",
+        "Fuck this shit",
     ]
     for s in samples:
         out = analyze_text_dict(s)
         print("\nTEXT:", s)
         print("DOMINANT:", out["dominant"])
         print("MIXTURE:", out["mixture_vector"])
-        print("TEMPORAL:", out["meta"]["temporal_cues"])
+        print("META:", {"profanity_count": out["meta"]["profanity_count"], "neutral": out["meta"]["neutral"]})
         print("CONF:", out["confidence"])
