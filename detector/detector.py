@@ -1,25 +1,31 @@
 # detector/detector.py
-# High fidelity local emotion detector v26-espt
+# High fidelity local emotion detector v27-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
-# Functional patch on v25:
-# - Keeps v25 logic intact.
+# Functional patch on v26:
+# - Keeps v26 logic intact.
 # - Fixes emoji counting and short emoji-only cases by not treating variation
 #   selectors (FE0F) as emojis.
 # - Adds analyze_text_dict() helper for JSON safe API responses.
 # - Adds richer temporal logic for "getting better" and "getting worse" flows
 #   across EN / ES / PT, shifting intensity between positive and negative
 #   emotions instead of only scaling.
-# - Slight lexicon upgrade for good / better / worse and their ES / PT analogues.
-# - Adds a small __main__ self-test so you can verify output quickly.
-# - New in v26:
-#     * Profanity words in all three languages are mapped directly to anger /
-#       disgust / sadness, so swear-only inputs carry strong negative emotion.
-#     * Phrase lexicon covers "fuck this", "fuck this shit", "son of a bitch",
-#       "what the hell" and related English profanity phrases.
-#     * Rhetorical pattern for "how the hell do you think I feel" seeds anger
-#       and sadness instead of looking neutral.
-#     * Neutral fallback label is "neutral" instead of "joy".
+# - Lexicon upgrade for good / better / worse and their ES / PT analogues.
+# - Profanity words in all three languages are mapped directly to anger /
+#   disgust / sadness, so swear-only inputs carry strong negative emotion.
+# - Phrase lexicon covers "fuck this", "fuck this shit", "son of a bitch",
+#   "what the hell" and related English profanity phrases.
+# - Rhetorical pattern for "how the hell do you think I feel" seeds anger
+#   and sadness instead of looking neutral.
+# - Neutral fallback label is "neutral" instead of "joy".
+# - New in v27:
+#     * Short text dominance smoothing only redistributes within the same
+#       valence family, so one word swears no longer create fake joy.
+#     * Profanity plus exclamation and strong emojis boost negative emotions
+#       in a controlled way, so "Fuck!!!" feels stronger than "Fuck" without
+#       pushing intensity to one hundred percent.
+#     * Profanity aware caps for very short texts let intense swears stay
+#       clearly dominant while still allowing realistic blends.
 
 from __future__ import annotations
 
@@ -1787,8 +1793,8 @@ SELF_HARM_SOFT_PATTERNS = [
     r"\bi[' ]?m dead\b",
     r"\bim dead\b",
     r"\bme muero\b",
-    r"\bme quiero morir pero\b",
-    r"\bme matar\b",  # PT ambiguous stem, treated as soft with humor gating
+    r"\bme quero morrer\b",
+    r"\bme matar\b",
 ]
 
 def _compile_norm_regex(patterns: List[str]) -> List[re.Pattern]:
@@ -2700,6 +2706,46 @@ def apply_plausibility_constraints(
     return out
 
 
+def apply_profanity_emphasis(
+    intensity: Dict[str, float],
+    profanity_count: int,
+    exclam_count: int,
+    strong_emoji_count: int,
+    word_count_effective: int,
+) -> Dict[str, float]:
+    """
+    When profanity is present, treat exclamations and strong emojis as
+    intensity amplifiers for negative emotions, while gently damping
+    positive ones so "Fuck!!!" feels stronger than "Fuck" but does not
+    blow up to one hundred percent.
+    """
+    out = dict(intensity)
+    total = sum(out.values())
+    if total <= 0 or profanity_count <= 0:
+        return out
+
+    ex_n = min(1.0, exclam_count / 4.0)
+    prof_n = min(1.0, profanity_count / 3.0)
+    emoji_n = min(1.0, strong_emoji_count / 3.0)
+
+    boost = 0.18 * prof_n + 0.15 * ex_n + 0.12 * emoji_n
+    if word_count_effective <= 3:
+        boost += 0.08
+    boost = max(0.0, min(0.6, boost))
+
+    if boost <= 0:
+        return out
+
+    for e in ("anger", "disgust", "fear", "sadness"):
+        out[e] = out.get(e, 0.0) * (1.0 + boost)
+
+    damp = max(0.0, 1.0 - 0.45 * boost)
+    for e in ("joy", "passion"):
+        out[e] = out.get(e, 0.0) * damp
+
+    return out
+
+
 def blend_with_context(
     current: Dict[str, float],
     prev: Optional[Dict[str, float]],
@@ -2716,7 +2762,13 @@ def blend_with_context(
 def soft_cap_single_word_dominance(
     intensity: Dict[str, float],
     word_count_effective: int,
+    profanity_count: int = 0,
 ) -> Dict[str, float]:
+    """
+    Cap dominance for very short texts, but keep redistribution inside
+    the same valence family so that single word swears do not create
+    fake joy or passion.
+    """
     out = dict(intensity)
     total = sum(out.values())
     if total <= 0 or word_count_effective > 4:
@@ -2725,18 +2777,39 @@ def soft_cap_single_word_dominance(
     dominant = max(out, key=out.get)
     max_val = out[dominant]
 
-    cap_ratio = 0.65 if word_count_effective <= 2 else 0.75
-    cap = cap_ratio * total
-    if max_val <= cap:
+    if word_count_effective <= 1:
+        base_ratio = 0.65
+        if profanity_count > 0 and EMOTION_SIGN.get(dominant, 0.0) < 0:
+            base_ratio = 0.8
+    elif word_count_effective == 2:
+        base_ratio = 0.75
+        if profanity_count > 0 and EMOTION_SIGN.get(dominant, 0.0) < 0:
+            base_ratio = 0.85
+    else:
+        base_ratio = 0.75
+
+    cap = base_ratio * total
+    if max_val <= cap or cap <= 0:
         return out
 
     excess = max_val - cap
     out[dominant] = cap
-    others = [e for e in EMOTIONS if e != dominant]
-    if others:
-        share = excess / len(others)
-        for e in others:
-            out[e] += share
+
+    dom_sign = EMOTION_SIGN.get(dominant, 0.0)
+    if dom_sign >= 0:
+        candidates = [e for e in EMOTIONS if e != dominant and EMOTION_SIGN.get(e, 0.0) >= 0]
+    else:
+        candidates = [e for e in EMOTIONS if e != dominant and EMOTION_SIGN.get(e, 0.0) <= 0]
+
+    if not candidates:
+        candidates = [e for e in EMOTIONS if e != dominant]
+
+    if not candidates:
+        return out
+
+    share = excess / len(candidates)
+    for e in candidates:
+        out[e] += share
 
     return out
 
@@ -3089,11 +3162,8 @@ class EmotionDetector:
 
         total_strength = sum(R_boosted.values())
         if total_strength <= 0:
-            # No lexical signal, but we may still have arousal.
-            # Use a weak negative prior if profanity fired, otherwise uniform neutral.
             if profanity_count > 0 or strong_emoji_count > 0 or ex_n > 0:
                 share0 = {e: 0.0 for e in EMOTIONS}
-                # bias toward anger, disgust, sadness in pure swear or shout cases
                 share0["anger"] = 0.4
                 share0["disgust"] = 0.25
                 share0["sadness"] = 0.2
@@ -3144,10 +3214,22 @@ class EmotionDetector:
         speaker_target = detect_speaker_target(text_lower)
         intensity = adjust_for_speaker_target(intensity, speaker_target)
 
+        intensity = apply_profanity_emphasis(
+            intensity,
+            profanity_count=profanity_count,
+            exclam_count=exclam_count,
+            strong_emoji_count=strong_emoji_count,
+            word_count_effective=word_count_effective,
+        )
+
         intensity = apply_bias_fairness(intensity, dialect_label, profanity_count, humor_score)
         intensity = apply_plausibility_constraints(intensity, text_phrase_norm)
         intensity = blend_with_context(intensity, prev_mixture, decay=0.7)
-        intensity = soft_cap_single_word_dominance(intensity, word_count_effective)
+        intensity = soft_cap_single_word_dominance(
+            intensity,
+            word_count_effective,
+            profanity_count=profanity_count,
+        )
 
         final_global_intensity = sum(intensity.values())
         if final_global_intensity > 1.0:
@@ -3399,7 +3481,9 @@ if __name__ == "__main__":
         "era um dia bom mas agora tudo vai piorando",
         "fue un buen dia pero ahora va peor y cada vez peor",
         "foi um dia dificil mas tem melhorado bastante",
+        "Fuck",
         "Fuck!",
+        "Fuck!!!",
         "Damnit!",
         "Son of a bitch",
         "How the hell do you think I feel?",
@@ -3410,5 +3494,10 @@ if __name__ == "__main__":
         print("\nTEXT:", s)
         print("DOMINANT:", out["dominant"])
         print("MIXTURE:", out["mixture_vector"])
-        print("META:", {"profanity_count": out["meta"]["profanity_count"], "neutral": out["meta"]["neutral"]})
+        print("META:", {
+            "profanity_count": out["meta"]["profanity_count"],
+            "neutral": out["meta"]["neutral"],
+            "global_intensity": out["meta"]["global_intensity"],
+            "intensity_band": out["meta"]["intensity_band"],
+        })
         print("CONF:", out["confidence"])
