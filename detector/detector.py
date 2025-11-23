@@ -1,5 +1,5 @@
 # detector/detector.py
-# High fidelity local emotion detector v24-espt
+# High fidelity local emotion detector v25-espt
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
 # Functional patch:
@@ -7,6 +7,10 @@
 # - Fixes emoji counting and short emoji-only cases by not treating variation
 #   selectors (FE0F) as emojis.
 # - Adds analyze_text_dict() helper for JSON safe API responses.
+# - Adds richer temporal logic for "getting better" and "getting worse" flows
+#   across EN / ES / PT, shifting intensity between positive and negative
+#   emotions instead of only scaling.
+# - Slight lexicon upgrade for good / better / worse and their ES / PT analogues.
 # - Adds a small __main__ self-test so you can verify output quickly.
 
 from __future__ import annotations
@@ -328,6 +332,7 @@ _register_words(
         "happier",
         "happiest",
         "glad",
+        "good",
         "grateful",
         "thankful",
         "delighted",
@@ -342,6 +347,7 @@ _register_words(
         "satisfied",
         "relieved",
         "hopeful",
+        "better",
         "peaceful",
         "smiling",
         "smile",
@@ -405,6 +411,7 @@ _register_words(
         "exhausted",
         "hopeless",
         "overwhelmed",
+        "worse",
     ],
     2.2,
 )
@@ -676,6 +683,7 @@ _register_words(
         "encanta",
         "buenisimo",
         "felicidad",
+        "mejor",
     ],
     2.0,
 )
@@ -705,6 +713,7 @@ _register_words(
         "roto",
         "apagado",
         "apagada",
+        "peor",
     ],
     2.2,
 )
@@ -920,6 +929,7 @@ _register_words(
         "perfeito",
         "perfeita",
         "felicidade",
+        "melhor",
     ],
     2.0,
 )
@@ -950,6 +960,7 @@ _register_words(
         "desanimada",
         "mal",
         "pra_baixo",
+        "pior",
     ],
     2.2,
 )
@@ -1356,7 +1367,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "esta en un lugar mejor": _vec(sadness=2.4, joy=1.4),
     "sentimiento agridulce": _vec(sadness=2.2, joy=1.4),
     # Portuguese
-    "não aguento mais": _vec(anger=1.5, sadness=2.0),
+    "não aguento más": _vec(anger=1.5, sadness=2.0),
     "nao aguento mais": _vec(anger=1.5, sadness=2.0),
     "me parte o coração": _vec(sadness=3.0),
     "me parte meu coração": _vec(sadness=3.0),
@@ -2261,11 +2272,20 @@ def detect_dialect(tokens: List[str], lang_props: Dict[str, float]) -> Tuple[str
     return best[0], confidence, scores
 
 
-def compute_temporal_cues(tokens: List[str], text_lower: str, lang_props: Dict[str, float]) -> Dict[str, float]:
+def compute_temporal_cues(tokens: List[str], text_raw: str, lang_props: Dict[str, float]) -> Dict[str, float]:
+    """
+    Detect temporal shape:
+    - persist: ongoing / repeated
+    - resolve: getting better / relief
+    - worsen: getting worse / deteriorating
+    Works across EN / ES / PT using token markers and phrase cues.
+    """
     bases = [join_for_lex(t) for t in tokens]
     persist = 0.0
     resolve = 0.0
+    worsen = 0.0
 
+    # Token level markers such as "still", "ya_no", "ainda", etc.
     for b in bases:
         for lang, words in TEMPORAL_PERSIST.items():
             if b in words:
@@ -2274,17 +2294,152 @@ def compute_temporal_cues(tokens: List[str], text_lower: str, lang_props: Dict[s
             if b in words:
                 resolve += 1.0 * lang_props.get(lang, 0.0)
 
-    if "used to" in text_lower:
+    # Phrase level cues on normalized text
+    t_norm = normalize_for_phrase(text_raw)
+
+    # English improvement phrases
+    en_weight = lang_props.get("en", 1.0)
+    en_resolve_phrases = [
+        "getting better",
+        "gotten better",
+        "got better",
+        "has gotten better",
+        "has been getting better",
+        "is getting better",
+        "things are better",
+        "feeling better",
+        "feel better",
+        "a bit better",
+        "a little better",
+        "better each day",
+        "better every day",
+        "steadily better",
+        "has improved",
+        "have improved",
+        "is improving",
+        "are improving",
+        "turned out ok",
+        "turned out okay",
+    ]
+    if any(p in t_norm for p in en_resolve_phrases):
+        resolve += 0.9 * en_weight
+
+    # English worsening phrases
+    en_worsen_phrases = [
+        "getting worse",
+        "gotten worse",
+        "got worse",
+        "has gotten worse",
+        "has been getting worse",
+        "is getting worse",
+        "only getting worse",
+        "took a turn for the worse",
+        "took a turn for the worst",
+        "turn for the worse",
+        "turn for the worst",
+        "going downhill",
+        "went downhill",
+        "fell apart",
+        "falling apart",
+        "keeps getting worse",
+        "kept getting worse",
+        "is worse now",
+        "are worse now",
+    ]
+    if any(p in t_norm for p in en_worsen_phrases):
+        worsen += 0.9 * en_weight
+
+    # Spanish improvement phrases (normalized, no accents in literals)
+    es_weight = lang_props.get("es", 1.0)
+    es_resolve_phrases = [
+        "va mejor",
+        "ha ido mejor",
+        "ha estado mejor",
+        "ha mejorado",
+        "han mejorado",
+        "esta mejorando",
+        "está mejorando",
+        "me siento mejor",
+        "me estoy sintiendo mejor",
+        "cada dia mejor",
+        "cada dia un poco mejor",
+        "cada dia estoy mejor",
+    ]
+    if any(p in t_norm for p in es_resolve_phrases):
+        resolve += 0.9 * es_weight
+
+    # Spanish worsening phrases
+    es_worsen_phrases = [
+        "va peor",
+        "ha ido peor",
+        "ha estado peor",
+        "se puso peor",
+        "se ha puesto peor",
+        "esta peor",
+        "está peor",
+        "se puso mal",
+        "se ha puesto mal",
+        "cada vez peor",
+        "todo va peor",
+        "todo se puso peor",
+    ]
+    if any(p in t_norm for p in es_worsen_phrases):
+        worsen += 0.9 * es_weight
+
+    # Portuguese improvement phrases
+    pt_weight = lang_props.get("pt", 1.0)
+    pt_resolve_phrases = [
+        "vai melhorando",
+        "tem melhorado",
+        "tenho melhorado",
+        "ficou melhor",
+        "ficando melhor",
+        "estou melhor",
+        "to melhor",
+        "tô melhor",
+        "me sinto melhor",
+        "me sentindo melhor",
+        "cada dia melhor",
+        "cada vez melhor",
+    ]
+    if any(p in t_norm for p in pt_resolve_phrases):
+        resolve += 0.9 * pt_weight
+
+    # Portuguese worsening phrases
+    pt_worsen_phrases = [
+        "vai piorando",
+        "tem piorado",
+        "tenho piorado",
+        "ficou pior",
+        "ficando pior",
+        "esta pior",
+        "está pior",
+        "ta pior",
+        "tá pior",
+        "so piora",
+        "só piora",
+        "cada vez pior",
+        "tudo piorou",
+        "tudo ficou pior",
+    ]
+    if any(p in t_norm for p in pt_worsen_phrases):
+        worsen += 0.9 * pt_weight
+
+    # Generic cues shared across languages
+    if "used to" in t_norm:
         persist += 0.5
         resolve += 0.3
-    if "anymore" in text_lower:
+    if "anymore" in t_norm:
         resolve += 0.7
-    if "better now" in text_lower or "mejor ahora" in text_lower or "melhor agora" in text_lower:
+    if "better now" in t_norm or "mejor ahora" in t_norm or "melhor agora" in t_norm:
         resolve += 1.0
+    if "worse now" in t_norm or "peor ahora" in t_norm or "pior agora" in t_norm:
+        worsen += 1.0
 
     return {
         "persist": min(3.0, persist),
         "resolve": min(3.0, resolve),
+        "worsen": min(3.0, worsen),
     }
 
 
@@ -2292,21 +2447,73 @@ def apply_temporal_modulation(
     intensity: Dict[str, float],
     cues: Dict[str, float],
 ) -> Dict[str, float]:
+    """
+    Use temporal cues to reshape intensity rather than only scaling.
+    - resolve dominant: shift some sadness / fear into joy / passion / surprise.
+    - worsen dominant: shift some joy / passion into sadness / fear / anger.
+    - persist dominant: gently boost negative persistence.
+    """
     if not intensity:
         return intensity
+
     out = dict(intensity)
     persist = cues.get("persist", 0.0)
     resolve = cues.get("resolve", 0.0)
+    worsen = cues.get("worsen", 0.0)
 
-    if resolve > persist and resolve > 0:
-        factor = 1.0 - min(0.35, 0.12 * resolve)
-        out["sadness"] *= factor
-        out["fear"] *= factor
-        out["joy"] *= 1.0 + min(0.25, 0.10 * resolve)
-    elif persist > resolve and persist > 0:
+    # Getting better, relief case
+    if resolve > persist and resolve >= worsen and resolve > 0.0:
+        reduction = min(0.35, 0.12 * resolve)
+
+        sad_before = out.get("sadness", 0.0)
+        fear_before = out.get("fear", 0.0)
+
+        factor = 1.0 - reduction
+        out["sadness"] = max(0.0, sad_before * factor)
+        out["fear"] = max(0.0, fear_before * factor)
+
+        released = max(0.0, sad_before - out["sadness"]) + max(
+            0.0, fear_before - out["fear"]
+        )
+
+        if released > 0.0:
+            out["joy"] = out.get("joy", 0.0) + released * 0.7
+            out["passion"] = out.get("passion", 0.0) + released * 0.1
+            out["surprise"] = out.get("surprise", 0.0) + released * 0.2
+        else:
+            out["joy"] = out.get("joy", 0.0) * (
+                1.0 + min(0.25, 0.10 * resolve)
+            )
+
+    # Getting worse, deterioration case
+    elif worsen > resolve and worsen >= persist and worsen > 0.0:
+        increase = min(0.35, 0.12 * worsen)
+
+        joy_before = out.get("joy", 0.0)
+        passion_before = out.get("passion", 0.0)
+
+        factor = 1.0 - increase
+        out["joy"] = max(0.0, joy_before * factor)
+        out["passion"] = max(0.0, passion_before * factor)
+
+        released = max(0.0, joy_before - out["joy"]) + max(
+            0.0, passion_before - out["passion"]
+        )
+
+        if released > 0.0:
+            out["sadness"] = out.get("sadness", 0.0) + released * 0.6
+            out["fear"] = out.get("fear", 0.0) + released * 0.25
+            out["anger"] = out.get("anger", 0.0) + released * 0.15
+        else:
+            scale = 1.0 + min(0.3, 0.12 * worsen)
+            for e in ("sadness", "fear", "anger"):
+                out[e] = out.get(e, 0.0) * scale
+
+    # Persistent or ongoing difficulty
+    elif persist > resolve and persist >= worsen and persist > 0.0:
         factor = 1.0 + min(0.25, 0.10 * persist)
         for e in ("sadness", "fear", "anger"):
-            out[e] *= factor
+            out[e] = out.get(e, 0.0) * factor
 
     return out
 
@@ -2608,7 +2815,7 @@ class EmotionDetector:
 
         humor_score = compute_humor_score(text, tokens)
         dialect_label, dialect_conf, dialect_scores = detect_dialect(tokens, lang_props)
-        temporal_cues = compute_temporal_cues(tokens, text_lower, lang_props)
+        temporal_cues = compute_temporal_cues(tokens, text, lang_props)
 
         punctuation = {".", "!", "?", ";", ","}
 
@@ -3075,10 +3282,15 @@ if __name__ == "__main__":
         "are you kidding me??",
         "lol im dead 😂",
         "this was a hard long week but im okay now",
+        "it has been a good day but it has gotten worse lately",
+        "era um dia bom mas agora tudo vai piorando",
+        "fue un buen dia pero ahora va peor y cada vez peor",
+        "foi um dia dificil mas tem melhorado bastante",
     ]
     for s in samples:
         out = analyze_text_dict(s)
         print("\nTEXT:", s)
         print("DOMINANT:", out["dominant"])
         print("MIXTURE:", out["mixture_vector"])
+        print("TEMPORAL:", out["meta"]["temporal_cues"])
         print("CONF:", out["confidence"])
