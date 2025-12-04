@@ -71,6 +71,8 @@ const LOCALES = {
       statusAnalyzing: "Analyzing...",
       statusLowSignal:
         "Too little text to understand how you feel. Try adding a bit more detail.",
+      statusNeedAnalysis:
+        "Run an analysis before adding to journal.",
       crisisTitle: "Wait! You are priceless and important.",
       crisisBody:
         "If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.",
@@ -84,7 +86,17 @@ const LOCALES = {
       helpButtonLabel: "About In tuned",
       themeToggleLabel: "Toggle light or dark theme",
       settingsThemeLabel: "Theme",
-      settingsLanguageLabel: "Language"
+      settingsLanguageLabel: "Language",
+      journalNewTitle: "New journal entry",
+      journalOriginalTextLabel: "Original text",
+      journalAnalysisSnapshotLabel: "Analysis snapshot",
+      journalJournalLabel: "Journal",
+      journalCancel: "Cancel",
+      journalSave: "Save",
+      journalDefaultTitle: "Journal entry",
+      journalPin: "Pin",
+      journalUnpin: "Unpin",
+      accountLabel: "Account"
     },
     emotions: {
       anger: "Anger",
@@ -136,18 +148,30 @@ const LOCALES = {
       statusAnalyzing: "Analizando...",
       statusLowSignal:
         "Hay muy poco texto para comprender cómo te sientes. Intenta añadir un poco más de detalle.",
+      statusNeedAnalysis:
+        "Realiza un análisis antes de añadir al diario.",
       crisisTitle: "Espera, tu vida es muy valiosa.",
       crisisBody:
         "Si tú o alguien cercano tiene pensamientos de hacerse daño o de suicidio, siempre hay ayuda disponible. El mundo te necesita aquí.",
       crisisNote:
         "Si sientes que puedes estar en peligro, comunícate de inmediato con una línea de ayuda de confianza o con los servicios de emergencia de tu país.",
-      crisisHotlineCta: "Contactar línea de ajuda",
+      crisisHotlineCta: "Contactar línea de ayuda",
       crisisEmergencyCta: "Contactar servicios de emergencia",
       crisisClose: "Cerrar",
       langMenuLabel: "Idioma",
       langSwitchTooltip: "Cambiar idioma",
       helpButtonLabel: "Acerca de In tuned",
-      themeToggleLabel: "Cambiar entre modo claro y oscuro"
+      themeToggleLabel: "Cambiar entre tema claro y oscuro",
+      journalNewTitle: "Nueva entrada de diario",
+      journalOriginalTextLabel: "Texto original",
+      journalAnalysisSnapshotLabel: "Resumen del análisis",
+      journalJournalLabel: "Diario",
+      journalCancel: "Cancelar",
+      journalSave: "Guardar",
+      journalDefaultTitle: "Entrada de diario",
+      journalPin: "Fijar",
+      journalUnpin: "Quitar fijación",
+      accountLabel: "Cuenta"
     },
     emotions: {
       anger: "Ira",
@@ -199,6 +223,8 @@ const LOCALES = {
       statusAnalyzing: "Analisando...",
       statusLowSignal:
         "Há texto insuficiente para entender como você se sente. Tente acrescentar um pouco mais de detalhes.",
+      statusNeedAnalysis:
+        "Faça uma análise antes de adicionar ao diário.",
       crisisTitle: "Espere, a sua vida é preciosa.",
       crisisBody:
         "Se você ou alguém próximo está tendo pensamentos de autoagressão ou suicídio, sempre existe ajuda disponível. O mundo precisa de você aqui.",
@@ -210,7 +236,17 @@ const LOCALES = {
       langMenuLabel: "Idioma",
       langSwitchTooltip: "Alterar idioma",
       helpButtonLabel: "Sobre o In tuned",
-      themeToggleLabel: "Alternar idioma"
+      themeToggleLabel: "Alternar entre tema claro e escuro",
+      journalNewTitle: "Nova entrada de diário",
+      journalOriginalTextLabel: "Texto original",
+      journalAnalysisSnapshotLabel: "Resumo da análise",
+      journalJournalLabel: "Diário",
+      journalCancel: "Cancelar",
+      journalSave: "Salvar",
+      journalDefaultTitle: "Entrada de diário",
+      journalPin: "Fixar",
+      journalUnpin: "Desafixar",
+      accountLabel: "Conta"
     },
     emotions: {
       anger: "Raiva",
@@ -966,19 +1002,19 @@ function applyGuestTheme() {
 }
 
 function applyUserTheme(theme) {
-  let t = theme;
-  if (t !== "light" && t !== "dark") {
-    t = "dark";
+  let tTheme = theme;
+  if (tTheme !== "light" && tTheme !== "dark") {
+    tTheme = "dark";
     try {
       if (
         window.matchMedia &&
         window.matchMedia("(prefers-color-scheme: light)").matches
       ) {
-        t = "light";
+        tTheme = "light";
       }
     } catch (e) {}
   }
-  root.setAttribute("data-theme", t || "dark");
+  root.setAttribute("data-theme", tTheme || "dark");
 }
 
 /* ---------- Region helper for backend ---------- */
@@ -1277,8 +1313,9 @@ function applyUserState() {
     if (settingsControl) settingsControl.classList.add("hidden");
 
     if (accountNameLabel) {
+      const fallback = t("accountLabel") || "Account";
       accountNameLabel.textContent =
-        currentUser.first_name || "Account";
+        currentUser.first_name || fallback;
     }
 
     const lang = currentUser.preferred_language || currentLocale;
@@ -1792,7 +1829,8 @@ function renderJournalLists() {
 
     const title = document.createElement("div");
     title.className = "journalListTitle";
-    title.textContent = journal.title || "Journal entry";
+    title.textContent =
+      journal.title || t("journalDefaultTitle") || "Journal entry";
 
     const meta = document.createElement("div");
     meta.className = "journalListMeta";
@@ -1851,7 +1889,8 @@ async function openJournalDetail(journalId) {
       journalDetailActionsRow.classList.add("hidden");
 
     if (journalDetailTitle) {
-      journalDetailTitle.textContent = journal.title || "Journal entry";
+      journalDetailTitle.textContent =
+        journal.title || t("journalDefaultTitle") || "Journal entry";
     }
     if (journalDetailMeta) {
       journalDetailMeta.textContent = formatDateTime(
@@ -1894,8 +1933,8 @@ async function openJournalDetail(journalId) {
 
     if (journalPinToggleButton) {
       journalPinToggleButton.textContent = journal.is_pinned
-        ? "Unpin"
-        : "Pin";
+        ? t("journalUnpin") || "Unpin"
+        : t("journalPin") || "Pin";
     }
   } catch (err) {
     // If failed, keep current state
@@ -1963,8 +2002,8 @@ if (journalPinToggleButton) {
       currentJournal = data.journal || currentJournal;
       if (journalPinToggleButton) {
         journalPinToggleButton.textContent = currentJournal.is_pinned
-          ? "Unpin"
-          : "Pin";
+          ? t("journalUnpin") || "Unpin"
+          : t("journalPin") || "Pin";
       }
       await loadJournals();
     } catch (err) {
@@ -2037,12 +2076,12 @@ function ensureNewJournalOverlay() {
   header.className = "journalHeaderRow";
 
   const h2 = document.createElement("h2");
-  h2.textContent = "New journal entry";
+  h2.textContent = t("journalNewTitle") || "New journal entry";
 
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "ghost";
-  closeBtn.textContent = "Cancel";
+  closeBtn.textContent = t("journalCancel") || "Cancel";
 
   header.appendChild(h2);
   header.appendChild(closeBtn);
@@ -2053,7 +2092,8 @@ function ensureNewJournalOverlay() {
   const srcBlock = document.createElement("div");
   srcBlock.className = "journalSourceBlock";
   const srcTitle = document.createElement("h4");
-  srcTitle.textContent = "Original text";
+  srcTitle.textContent =
+    t("journalOriginalTextLabel") || "Original text";
   newJournalSourceEl = document.createElement("p");
   srcBlock.appendChild(srcTitle);
   srcBlock.appendChild(newJournalSourceEl);
@@ -2061,7 +2101,8 @@ function ensureNewJournalOverlay() {
   const analBlock = document.createElement("div");
   analBlock.className = "journalAnalysisBlock";
   const analTitle = document.createElement("h4");
-  analTitle.textContent = "Analysis snapshot";
+  analTitle.textContent =
+    t("journalAnalysisSnapshotLabel") || "Analysis snapshot";
   newJournalAnalysisEl = document.createElement("pre");
   analBlock.appendChild(analTitle);
   analBlock.appendChild(newJournalAnalysisEl);
@@ -2069,7 +2110,8 @@ function ensureNewJournalOverlay() {
   const textBlock = document.createElement("div");
   textBlock.className = "journalTextBlock";
   const textTitle = document.createElement("h4");
-  textTitle.textContent = "Journal";
+  textTitle.textContent =
+    t("journalJournalLabel") || "Journal";
   newJournalTextEl = document.createElement("textarea");
   newJournalTextEl.className = "journalEditArea";
   textBlock.appendChild(textTitle);
@@ -2084,11 +2126,13 @@ function ensureNewJournalOverlay() {
   newJournalCancelBtn = document.createElement("button");
   newJournalCancelBtn.type = "button";
   newJournalCancelBtn.className = "ghost";
-  newJournalCancelBtn.textContent = "Cancel";
+  newJournalCancelBtn.textContent =
+    t("journalCancel") || "Cancel";
   newJournalSaveBtn = document.createElement("button");
   newJournalSaveBtn.type = "button";
   newJournalSaveBtn.className = "btn";
-  newJournalSaveBtn.textContent = "Save";
+  newJournalSaveBtn.textContent =
+    t("journalSave") || "Save";
   actionsRow.appendChild(newJournalCancelBtn);
   actionsRow.appendChild(newJournalSaveBtn);
 
@@ -2118,7 +2162,10 @@ function ensureNewJournalOverlay() {
 
 function openNewJournalOverlay() {
   if (!lastAnalysisSnapshot) {
-    setStatus("Run an analysis before adding to journal.");
+    setStatus(
+      t("statusNeedAnalysis") ||
+        "Run an analysis before adding to journal."
+    );
     return;
   }
   if (!currentUser) {
@@ -2167,7 +2214,8 @@ async function saveNewJournalEntry() {
   const { text, data } = lastAnalysisSnapshot;
   const journal_text = newJournalTextEl.value || "";
 
-  const title = `Journal entry ${new Date().toLocaleString()}`;
+  const baseTitle = t("journalDefaultTitle") || "Journal entry";
+  const title = `${baseTitle} ${new Date().toLocaleString()}`;
 
   try {
     await apiFetchJSON("/api/journals", {
