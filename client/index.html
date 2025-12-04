@@ -14,14 +14,13 @@
   </head>
   <body>
     <div class="wrap">
-      <header class="topbar">
+      <header id="appHeader" class="topbar">
         <div class="brand" aria-label="In tuned home">
           <div class="logo" aria-hidden="true">
             <div class="mark" aria-hidden="true"></div>
           </div>
           <div class="brandText">
             <div class="title" data-i18n="appTitle">In tuned</div>
-            <div class="badge">v8.0</div>
           </div>
         </div>
         <div class="actions">
@@ -35,7 +34,8 @@
             <span class="helpIcon" aria-hidden="true">?</span>
           </button>
 
-          <div class="settingsControl">
+          <!-- Settings for guests: language only -->
+          <div id="settingsControl" class="settingsControl">
             <button
               id="settingsBtn"
               class="settingsBtn iconBtn"
@@ -52,31 +52,6 @@
               role="menu"
               aria-label="Settings"
             >
-              <div class="settingsSection">
-                <div class="settingsLabel" data-i18n="settingsThemeLabel">
-                  Theme
-                </div>
-                <div class="settingsRow">
-                  <button
-                    id="modeDot"
-                    class="modeDot"
-                    type="button"
-                    data-i18n-aria-label="themeToggleLabel"
-                    aria-label="Toggle light or dark theme"
-                  >
-                    <span
-                      class="modeDotLabel"
-                      data-i18n="settingsThemeLabel"
-                    >
-                      Theme
-                    </span>
-                    <div class="modeDotTrack" aria-hidden="true">
-                      <div class="modeDotThumb"></div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
               <div class="settingsSection">
                 <div
                   class="settingsLabel"
@@ -114,10 +89,91 @@
               </div>
             </div>
           </div>
+
+          <!-- Login button for guests -->
+          <button
+            id="loginBtn"
+            class="btn smallBtn"
+            type="button"
+            data-i18n="loginButtonLabel"
+          >
+            Login
+          </button>
+
+          <!-- Account control for logged in users -->
+          <div id="accountControl" class="accountControl hidden">
+            <button
+              id="accountBtn"
+              class="accountBtn"
+              type="button"
+              aria-haspopup="true"
+              aria-expanded="false"
+            >
+              <span id="accountNameLabel">User</span>
+            </button>
+            <div
+              id="accountMenu"
+              class="accountMenu"
+              role="menu"
+              aria-label="Account"
+            >
+              <button
+                class="accountMenuItem"
+                type="button"
+                data-action="journal"
+              >
+                Journal
+              </button>
+              <button
+                class="accountMenuItem"
+                type="button"
+                data-action="settings"
+              >
+                Settings
+              </button>
+              <button
+                class="accountMenuItem"
+                type="button"
+                data-action="logout"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main>
+      <!-- Notice banner under logo -->
+      <div
+        id="noticeBanner"
+        class="noticeBanner"
+        role="status"
+        aria-live="polite"
+      ></div>
+
+      <!-- Maintenance shell: shown when site is in maintenance mode -->
+      <div
+        id="maintenanceShell"
+        class="maintenanceShell hidden"
+        aria-live="polite"
+      >
+        <div class="maintenanceBrand">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
+          </div>
+          <div class="brandText">
+            <div class="title" data-i18n="appTitle">In tuned</div>
+          </div>
+        </div>
+        <p
+          id="maintenanceMessage"
+          class="maintenanceMessage"
+        >
+          Site is currently down due to maintenance. We will be back shortly.
+        </p>
+      </div>
+
+      <main id="appMain">
         <h1 data-i18n="headline">Emotion detector</h1>
         <p class="subtitle" data-i18n="subtitle">
           A simple space to notice what you are feeling across seven core
@@ -238,16 +294,34 @@
                 </div>
                 <div class="value" id="v-emotion">N/A</div>
               </div>
+
+              <!-- Add to journal button for logged in users -->
+              <div class="meta metaSecondary">
+                <button
+                  id="addJournalButton"
+                  class="btn smallBtn"
+                  type="button"
+                >
+                  Add to journal
+                </button>
+                <span
+                  id="addJournalHint"
+                  class="hint"
+                >
+                  Saves your text, bar chart result, and a journal note.
+                </span>
+              </div>
             </div>
           </div>
         </section>
       </main>
 
-      <footer data-i18n="footer">
+      <footer id="appFooter" data-i18n="footer">
         © 2025 In tuned. All rights reserved.
       </footer>
     </div>
 
+    <!-- About modal -->
     <div
       id="overlay"
       class="overlay"
@@ -287,6 +361,7 @@
       </div>
     </div>
 
+    <!-- Crisis modal -->
     <div
       id="crisisOverlay"
       class="overlay"
@@ -345,6 +420,498 @@
             Close
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Auth: Login -->
+    <div
+      id="authOverlayLogin"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="authLoginTitle"
+    >
+      <div class="modal authModal">
+        <div class="authHeader">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
+          </div>
+          <div class="brandText">
+            <div class="title" data-i18n="appTitle">In tuned</div>
+          </div>
+        </div>
+        <h2 id="authLoginTitle">Login</h2>
+        <form id="loginForm" novalidate>
+          <label class="fieldLabel" for="loginIdentifier">
+            Email or username
+          </label>
+          <input
+            id="loginIdentifier"
+            class="fieldInput"
+            type="text"
+            autocomplete="username"
+          />
+
+          <label class="fieldLabel" for="loginPassword">
+            Password
+          </label>
+          <input
+            id="loginPassword"
+            class="fieldInput"
+            type="password"
+            autocomplete="current-password"
+          />
+
+          <p id="loginError" class="errorText hidden"></p>
+
+          <div class="authLinksRow">
+            <button
+              id="openRegisterFromLogin"
+              type="button"
+              class="linkButton"
+            >
+              Create account
+            </button>
+            <button
+              id="openForgotFromLogin"
+              type="button"
+              class="linkButton"
+            >
+              Forgot password
+            </button>
+          </div>
+
+          <div class="actionsRow">
+            <button
+              id="cancelLogin"
+              type="button"
+              class="ghost"
+            >
+              Cancel
+            </button>
+            <button
+              id="submitLogin"
+              type="submit"
+              class="btn"
+            >
+              Login
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Auth: Create account -->
+    <div
+      id="authOverlayRegister"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="authRegisterTitle"
+    >
+      <div class="modal authModal">
+        <div class="authHeader">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
+          </div>
+          <div class="brandText">
+            <div class="title" data-i18n="appTitle">In tuned</div>
+          </div>
+        </div>
+        <h2 id="authRegisterTitle">Create account</h2>
+        <form id="registerForm" novalidate>
+          <label class="fieldLabel" for="registerFirstName">
+            First name
+          </label>
+          <input
+            id="registerFirstName"
+            class="fieldInput"
+            type="text"
+            autocomplete="given-name"
+          />
+
+          <label class="fieldLabel" for="registerLastName">
+            Last name
+          </label>
+          <input
+            id="registerLastName"
+            class="fieldInput"
+            type="text"
+            autocomplete="family-name"
+          />
+
+          <label class="fieldLabel" for="registerUsername">
+            Username
+          </label>
+          <input
+            id="registerUsername"
+            class="fieldInput"
+            type="text"
+            autocomplete="username"
+          />
+
+          <label class="fieldLabel" for="registerEmail">
+            Email
+          </label>
+          <input
+            id="registerEmail"
+            class="fieldInput"
+            type="email"
+            autocomplete="email"
+          />
+
+          <label class="fieldLabel" for="registerPassword">
+            Password
+          </label>
+          <input
+            id="registerPassword"
+            class="fieldInput"
+            type="password"
+            autocomplete="new-password"
+          />
+
+          <label class="fieldLabel" for="registerConfirmPassword">
+            Re enter password
+          </label>
+          <input
+            id="registerConfirmPassword"
+            class="fieldInput"
+            type="password"
+            autocomplete="new-password"
+          />
+
+          <p id="registerError" class="errorText hidden"></p>
+
+          <div class="actionsRow">
+            <button
+              id="cancelRegister"
+              type="button"
+              class="ghost"
+            >
+              Cancel
+            </button>
+            <button
+              id="submitRegister"
+              type="submit"
+              class="btn"
+            >
+              Create account
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Auth: Forgot password -->
+    <div
+      id="authOverlayForgot"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="authForgotTitle"
+    >
+      <div class="modal authModal">
+        <div class="authHeader">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
+          </div>
+          <div class="brandText">
+            <div class="title" data-i18n="appTitle">In tuned</div>
+          </div>
+        </div>
+        <h2 id="authForgotTitle">Reset password</h2>
+        <form id="forgotForm" novalidate>
+          <label class="fieldLabel" for="forgotEmail">
+            Email
+          </label>
+          <input
+            id="forgotEmail"
+            class="fieldInput"
+            type="email"
+            autocomplete="email"
+          />
+
+          <label class="fieldLabel" for="forgotFirstName">
+            First name
+          </label>
+          <input
+            id="forgotFirstName"
+            class="fieldInput"
+            type="text"
+          />
+
+          <label class="fieldLabel" for="forgotLastName">
+            Last name
+          </label>
+          <input
+            id="forgotLastName"
+            class="fieldInput"
+            type="text"
+          />
+
+          <label class="fieldLabel" for="forgotNewPassword">
+            New password
+          </label>
+          <input
+            id="forgotNewPassword"
+            class="fieldInput"
+            type="password"
+            autocomplete="new-password"
+          />
+
+          <label class="fieldLabel" for="forgotConfirmPassword">
+            Re enter new password
+          </label>
+          <input
+            id="forgotConfirmPassword"
+            class="fieldInput"
+            type="password"
+            autocomplete="new-password"
+          />
+
+          <p id="forgotError" class="errorText hidden"></p>
+
+          <div class="actionsRow">
+            <button
+              id="cancelForgot"
+              type="button"
+              class="ghost"
+            >
+              Cancel
+            </button>
+            <button
+              id="submitForgot"
+              type="submit"
+              class="btn"
+            >
+              Reset password
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Journal overlay -->
+    <div
+      id="journalOverlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="journalTitle"
+    >
+      <div class="modal journalModal">
+        <div class="journalHeaderRow">
+          <h2 id="journalTitle">Journal</h2>
+          <button
+            id="closeJournal"
+            class="ghost"
+            type="button"
+          >
+            Close
+          </button>
+        </div>
+        <div class="journalLayout">
+          <aside class="journalListPane">
+            <div class="journalSectionHeader">
+              <span>Pinned</span>
+            </div>
+            <div
+              id="pinnedJournalList"
+              class="journalList pinned hidden"
+            ></div>
+
+            <div class="journalSectionHeader">
+              <span>All entries</span>
+            </div>
+            <div
+              id="journalList"
+              class="journalList"
+            ></div>
+          </aside>
+
+          <section class="journalDetailPane">
+            <div id="journalEmptyState" class="journalEmptyState">
+              <p>
+                Select a journal entry to view it, or add one from an analysis.
+              </p>
+            </div>
+
+            <div
+              id="journalDetail"
+              class="journalDetail hidden"
+            >
+              <div class="journalDetailHeader">
+                <div>
+                  <h3 id="journalDetailTitle"></h3>
+                  <p
+                    id="journalDetailMeta"
+                    class="journalMeta"
+                  ></p>
+                </div>
+                <div class="journalDetailActions">
+                  <button
+                    id="journalFlagButton"
+                    type="button"
+                    class="iconBtn warningIndicator hidden"
+                    title="This entry mentions self harm or suicide"
+                  >
+                    ⚠️
+                  </button>
+                  <button
+                    id="journalEditMenu"
+                    type="button"
+                    class="iconBtn"
+                  >
+                    ⋯
+                  </button>
+                  <div
+                    id="journalEditMenuDropdown"
+                    class="journalEditMenuDropdown hidden"
+                  >
+                    <button
+                      id="journalEditButton"
+                      type="button"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      id="journalPinToggleButton"
+                      type="button"
+                    >
+                      Pin
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="journalDetailContent">
+                <div class="journalSourceBlock">
+                  <h4>Original text</h4>
+                  <p id="journalDetailSourceText"></p>
+                </div>
+                <div class="journalAnalysisBlock">
+                  <h4>Analysis snapshot</h4>
+                  <pre id="journalDetailAnalysis"></pre>
+                </div>
+                <div class="journalTextBlock">
+                  <h4>Journal</h4>
+                  <textarea
+                    id="journalDetailText"
+                    class="journalEditArea"
+                    disabled
+                  ></textarea>
+                </div>
+              </div>
+
+              <div
+                id="journalDetailActionsRow"
+                class="actionsRow hidden"
+              >
+                <button
+                  id="cancelJournalEdit"
+                  type="button"
+                  class="ghost"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="saveJournalEdit"
+                  type="button"
+                  class="btn"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account settings overlay (theme and language for logged in users) -->
+    <div
+      id="accountSettingsOverlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="accountSettingsTitle"
+    >
+      <div class="modal authModal">
+        <div class="authHeader">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
+          </div>
+          <div class="brandText">
+            <div class="title" data-i18n="appTitle">In tuned</div>
+          </div>
+        </div>
+        <h2 id="accountSettingsTitle">Settings</h2>
+        <form id="accountSettingsForm" novalidate>
+          <div class="settingsSection">
+            <div class="settingsLabel">Theme</div>
+            <div class="settingsRow">
+              <button
+                id="accountThemeToggle"
+                class="modeDot"
+                type="button"
+                aria-label="Toggle light or dark theme"
+              >
+                <span class="modeDotLabel">Theme</span>
+                <div class="modeDotTrack" aria-hidden="true">
+                  <div class="modeDotThumb"></div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="settingsSection">
+            <div class="settingsLabel">Language</div>
+            <div class="settingsRow">
+              <div class="langControl">
+                <button
+                  id="accountLangToggle"
+                  class="langToggle"
+                  type="button"
+                  aria-haspopup="true"
+                  aria-expanded="false"
+                >
+                  <span class="langIcon" aria-hidden="true">🌐</span>
+                  <span
+                    id="accountLangCurrentLabel"
+                    class="langCurrentLabel"
+                  >
+                    EN
+                  </span>
+                </button>
+                <div
+                  id="accountLangMenu"
+                  class="langMenu"
+                  role="menu"
+                  aria-label="Language"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <p id="accountSettingsError" class="errorText hidden"></p>
+
+          <div class="actionsRow">
+            <button
+              id="cancelAccountSettings"
+              type="button"
+              class="ghost"
+            >
+              Cancel
+            </button>
+            <button
+              id="saveAccountSettings"
+              type="submit"
+              class="btn"
+            >
+              Save
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
