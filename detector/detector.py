@@ -1,22 +1,26 @@
 # detector/detector.py
-# High fidelity local emotion detector v30-espt-meta
+# High fidelity local emotion detector v31-espt-meta-db
 # Seven core emotions, 1 to 250 words, English / Spanish / Portuguese only.
 #
-# v30 changes vs v29-espt-meta:
-# - Adds lightweight lemmatization / morphology fallback for EN / ES / PT:
-#   * lookup_with_lemma() wraps lexicon lookup so inflected forms like
-#     "worried", "llorando", "preocupadas" map more reliably to base entries.
-#   * Uses simple heuristics per language; does not require external NLP libs.
-# - Keeps existing trigram-based _semantic_guess() as a further fallback.
-#
-# v29 changes vs v28-espt:
-# - Fix Spanish temporal phrase typos ("melhor" -> "mejor").
-# - Add phrase-level uncertainty / certainty detection across EN / ES / PT:
-#   * Captures hedges like "not sure", "no sé", "nao sei", "no tengo idea",
-#     "não tenho certeza", etc.
-#   * These phrases feed into uncertainty_count / certainty_count and thus
-#     influence global intensity, certainty vs uncertainty shaping, and
-#     hedge-aware softening of negative emotions.
+# v31 changes vs v30-espt-meta:
+# - Adds database friendly hooks:
+#   * set_lexicon_token(new_lexicon_token, expand_morphology=True)
+#   * set_phrase_lexicon(new_phrase_lexicon)
+#   These let you populate all language / lexicon data from a database instead
+#   of relying on the in file registrations. After calling them once at
+#   startup with DB data, the detector transparently uses that data.
+# - Generalizes language detection over whatever languages exist
+#   in LEXICON_TOKEN instead of hardcoding "en", "es", "pt".
+# - Adds token level typographic amplifiers:
+#   * ALL CAPS words, trailing "!!!", "???", "..." raise local intensity.
+#   * Local emphasis level 0, 1, 2, 3 maps to multipliers 1x, 2x, 3x, 4x.
+# - Keeps global intensity as a 0 to 1 scale whose sum across emotions
+#   is always ≤ 1, and never lets any emotion report a full 100.0 percent
+#   (internally capped to 99.9) while the total across emotions never
+#   exceeds 100.
+# - Adds meta.emotion_levels with human readable descriptions of each
+#   emotion’s intensity band (for example "frustrated" vs "angry"
+#   vs "furious" for anger).
 
 from __future__ import annotations
 
@@ -232,6 +236,8 @@ def _vec(**kwargs: float) -> Dict[str, float]:
     return v
 
 
+# The core lexicon token table.
+# Shape: {lang: {token_norm: {emotion: weight}}}
 LEXICON_TOKEN: Dict[str, Dict[str, Dict[str, float]]] = {
     "en": {},
     "es": {},
@@ -241,7 +247,7 @@ LEXICON_TOKEN: Dict[str, Dict[str, Dict[str, float]]] = {
 
 def _register_words(lang: str, emotion: str, words: List[str], base: float) -> None:
     """Register words normalized into the lexicon."""
-    table = LEXICON_TOKEN[lang]
+    table = LEXICON_TOKEN.setdefault(lang, {})
     for w in words:
         wl = join_for_lex(w)
         vec = table.get(wl, _vec())
@@ -250,7 +256,9 @@ def _register_words(lang: str, emotion: str, words: List[str], base: float) -> N
 
 
 # -----------------------------------------------------------------------------
-# Base lexicon (identical to original v27 with minor extensions where noted)
+# Base lexicon (identical to earlier versions, kept as a static default)
+# You can replace all of this at startup by calling set_lexicon_token(...)
+# with a DB loaded mapping.
 # -----------------------------------------------------------------------------
 
 # English core
@@ -1456,7 +1464,7 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "no puedo creer que se haya ido": _vec(sadness=3.1, surprise=0.9),
     "no puedo creer que se fue": _vec(sadness=3.0, surprise=0.9),
     "está en un lugar mejor": _vec(sadness=2.4, joy=1.4),
-    "esta en un lugar mejor": _vec(sadness=2.4, joy=1.4),
+    "esta in un lugar mejor": _vec(sadness=2.4, joy=1.4),
     "sentimiento agridulce": _vec(sadness=2.2, joy=1.4),
     # Portuguese
     "não aguento más": _vec(anger=1.5, sadness=2.0),
@@ -1494,19 +1502,26 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "sentimento agridoce": _vec(sadness=2.2, joy=1.4),
 }
 
-# Build a normalized phrase lexicon so matching is accent and spacing robust.
 PHRASE_LEXICON_NORM: Dict[str, Dict[str, float]] = {}
-for k, v in PHRASE_LEXICON.items():
-    nk = normalize_for_phrase(k)
-    PHRASE_LEXICON_NORM[nk] = v
-
-# Precompile normalized phrase patterns once.
 PHRASE_REGEX_NORM: List[Tuple[re.Pattern, Dict[str, float]]] = []
-for phrase_norm, vec in PHRASE_LEXICON_NORM.items():
-    if not phrase_norm:
-        continue
-    pat = re.compile(rf"(?<!\w){re.escape(phrase_norm)}(?!\w)")
-    PHRASE_REGEX_NORM.append((pat, vec))
+
+
+def _rebuild_phrase_index() -> None:
+    """Rebuild normalized phrase index and regexes from PHRASE_LEXICON."""
+    global PHRASE_LEXICON_NORM, PHRASE_REGEX_NORM
+    PHRASE_LEXICON_NORM = {}
+    for k, v in PHRASE_LEXICON.items():
+        nk = normalize_for_phrase(k)
+        PHRASE_LEXICON_NORM[nk] = v
+    PHRASE_REGEX_NORM = []
+    for phrase_norm, vec in PHRASE_LEXICON_NORM.items():
+        if not phrase_norm:
+            continue
+        pat = re.compile(rf"(?<!\w){re.escape(phrase_norm)}(?!\w)")
+        PHRASE_REGEX_NORM.append((pat, vec))
+
+
+_rebuild_phrase_index()
 
 
 # Emoticons and text faces, applied as patterns on the raw text
@@ -1539,7 +1554,7 @@ RHETORICAL_PATTERNS: List[Tuple[re.Pattern, Dict[str, float], float]] = [
         _vec(anger=2.2, sadness=1.1),
         0.9,
     ),
-    # Spanish / Portuguese fixes, no trailing word-boundary after '?'
+    # Spanish / Portuguese fixes
     (re.compile(r"\ben serio\?+", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
     (re.compile(r"\bfala serio\?+", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
 ]
@@ -1659,7 +1674,7 @@ TEMPORAL_PERSIST = {
 TEMPORAL_RESOLVE = {
     "en": {"anymore", "no_longer", "finally", "better_now", "moved_on"},
     "es": {"ya_no", "al_final", "por_fin", "ya_estoy_mejor"},
-    "pt": {"ja_nao", "ja_estou_melhor", "agora_estou_bem"},
+    "pt": {"ja_nao", "ja_estou_mejor", "agora_estou_bem"},
 }
 
 FEEL_MARKERS = {
@@ -1695,7 +1710,7 @@ TEMPORAL_RESOLVE = _normalize_marker_dict(TEMPORAL_RESOLVE)
 FEEL_MARKERS = _normalize_marker_dict(FEEL_MARKERS)
 LANG_FUNCTION_WORDS = _normalize_marker_dict(LANG_FUNCTION_WORDS)
 
-# NEW: phrase-level hedging / certainty cues (accent-insensitive via normalize_for_phrase).
+# NEW: phrase-level hedging / certainty cues
 UNCERTAINTY_PHRASES: Dict[str, List[str]] = {
     "en": [
         "not sure",
@@ -1929,34 +1944,58 @@ EMOTION_SIGN: Dict[str, float] = {
 
 @lru_cache(maxsize=8192)
 def detect_language_proportions(text: str) -> Dict[str, float]:
+    """
+    Lightweight language proportions based on function words and lexicon hits.
+    Works over whatever languages currently exist in LEXICON_TOKEN, so
+    when you load DB backed lexicons for more languages, they automatically
+    participate here.
+    """
     tokens = [t.lower() for t in tokenize(text)]
+    langs = list(LEXICON_TOKEN.keys()) or ["en", "es", "pt"]
     if not tokens:
-        return {"en": 1 / 3, "es": 1 / 3, "pt": 1 / 3, "unknown": 0.0}
+        if not langs:
+            return {"unknown": 1.0}
+        base = 1.0 / float(len(langs))
+        out = {lang: base for lang in langs}
+        out["unknown"] = 0.0
+        return out
 
-    scores = {"en": 0.0, "es": 0.0, "pt": 0.0}
+    scores = {lang: 0.0 for lang in langs}
 
     for tok in tokens:
         base = join_for_lex(tok)
 
-        for lang, fn_words in LANG_FUNCTION_WORDS.items():
+        # Function words
+        for lang in langs:
+            fn_words = LANG_FUNCTION_WORDS.get(lang, set())
             if base in fn_words:
-                scores[lang] += 1.5
+                scores[lang] = scores.get(lang, 0.0) + 1.5
 
-        for lang in ("en", "es", "pt"):
+        # Lexicon hits
+        for lang in langs:
             table = LEXICON_TOKEN.get(lang, {})
             if base in table:
-                scores[lang] += 0.9
+                scores[lang] = scores.get(lang, 0.0) + 0.9
 
-        if "ñ" in tok or "¿" in tok or "¡" in tok:
-            scores["es"] += 1.2
-        if any(ch in tok for ch in ["ã", "õ", "ç", "ê", "ô", "á", "é", "í", "ó", "ú"]):
-            scores["pt"] += 1.0
-        if any(sub in tok for sub in ["th", "ing"]):
-            scores["en"] += 0.4
+        # Script based heuristics for classic languages (optional)
+        if "es" in scores:
+            if "ñ" in tok or "¿" in tok or "¡" in tok:
+                scores["es"] += 1.2
+        if "pt" in scores:
+            if any(ch in tok for ch in ["ã", "õ", "ç", "ê", "ô", "á", "é", "í", "ó", "ú"]):
+                scores["pt"] += 1.0
+        if "en" in scores:
+            if any(sub in tok for sub in ["th", "ing"]):
+                scores["en"] += 0.4
 
     total = sum(scores.values())
     if total <= 0:
-        return {"en": 1 / 3, "es": 1 / 3, "pt": 1 / 3, "unknown": 0.0}
+        if not langs:
+            return {"unknown": 1.0}
+        base = 1.0 / float(len(langs))
+        out = {lang: base for lang in langs}
+        out["unknown"] = 0.0
+        return out
 
     for k in list(scores.keys()):
         scores[k] = scores[k] / total
@@ -1969,16 +2008,73 @@ def _compute_trigrams(word: str) -> List[str]:
     return [word[i: i + 3] for i in range(max(0, len(word) - 2))]
 
 
-LEXICON_TRIGRAMS: Dict[str, Dict[str, List[str]]] = {"en": {}, "es": {}, "pt": {}}
+LEXICON_TRIGRAMS: Dict[str, Dict[str, List[str]]] = {}
 
 
 def _build_semantic_index() -> None:
+    """Build trigram index for approximate semantic matching per language."""
+    global LEXICON_TRIGRAMS
+    tri_all: Dict[str, Dict[str, List[str]]] = {}
     for lang, table in LEXICON_TOKEN.items():
         tri = {}
         for token in table.keys():
             if len(token) >= 4:
                 tri[token] = _compute_trigrams(token)
-        LEXICON_TRIGRAMS[lang] = tri
+        tri_all[lang] = tri
+    LEXICON_TRIGRAMS = tri_all
+
+
+# =============================================================================
+# Database friendly setters for language data
+# =============================================================================
+
+
+def set_lexicon_token(
+    new_lexicon_token: Dict[str, Dict[str, Dict[str, float]]],
+    expand_morphology: bool = True,
+) -> None:
+    """
+    Replace the in memory lexicon with a database backed mapping.
+
+    Expected shape:
+        {
+          "en": {
+            "happy": {"joy": 2.0},
+            "angry": {"anger": 2.2},
+            ...
+          },
+          "es": { ... },
+          "pt": { ... },
+          ...
+        }
+
+    Call this once at startup after you load language data from your DB.
+    The detector will then use only this lexicon (and its derived trigram
+    index) for all future calls.
+    """
+    global LEXICON_TOKEN
+    LEXICON_TOKEN = new_lexicon_token
+    if expand_morphology:
+        _expand_lexicon_morphology()
+    _build_semantic_index()
+    # Also clear language detection cache so proportions use the new data
+    detect_language_proportions.cache_clear()  # type: ignore[attr-defined]
+
+
+def set_phrase_lexicon(new_phrase_lexicon: Dict[str, Dict[str, float]]) -> None:
+    """
+    Replace the phrase lexicon with a DB backed mapping.
+
+    Expected shape:
+        {
+          "on cloud nine": {"joy": 3.0},
+          "no aguanto más": {"anger": 1.5, "sadness": 2.0},
+          ...
+        }
+    """
+    global PHRASE_LEXICON
+    PHRASE_LEXICON = new_phrase_lexicon
+    _rebuild_phrase_index()
 
 
 # =============================================================================
@@ -2315,7 +2411,7 @@ def _semantic_guess(lang: str, token_norm: str) -> Dict[str, float]:
     return {e: base_vec.get(e, 0.0) * best_score * 0.6 for e in EMOTIONS}
 
 
-# NEW: simple lemma-based fallback (v30)
+# NEW: simple lemma-based fallback
 
 
 def lemmatize_en(tok_norm: str) -> str:
@@ -2325,7 +2421,6 @@ def lemmatize_en(tok_norm: str) -> str:
     if len(tok_norm) > 3 and tok_norm.endswith("ed"):
         return tok_norm[:-2]
     if len(tok_norm) > 3 and tok_norm.endswith("s"):
-        # don't strip 'ss'
         if not tok_norm.endswith("ss"):
             return tok_norm[:-1]
     return tok_norm
@@ -2395,12 +2490,12 @@ def lookup_with_lemma(lang: str, tok_norm: str) -> Dict[str, float]:
 
 
 def compute_code_switch_score(tokens: List[str]) -> Tuple[float, Dict[str, int]]:
-    lang_counts = {"en": 0, "es": 0, "pt": 0}
+    lang_counts = {lang: 0 for lang in LEXICON_TOKEN.keys()}
     for tok in tokens:
         if not any(ch.isalpha() for ch in tok):
             continue
         norm = join_for_lex(tok)
-        for lang in ("en", "es", "pt"):
+        for lang in LEXICON_TOKEN.keys():
             table = LEXICON_TOKEN.get(lang, {})
             if norm in table:
                 lang_counts[lang] += 1
@@ -2543,7 +2638,7 @@ def compute_temporal_cues(tokens: List[str], text_raw: str, lang_props: Dict[str
     resolve = 0.0
     worsen = 0.0
 
-    # Token level markers such as "still", "ya_no", "ainda", etc.
+    # Token level markers
     for b in bases:
         for lang, words in TEMPORAL_PERSIST.items():
             if b in words:
@@ -2618,8 +2713,8 @@ def compute_temporal_cues(tokens: List[str], text_raw: str, lang_props: Dict[str
         "esta mejorando",
         "está mejorando",
         "me siento mejor",
-        "me estoy sintiendo mejor",   # FIXED: mejor, not melhor
-        "cada dia mejor",             # FIXED: mejor
+        "me estoy sintiendo mejor",
+        "cada dia mejor",
         "cada dia un poco mejor",
         "cada dia estoy mejor",
     ]
@@ -2707,9 +2802,6 @@ def apply_temporal_modulation(
 ) -> Dict[str, float]:
     """
     Use temporal cues to reshape intensity rather than only scaling.
-    - resolve dominant: shift some sadness / fear into joy / passion / surprise.
-    - worsen dominant: shift some joy / passion into sadness / fear / anger.
-    - persist dominant: gently boost negative persistence.
     """
     if not intensity:
         return intensity
@@ -2868,7 +2960,7 @@ def apply_profanity_emphasis(
     When profanity is present, treat exclamations and strong emojis as
     intensity amplifiers for negative emotions, while gently damping
     positive ones so "Fuck!!!" feels stronger than "Fuck" but does not
-    blow up to one hundred percent.
+    explode to 100.
     """
     out = dict(intensity)
     total = sum(out.values())
@@ -3000,9 +3092,6 @@ def adjust_for_speaker_target(
     return out
 
 
-# NEW: hedge-aware shaping of intensity based on uncertainty vs certainty.
-
-
 def apply_hedging_shape(
     intensity: Dict[str, float],
     uncertainty_count: int,
@@ -3010,18 +3099,16 @@ def apply_hedging_shape(
 ) -> Dict[str, float]:
     """
     If the user hedges a lot ("not sure", "no sé", "nao sei", etc.)
-    and certainty markers are weaker, soften extremes of emotion —
+    and certainty markers are weaker, soften extremes of emotion,
     especially strong negative attributions.
     """
     out = dict(intensity)
     if uncertainty_count <= 1 or uncertainty_count <= certainty_count:
         return out
 
-    # Hedge factor in [0, 1]
     diff = uncertainty_count - certainty_count
     hedge = max(0.0, min(1.0, diff / 4.0))
 
-    # Stronger softening on negative than on positive
     neg_scale = 1.0 - 0.3 * hedge
     pos_scale = 1.0 - 0.15 * hedge
 
@@ -3033,9 +3120,6 @@ def apply_hedging_shape(
     return out
 
 
-# NEW: basic narrative-focus and distance shaping.
-
-
 def compute_narrative_focus(
     self_pronoun_count: int,
     other_pronoun_count: int,
@@ -3043,7 +3127,7 @@ def compute_narrative_focus(
 ) -> Tuple[str, float]:
     """
     Rough sense of whether text is self-focused, other-focused or neutral,
-    and how distant it is (third-person descriptions vs "I feel ...").
+    and how distant it is.
     """
     if word_count_effective <= 0:
         return "neutral", 0.0
@@ -3058,7 +3142,6 @@ def compute_narrative_focus(
     else:
         focus = "neutral"
 
-    # Narrative distance: more "other" and less "self" implies more distance
     distance = max(0.0, min(1.0, other_ratio - self_ratio))
     return focus, distance
 
@@ -3383,6 +3466,32 @@ class EmotionDetector:
             if tok_norm in all_profanities:
                 alpha += 0.4
 
+            # NEW: local typographic emphasis per token
+            # Combine ALL CAPS and immediately trailing punctuation on this token.
+            local_emphasis_level = 0
+            if len(tok) > 2 and tok.isupper() and any(ch.isalpha() for ch in tok):
+                local_emphasis_level += 1
+
+            # Look at immediate punctuation tokens after this one
+            ex_local = 0
+            q_local = 0
+            ell_local = 0
+            k2 = i + 1
+            while k2 < len(tokens) and tokens[k2] in {".", "!", "?"}:
+                if tokens[k2] == "!":
+                    ex_local = 1
+                elif tokens[k2] == "?":
+                    q_local = 1
+                elif tokens[k2] == ".":
+                    ell_local = 1
+                k2 += 1
+            local_emphasis_level += ex_local + q_local + ell_local
+            local_emphasis_level = max(0, min(3, local_emphasis_level))
+
+            if local_emphasis_level > 0:
+                # 0,1,2,3 -> multipliers 1x, 2x, 3x, 4x
+                alpha *= (1 + local_emphasis_level)
+
             alpha = max(0.2, alpha)
 
             if i in negated_indices:
@@ -3499,7 +3608,7 @@ class EmotionDetector:
 
         intensity = apply_bias_fairness(intensity, dialect_label, profanity_count, humor_score)
 
-        # Hedge-aware softening (phrase + token uncertainty)
+        # Hedge-aware softening
         intensity = apply_hedging_shape(
             intensity,
             uncertainty_count=uncertainty_count,
@@ -3623,7 +3732,10 @@ class EmotionDetector:
         emotions_detail: Dict[str, EmotionResult] = {}
         for e in EMOTIONS:
             score = R_boosted[e]
-            percent = intensity[e] * 100.0
+            raw_percent = intensity[e] * 100.0
+            # Never report a hard 100, keep at most 99.9 so nobody is
+            # "perfectly" any single emotion.
+            percent = min(99.9, raw_percent)
             emoji = choose_emoji(e, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity)
             emotions_detail[e] = EmotionResult(
                 label=e,
@@ -3639,13 +3751,19 @@ class EmotionDetector:
             label=dominant_label,
             emoji=dominant_emoji,
             score=round(R_boosted.get(dominant_label, 0.0), 4),
-            percent=round(intensity.get(dominant_label, 0.0) * 100.0, 3),
+            percent=min(
+                99.9,
+                round(intensity.get(dominant_label, 0.0) * 100.0, 3),
+            ),
         )
         current_result = EmotionResult(
             label=current_label,
             emoji=current_emoji,
             score=round(R_boosted.get(current_label, 0.0), 4),
-            percent=round(intensity.get(current_label, 0.0) * 100.0, 3),
+            percent=min(
+                99.9,
+                round(intensity.get(current_label, 0.0) * 100.0, 3),
+            ),
         )
 
         primary_language = max(lang_props.items(), key=lambda kv: kv[1])[0] if lang_props else "unknown"
@@ -3657,6 +3775,145 @@ class EmotionDetector:
         emotional_density = 0.0
         if word_count_effective > 0:
             emotional_density = min(1.0, total_strength / float(max(word_count_effective, 1)))
+
+        # Human readable interpretations of each emotion band on 0 to 100 scale
+        emotion_levels: Dict[str, str] = {}
+        for e, res in emotions_detail.items():
+            p = res.percent
+            level = "none"
+            if e == "anger":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "irritated"
+                elif p < 50:
+                    level = "frustrated"
+                elif p < 80:
+                    level = "angry"
+                else:
+                    level = "furious"
+            elif e == "sadness":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "down"
+                elif p < 50:
+                    level = "sad"
+                elif p < 80:
+                    level = "very_sad"
+                else:
+                    level = "devastated"
+            elif e == "fear":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "uneasy"
+                elif p < 50:
+                    level = "worried"
+                elif p < 80:
+                    level = "afraid"
+                else:
+                    level = "terrified"
+            elif e == "joy":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "slightly_positive"
+                elif p < 50:
+                    level = "happy"
+                elif p < 80:
+                    level = "very_happy"
+                else:
+                    level = "ecstatic"
+            elif e == "passion":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "fond"
+                elif p < 50:
+                    level = "attached"
+                elif p < 80:
+                    level = "in_love"
+                else:
+                    level = "intense_passion"
+            elif e == "disgust":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "slight_aversion"
+                elif p < 50:
+                    level = "disgusted"
+                elif p < 80:
+                    level = "strong_disgust"
+                else:
+                    level = "revulsion"
+            elif e == "surprise":
+                if p < 5:
+                    level = "none"
+                elif p < 20:
+                    level = "mildly_surprised"
+                elif p < 50:
+                    level = "surprised"
+                elif p < 80:
+                    level = "very_surprised"
+                else:
+                    level = "shocked"
+            emotion_levels[e] = level
+
+        meta = {
+            "word_count_alpha": alpha_word_count,
+            "word_count_effective": word_count_effective,
+            "emoji_token_count": emoji_token_count,
+            "phrase_hits_total": phrase_hits_total,
+            "emoticon_hits_total": emoticon_hits_total,
+            "truncated_to_max_words": truncated,
+            "exclamation_count": exclam_count,
+            "question_count": question_count,
+            "ellipsis_count": ellipsis_count,
+            "allcaps_count": allcaps_count,
+            "elongated_count": elongated_count,
+            "profanity_count": profanity_count,
+            "strong_emoji_count": strong_emoji_count,
+            "uncertainty_count": uncertainty_count,
+            "certainty_count": certainty_count,
+            "certainty_score": round(certainty_score, 3),
+            "uncertainty_score": round(uncertainty_score, 3),
+            "net_certainty": round(net_certainty, 3),
+            "self_pronoun_count": self_pronoun_count,
+            "other_pronoun_count": other_pronoun_count,
+            "self_focus_score": round(self_focus_score, 3),
+            "other_focus_score": round(other_focus_score, 3),
+            "narrative_focus": narrative_focus,
+            "narrative_distance": round(narrative_distance, 3),
+            "hedging_softening_applied": bool(
+                uncertainty_count > 1 and uncertainty_count > certainty_count
+            ),
+            "domain": domain,
+            "primary_language": primary_language,
+            "total_strength": round(total_strength, 4),
+            "global_intensity_base": round(global_intensity_base, 4),
+            "global_intensity": round(final_global_intensity, 4),
+            "positive_intensity": round(positive_intensity, 4),
+            "negative_intensity": round(negative_intensity, 4),
+            "valence_raw": round(valence_raw, 4),
+            "valence_normalized": round(valence_norm, 4),
+            "code_switch_score": round(code_switch_score, 3),
+            "lang_token_counts": lang_token_counts,
+            "emotional_entropy_bits": round(emotional_entropy, 4),
+            "intensity_band": intensity_band,
+            "emotional_density": round(emotional_density, 4),
+            "dialect_label": dialect_label,
+            "dialect_confidence": round(dialect_conf, 3),
+            "dialect_scores": dialect_scores,
+            "rhetorical_score": round(rhetorical_score, 3),
+            "temporal_cues": temporal_cues,
+            "speaker_target": speaker_target,
+            "threat_level": threat_level,
+            "prev_context_used": prev_mixture is not None,
+            "neutral": neutral_flag,
+            "max_emotion_intensity": round(max_emotion_intensity, 4),
+            "emotion_levels": emotion_levels,
+        }
 
         return DetectorOutput(
             text=text,
@@ -3670,59 +3927,7 @@ class EmotionDetector:
             humor=round(humor_score, 3),
             confidence=confidence,
             risk_level=risk_level,
-            meta={
-                "word_count_alpha": alpha_word_count,
-                "word_count_effective": word_count_effective,
-                "emoji_token_count": emoji_token_count,
-                "phrase_hits_total": phrase_hits_total,
-                "emoticon_hits_total": emoticon_hits_total,
-                "truncated_to_max_words": truncated,
-                "exclamation_count": exclam_count,
-                "question_count": question_count,
-                "ellipsis_count": ellipsis_count,
-                "allcaps_count": allcaps_count,
-                "elongated_count": elongated_count,
-                "profanity_count": profanity_count,
-                "strong_emoji_count": strong_emoji_count,
-                "uncertainty_count": uncertainty_count,
-                "certainty_count": certainty_count,
-                "certainty_score": round(certainty_score, 3),
-                "uncertainty_score": round(uncertainty_score, 3),
-                "net_certainty": round(net_certainty, 3),
-                "self_pronoun_count": self_pronoun_count,
-                "other_pronoun_count": other_pronoun_count,
-                "self_focus_score": round(self_focus_score, 3),
-                "other_focus_score": round(other_focus_score, 3),
-                "narrative_focus": narrative_focus,
-                "narrative_distance": round(narrative_distance, 3),
-                "hedging_softening_applied": bool(
-                    uncertainty_count > 1 and uncertainty_count > certainty_count
-                ),
-                "domain": domain,
-                "primary_language": primary_language,
-                "total_strength": round(total_strength, 4),
-                "global_intensity_base": round(global_intensity_base, 4),
-                "global_intensity": round(final_global_intensity, 4),
-                "positive_intensity": round(positive_intensity, 4),
-                "negative_intensity": round(negative_intensity, 4),
-                "valence_raw": round(valence_raw, 4),
-                "valence_normalized": round(valence_norm, 4),
-                "code_switch_score": round(code_switch_score, 3),
-                "lang_token_counts": lang_token_counts,
-                "emotional_entropy_bits": round(emotional_entropy, 4),
-                "intensity_band": intensity_band,
-                "emotional_density": round(emotional_density, 4),
-                "dialect_label": dialect_label,
-                "dialect_confidence": round(dialect_conf, 3),
-                "dialect_scores": dialect_scores,
-                "rhetorical_score": round(rhetorical_score, 3),
-                "temporal_cues": temporal_cues,
-                "speaker_target": speaker_target,
-                "threat_level": threat_level,
-                "prev_context_used": prev_mixture is not None,
-                "neutral": neutral_flag,
-                "max_emotion_intensity": round(max_emotion_intensity, 4),
-            },
+            meta=meta,
         )
 
 
@@ -3763,19 +3968,24 @@ __all__ = [
     "EmotionDetector",
     "analyze_text",
     "analyze_text_dict",
+    "set_lexicon_token",
+    "set_phrase_lexicon",
 ]
 
 
 if __name__ == "__main__":
     samples = [
         "happy",
-        "ok",
+        "OK.",
+        "OK!!!",
+        "ok...",
+        "HAPPY!!!",
         "😢",
         "❤️",
         "I miss you so much",
         "No estoy bien hoy",
         "tô com saudade e meio triste",
-        "are you kidding me??",
+        "ARE YOU SERIOUS???",
         "lol im dead 😂",
         "this was a hard long week but im okay now",
         "it has been a good day but it has gotten worse lately",
@@ -3783,8 +3993,8 @@ if __name__ == "__main__":
         "fue un buen dia pero ahora va peor y cada vez peor",
         "foi um dia dificil mas tem melhorado bastante",
         "Fuck",
-        "Fuck!",
-        "Fuck!!!",
+        "FUCK!",
+        "FUCK!!!",
         "Damnit!",
         "Son of a bitch",
         "How the hell do you think I feel?",
@@ -3797,6 +4007,7 @@ if __name__ == "__main__":
         print("\nTEXT:", s)
         print("DOMINANT:", out["dominant"])
         print("MIXTURE:", out["mixture_vector"])
+        print("LEVELS:", out["meta"]["emotion_levels"])
         print("META:", {
             "profanity_count": out["meta"]["profanity_count"],
             "uncertainty_count": out["meta"]["uncertainty_count"],
