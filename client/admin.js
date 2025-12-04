@@ -37,6 +37,8 @@
   const devPasswordCancel = document.getElementById("dev-password-cancel");
   const devPasswordConfirm = document.getElementById("dev-password-confirm");
 
+  const sitePreviewFrame = document.querySelector(".site-preview-frame");
+
   let currentMaintenanceEnabled = false;
   let maintenanceToggleProgrammatic = false;
   let pendingMaintenanceEnable = false;
@@ -47,7 +49,7 @@
     const opts = {
       credentials: "same-origin",
       headers: {
-        "Accept": "application/json",
+        Accept: "application/json",
         ...(options.method && options.method !== "GET"
           ? { "Content-Type": "application/json" }
           : {}),
@@ -110,14 +112,23 @@
     el.classList.add("hidden");
   }
 
+  function refreshSitePreview() {
+    const frame = sitePreviewFrame || document.querySelector(".site-preview-frame");
+    if (frame && frame.contentWindow) {
+      // Reload to reflect latest maintenance or notice state
+      frame.contentWindow.location.reload();
+    }
+  }
+
   function setChipState(enabled) {
     currentMaintenanceEnabled = enabled;
     if (enabled) {
-      maintenanceStatusChip.textContent = "Online with maintenance banner";
-      maintenanceStatusChip.classList.remove("offline");
+      // Maintenance mode enabled means site is down for maintenance
+      maintenanceStatusChip.textContent = "Offline";
+      maintenanceStatusChip.classList.add("offline");
     } else {
       maintenanceStatusChip.textContent = "Online";
-      maintenanceStatusChip.classList.add("offline");
+      maintenanceStatusChip.classList.remove("offline");
     }
   }
 
@@ -162,7 +173,6 @@
 
       // Show welcome loading bar for three seconds
       showElement(loadingContainer);
-      // Ensure CSS transition applies
       requestAnimationFrame(() => {
         loadingFill.style.width = "100%";
       });
@@ -172,6 +182,7 @@
         showElement(dashboard);
         loginButton.disabled = false;
         await refreshAdminState();
+        refreshSitePreview();
       }, 3000);
     } catch (err) {
       loginButton.disabled = false;
@@ -197,6 +208,8 @@
     loginPassword.value = "";
     hideElement(loadingContainer);
     loadingFill.style.width = "0%";
+    hideElement(loginError);
+    loginError.textContent = "";
   }
 
   // Admin state loading
@@ -224,6 +237,8 @@
       renderNotices(notices);
       hideElement(maintenanceError);
       maintenanceError.textContent = "";
+
+      refreshSitePreview();
     } catch (err) {
       maintenanceError.textContent = err.message;
       showElement(maintenanceError);
@@ -283,7 +298,7 @@
         const message =
           maintenanceMessageInput.value.trim() ||
           "Site is currently down due to maintenance. We will be back shortly.";
-        const data = await apiFetchJSON("/api/admin/maintenance", {
+        await apiFetchJSON("/api/admin/maintenance", {
           method: "POST",
           body: JSON.stringify({
             enabled: false,
@@ -293,10 +308,10 @@
         setChipState(false);
         hideElement(maintenanceError);
         maintenanceError.textContent = "";
+        refreshSitePreview();
       } catch (err) {
         maintenanceError.textContent = err.message;
         showElement(maintenanceError);
-        // Revert toggle
         maintenanceToggleProgrammatic = true;
         maintenanceToggle.checked = true;
         maintenanceToggleProgrammatic = false;
@@ -322,7 +337,7 @@
         maintenanceMessageInput.value.trim() ||
         "Site is currently down due to maintenance. We will be back shortly.";
 
-      const data = await apiFetchJSON("/api/admin/maintenance", {
+      await apiFetchJSON("/api/admin/maintenance", {
         method: "POST",
         body: JSON.stringify({
           enabled: true,
@@ -337,14 +352,15 @@
 
       closeDevPasswordModal();
       pendingMaintenanceEnable = false;
+      refreshSitePreview();
     } catch (err) {
       devPasswordError.textContent = err.message;
       showElement(devPasswordError);
-      // Revert toggle if failure
       maintenanceToggleProgrammatic = true;
       maintenanceToggle.checked = false;
       maintenanceToggleProgrammatic = false;
       setChipState(false);
+      refreshSitePreview();
     }
   }
 
@@ -413,14 +429,14 @@
 
   async function toggleNoticeActive(noticeId, isActive) {
     try {
-      const data = await apiFetchJSON(`/api/admin/notices/${noticeId}`, {
+      await apiFetchJSON(`/api/admin/notices/${noticeId}`, {
         method: "PATCH",
         body: JSON.stringify({ is_active: isActive })
       });
-      // After update reload all notices and settings
       await loadSiteSettings();
       hideElement(noticeError);
       noticeError.textContent = "";
+      refreshSitePreview();
     } catch (err) {
       noticeError.textContent = err.message;
       showElement(noticeError);
@@ -451,6 +467,7 @@
       noticeText.value = "";
       noticeActiveCheckbox.checked = true;
       await loadSiteSettings();
+      refreshSitePreview();
     } catch (err) {
       noticeError.textContent = err.message;
       showElement(noticeError);
@@ -583,6 +600,15 @@
     }
     if (lexiconUploadForm) {
       lexiconUploadForm.addEventListener("submit", handleLexiconUpload);
+    }
+
+    if (devPasswordInput) {
+      devPasswordInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          handleDevPasswordConfirm();
+        }
+      });
     }
   });
 })();
