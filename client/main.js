@@ -74,7 +74,6 @@ const LOCALES = {
       crisisTitle: "Wait! You are priceless and important.",
       crisisBody:
         "If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.",
-      // Updated: no mention of app limits or regional coverage
       crisisNote:
         "If you feel that you might be in danger, please contact a trusted crisis hotline or your local emergency services right away.",
       crisisHotlineCta: "Contact suicide hotline",
@@ -140,10 +139,9 @@ const LOCALES = {
       crisisTitle: "Espera, tu vida es muy valiosa.",
       crisisBody:
         "Si tú o alguien cercano tiene pensamientos de hacerse daño o de suicidio, siempre hay ayuda disponible. El mundo te necesita aquí.",
-      // Updated: simple safety guidance, no disclaimer about the app
       crisisNote:
         "Si sientes que puedes estar en peligro, comunícate de inmediato con una línea de ayuda de confianza o con los servicios de emergencia de tu país.",
-      crisisHotlineCta: "Contactar línea de ayuda",
+      crisisHotlineCta: "Contactar línea de ajuda",
       crisisEmergencyCta: "Contactar servicios de emergencia",
       crisisClose: "Cerrar",
       langMenuLabel: "Idioma",
@@ -204,7 +202,6 @@ const LOCALES = {
       crisisTitle: "Espere, a sua vida é preciosa.",
       crisisBody:
         "Se você ou alguém próximo está tendo pensamentos de autoagressão ou suicídio, sempre existe ajuda disponível. O mundo precisa de você aqui.",
-      // Updated: simple safety guidance, no disclaimer about the app
       crisisNote:
         "Se você sentir que pode estar em perigo, procure imediatamente uma linha de apoio de confiança ou os serviços de emergência da sua região.",
       crisisHotlineCta: "Contato linha de apoio",
@@ -252,9 +249,49 @@ function getInitialLocale() {
 
 let currentLocale = getInitialLocale();
 
-function t(key) {
-  const loc = LOCALES[currentLocale] || LOCALES.en;
-  return loc.strings[key] || LOCALES.en.strings[key] || "";
+/* ---------- Global state ---------- */
+
+let currentUser = null; // { id, first_name, preferred_language, preferred_theme, ... } or null
+let lastAcceptedText = ""; // for input word limit
+let lastAnalysisSnapshot = null; // { text, data }
+let journals = [];
+let currentJournal = null;
+let isEditingJournal = false;
+let isCreatingJournal = false;
+
+const root = document.documentElement;
+
+/* ---------- Simple API helpers ---------- */
+
+async function apiFetchJSON(path, options = {}) {
+  const opts = {
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      ...(options.method && options.method !== "GET"
+        ? { "Content-Type": "application/json" }
+        : {}),
+      ...(options.headers || {})
+    },
+    ...options
+  };
+
+  const res = await fetch(path, opts);
+  let json;
+  try {
+    json = await res.json();
+  } catch (e) {
+    json = null;
+  }
+
+  if (!res.ok) {
+    const message =
+      (json && (json.error || json.message)) ||
+      `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+
+  return json || {};
 }
 
 /* ---------- DOM references ---------- */
@@ -275,13 +312,28 @@ const emojiTray = $("emojiTray");
 const textArea = $("text");
 const wordInfo = $("wordInfo");
 
+/* Header and layout */
+const appHeader = $("appHeader");
+const appMain = $("appMain");
+const appFooter = $("appFooter");
+const noticeBanner = $("noticeBanner");
+const maintenanceShell = $("maintenanceShell");
+const maintenanceMessageEl = $("maintenanceMessage");
+
+/* Settings and language (guest) */
+const settingsControl = $("settingsControl");
+const settingsBtn = $("settingsBtn");
+const settingsMenu = $("settingsMenu");
 const langToggle = $("langToggle");
 const langMenu = $("langMenu");
 const langCurrentLabel = $("langCurrentLabel");
 
-const settingsBtn = $("settingsBtn");
-const settingsMenu = $("settingsMenu");
+/* Help modal */
+const helpBtn = $("helpBtn");
+const overlay = $("overlay");
+const closeModal = $("closeModal");
 
+/* Crisis overlay */
 const crisisOverlay = $("crisisOverlay");
 const closeCrisis = $("closeCrisis");
 const crisisHotlineBtn = $("crisisHotline");
@@ -289,7 +341,87 @@ const crisisEmergencyBtn = $("crisisEmergency");
 const crisisHotlineNumberSpan = $("crisisHotlineNumber");
 const crisisEmergencyNumberSpan = $("crisisEmergencyNumber");
 
-let lastAcceptedText = textArea ? textArea.value || "" : "";
+/* Auth header controls */
+const loginBtn = $("loginBtn");
+const accountControl = $("accountControl");
+const accountBtn = $("accountBtn");
+const accountMenu = $("accountMenu");
+const accountNameLabel = $("accountNameLabel");
+
+/* Auth overlays and forms */
+const authOverlayLogin = $("authOverlayLogin");
+const authOverlayRegister = $("authOverlayRegister");
+const authOverlayForgot = $("authOverlayForgot");
+
+// Login form
+const loginForm = $("loginForm");
+const loginIdentifierInput = $("loginIdentifier");
+const loginPasswordInput = $("loginPassword");
+const loginError = $("loginError");
+const openRegisterFromLoginBtn = $("openRegisterFromLogin");
+const openForgotFromLoginBtn = $("openForgotFromLogin");
+const cancelLoginBtn = $("cancelLogin");
+const submitLoginBtn = $("submitLogin");
+
+// Register form
+const registerForm = $("registerForm");
+const registerFirstName = $("registerFirstName");
+const registerLastName = $("registerLastName");
+const registerUsername = $("registerUsername");
+const registerEmail = $("registerEmail");
+const registerPassword = $("registerPassword");
+const registerConfirmPassword = $("registerConfirmPassword");
+const registerError = $("registerError");
+const cancelRegisterBtn = $("cancelRegister");
+const submitRegisterBtn = $("submitRegister");
+
+// Forgot form
+const forgotForm = $("forgotForm");
+const forgotEmail = $("forgotEmail");
+const forgotFirstName = $("forgotFirstName");
+const forgotLastName = $("forgotLastName");
+const forgotNewPassword = $("forgotNewPassword");
+const forgotConfirmPassword = $("forgotConfirmPassword");
+const forgotError = $("forgotError");
+const cancelForgotBtn = $("cancelForgot");
+const submitForgotBtn = $("submitForgot");
+
+/* Account settings overlay */
+const accountSettingsOverlay = $("accountSettingsOverlay");
+const accountSettingsForm = $("accountSettingsForm");
+const accountThemeToggle = $("accountThemeToggle");
+const accountLangToggle = $("accountLangToggle");
+const accountLangMenu = $("accountLangMenu");
+const accountLangCurrentLabel = $("accountLangCurrentLabel");
+const accountSettingsError = $("accountSettingsError");
+const cancelAccountSettingsBtn = $("cancelAccountSettings");
+const saveAccountSettingsBtn = $("saveAccountSettings");
+
+/* Journal overlay and controls */
+const addJournalButton = $("addJournalButton");
+const addJournalHint = $("addJournalHint");
+const journalOverlay = $("journalOverlay");
+const closeJournalBtn = $("closeJournal");
+const pinnedJournalList = $("pinnedJournalList");
+const journalList = $("journalList");
+const journalEmptyState = $("journalEmptyState");
+const journalDetail = $("journalDetail");
+const journalDetailTitle = $("journalDetailTitle");
+const journalDetailMeta = $("journalDetailMeta");
+const journalDetailSourceText = $("journalDetailSourceText");
+const journalDetailAnalysis = $("journalDetailAnalysis");
+const journalDetailText = $("journalDetailText");
+const journalDetailActionsRow = $("journalDetailActionsRow");
+const journalFlagButton = $("journalFlagButton");
+const journalEditMenuBtn = $("journalEditMenu");
+const journalEditMenuDropdown = $("journalEditMenuDropdown");
+const journalEditButton = $("journalEditButton");
+const journalPinToggleButton = $("journalPinToggleButton");
+const cancelJournalEditBtn = $("cancelJournalEdit");
+const saveJournalEditBtn = $("saveJournalEdit");
+
+/* Analyze button */
+const analyzeBtn = $("analyze");
 
 /* ---------- Utility helpers ---------- */
 
@@ -308,6 +440,8 @@ function setStatus(text, isError = false) {
 
 const fmt = (v) =>
   typeof v === "number" ? v.toFixed(3) : String(v ?? "");
+
+/* ---------- Word count and limit ---------- */
 
 function wordCountAndLimit() {
   if (!textArea) return;
@@ -572,6 +706,11 @@ function resetToZero() {
 
 /* ---------- Locale application ---------- */
 
+function t(key) {
+  const loc = LOCALES[currentLocale] || LOCALES.en;
+  return loc.strings[key] || LOCALES.en.strings[key] || "";
+}
+
 function applyLocale(locale) {
   currentLocale = normalizeLocaleCode(locale);
   const loc = LOCALES[currentLocale] || LOCALES.en;
@@ -638,14 +777,14 @@ function applyLocale(locale) {
   }
 }
 
-function buildLangMenu() {
-  if (!langMenu) return;
-  langMenu.innerHTML = "";
+function buildLangMenuFor(container) {
+  if (!container) return;
+  container.innerHTML = "";
 
   const heading = document.createElement("div");
   heading.className = "langHeading";
   heading.textContent = t("langMenuLabel") || "Language";
-  langMenu.appendChild(heading);
+  container.appendChild(heading);
 
   SUPPORTED_LOCALES.forEach((code) => {
     const def = LOCALES[code];
@@ -667,39 +806,61 @@ function buildLangMenu() {
     btn.appendChild(nameSpan);
     btn.appendChild(shortSpan);
 
-    langMenu.appendChild(btn);
+    container.appendChild(btn);
   });
 }
 
 function updateLangUI() {
   const loc = LOCALES[currentLocale] || LOCALES.en;
+  const short = loc.short || currentLocale.toUpperCase();
+
   if (langCurrentLabel) {
-    langCurrentLabel.textContent =
-      loc.short || currentLocale.toUpperCase();
+    langCurrentLabel.textContent = short;
   }
-  if (!langMenu) return;
-  langMenu
-    .querySelectorAll(".langOption")
-    .forEach((btn) => {
-      const code = btn.dataset.locale;
-      btn.setAttribute(
-        "aria-checked",
-        code === currentLocale ? "true" : "false"
-      );
-    });
-  const heading = langMenu.querySelector(".langHeading");
-  if (heading) heading.textContent = t("langMenuLabel") || "Language";
+  if (accountLangCurrentLabel) {
+    accountLangCurrentLabel.textContent = short;
+  }
+
+  if (langMenu) {
+    langMenu
+      .querySelectorAll(".langOption")
+      .forEach((btn) => {
+        const code = btn.dataset.locale;
+        btn.setAttribute(
+          "aria-checked",
+          code === currentLocale ? "true" : "false"
+        );
+      });
+    const heading = langMenu.querySelector(".langHeading");
+    if (heading) heading.textContent = t("langMenuLabel") || "Language";
+  }
+
+  if (accountLangMenu) {
+    accountLangMenu
+      .querySelectorAll(".langOption")
+      .forEach((btn) => {
+        const code = btn.dataset.locale;
+        btn.setAttribute(
+          "aria-checked",
+          code === currentLocale ? "true" : "false"
+        );
+      });
+    const heading = accountLangMenu.querySelector(".langHeading");
+    if (heading) heading.textContent = t("langMenuLabel") || "Language";
+  }
 }
 
-function setLocale(locale) {
+function setLocale(locale, { persist = true } = {}) {
   applyLocale(locale);
   updateLangUI();
-  try {
-    localStorage.setItem("in-tuned-locale", currentLocale);
-  } catch (e) {}
+  if (persist && !currentUser) {
+    try {
+      localStorage.setItem("in-tuned-locale", currentLocale);
+    } catch (e) {}
+  }
 }
 
-/* ---------- Language dropdown events ---------- */
+/* ---------- Language dropdown events (guest) ---------- */
 
 if (langToggle) {
   langToggle.addEventListener("click", () => {
@@ -737,7 +898,7 @@ if (langMenu) {
   });
 }
 
-/* ---------- Settings menu ---------- */
+/* ---------- Settings menu (guest) ---------- */
 
 if (settingsBtn && settingsMenu) {
   settingsBtn.addEventListener("click", () => {
@@ -773,10 +934,6 @@ if (settingsBtn && settingsMenu) {
 
 /* ---------- Help modal ---------- */
 
-const overlay = $("overlay");
-const helpBtn = $("helpBtn");
-const closeModal = $("closeModal");
-
 if (helpBtn && overlay) {
   helpBtn.addEventListener("click", () =>
     overlay.classList.add("show")
@@ -793,54 +950,40 @@ if (overlay) {
   });
 }
 
-/* ---------- Theme toggle ---------- */
+/* ---------- Theme helpers ---------- */
 
-const modeDot = $("modeDot");
-const root = document.documentElement;
-
-function setTheme(theme) {
+function applyGuestTheme() {
+  let theme = "dark";
+  try {
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches
+    ) {
+      theme = "light";
+    }
+  } catch (e) {}
   root.setAttribute("data-theme", theme);
 }
 
-function toggleTheme() {
-  const now =
-    root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-  setTheme(now);
-  try {
-    localStorage.setItem("in-tuned-theme", now);
-  } catch (e) {}
-}
-
-if (modeDot) {
-  modeDot.addEventListener("click", toggleTheme);
-  modeDot.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleTheme();
-    }
-  });
-}
-
-try {
-  const savedTheme = localStorage.getItem("in-tuned-theme");
-  if (savedTheme) {
-    setTheme(savedTheme);
-  } else if (
-    window.matchMedia &&
-    window.matchMedia("(prefers-color-scheme: light)").matches
-  ) {
-    setTheme("light");
-  } else {
-    setTheme(root.getAttribute("data-theme") || "dark");
+function applyUserTheme(theme) {
+  let t = theme;
+  if (t !== "light" && t !== "dark") {
+    t = "dark";
+    try {
+      if (
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: light)").matches
+      ) {
+        t = "light";
+      }
+    } catch (e) {}
   }
-} catch (e) {
-  setTheme(root.getAttribute("data-theme") || "dark");
+  root.setAttribute("data-theme", t || "dark");
 }
 
 /* ---------- Region helper for backend ---------- */
 
 function detectRegionFromNavigator() {
-  // Use the first preferred language, then fall back
   const navLang =
     (navigator.languages && navigator.languages[0]) ||
     navigator.language ||
@@ -849,7 +992,6 @@ function detectRegionFromNavigator() {
   const parts = navLang.split("-");
   if (parts.length > 1) {
     const regionCandidate = parts[1].toUpperCase();
-    // Only return regions we know how to handle
     if (EMERGENCY_NUMBERS[regionCandidate]) {
       return regionCandidate;
     }
@@ -864,7 +1006,7 @@ function detectRegionFromNavigator() {
 
 /* ---------- Apply API analysis to UI ---------- */
 
-function applyAnalysisFromApi(data) {
+function applyAnalysisFromApi(data, sourceText) {
   const analysis = data.analysis || [];
   const analysisById = {};
   analysis.forEach((row) => {
@@ -894,14 +1036,12 @@ function applyAnalysisFromApi(data) {
   const dom = results.dominant || {};
   const cur = results.current || {};
 
-  // Dominant: always show core emotion name, not nuanced phrase
   const domLabel =
     dom.labelLocalized ||
     dom.label ||
     dom.emotionId ||
     "N/A";
 
-  // Current: prefer nuanced wording when available
   const curLabel =
     cur.nuancedLabelLocalized ||
     cur.nuancedLabel ||
@@ -943,11 +1083,15 @@ function applyAnalysisFromApi(data) {
 
   const risk = data.risk || {};
   applyRiskToUI(risk);
+
+  // Save snapshot for journaling
+  lastAnalysisSnapshot = {
+    text: sourceText,
+    data
+  };
 }
 
 /* ---------- Analyze button handler ---------- */
-
-const analyzeBtn = $("analyze");
 
 if (analyzeBtn && textArea) {
   analyzeBtn.addEventListener("click", async () => {
@@ -958,6 +1102,7 @@ if (analyzeBtn && textArea) {
       );
       textArea.classList.add("input-error");
       resetToZero();
+      lastAnalysisSnapshot = null;
       return;
     }
 
@@ -989,13 +1134,14 @@ if (analyzeBtn && textArea) {
         throw new Error(msg);
       }
 
-      applyAnalysisFromApi(data);
+      applyAnalysisFromApi(data, text);
     } catch (err) {
       const msg =
         err && err.message ? err.message : "Unexpected error";
       setStatus(msg, true);
       textArea.classList.add("input-error");
       resetToZero();
+      lastAnalysisSnapshot = null;
     }
   });
 }
@@ -1015,10 +1161,1055 @@ if (textArea) {
   });
 }
 
+/* ---------- Site state: maintenance and notice ---------- */
+
+async function loadSiteState() {
+  try {
+    const data = await apiFetchJSON("/api/site-state", {
+      method: "GET"
+    });
+
+    const maintenance = !!data.maintenance_mode;
+    const message =
+      data.maintenance_message ||
+      "Site is currently down due to maintenance. We will be back shortly.";
+    const notice = data.notice;
+
+    if (maintenance) {
+      if (maintenanceShell) {
+        maintenanceShell.classList.remove("hidden");
+      }
+      if (maintenanceMessageEl) {
+        maintenanceMessageEl.textContent = message;
+      }
+      if (appHeader) appHeader.classList.add("hidden");
+      if (appMain) appMain.classList.add("hidden");
+      if (appFooter) appFooter.classList.add("hidden");
+      if (noticeBanner) noticeBanner.classList.add("hidden");
+    } else {
+      if (maintenanceShell) {
+        maintenanceShell.classList.add("hidden");
+      }
+      if (appHeader) appHeader.classList.remove("hidden");
+      if (appMain) appMain.classList.remove("hidden");
+      if (appFooter) appFooter.classList.remove("hidden");
+
+      if (notice && notice.text) {
+        if (noticeBanner) {
+          noticeBanner.textContent = notice.text;
+          noticeBanner.classList.remove("hidden");
+        }
+      } else if (noticeBanner) {
+        noticeBanner.textContent = "";
+        noticeBanner.classList.add("hidden");
+      }
+    }
+  } catch (e) {
+    // If site state fails, fall back to normal app with no banner
+    if (maintenanceShell) maintenanceShell.classList.add("hidden");
+    if (appHeader) appHeader.classList.remove("hidden");
+    if (appMain) appMain.classList.remove("hidden");
+    if (appFooter) appFooter.classList.remove("hidden");
+    if (noticeBanner) {
+      noticeBanner.textContent = "";
+      noticeBanner.classList.add("hidden");
+    }
+  }
+}
+
+/* ---------- Auth overlays helper ---------- */
+
+function hideAllAuthOverlays() {
+  if (authOverlayLogin) authOverlayLogin.classList.remove("show");
+  if (authOverlayRegister) authOverlayRegister.classList.remove("show");
+  if (authOverlayForgot) authOverlayForgot.classList.remove("show");
+}
+
+function openLoginOverlay() {
+  hideAllAuthOverlays();
+  if (authOverlayLogin) authOverlayLogin.classList.add("show");
+  if (loginError) {
+    loginError.textContent = "";
+    loginError.classList.add("hidden");
+  }
+}
+
+function openRegisterOverlay() {
+  hideAllAuthOverlays();
+  if (authOverlayRegister) authOverlayRegister.classList.add("show");
+  if (registerError) {
+    registerError.textContent = "";
+    registerError.classList.add("hidden");
+  }
+}
+
+function openForgotOverlay() {
+  hideAllAuthOverlays();
+  if (authOverlayForgot) authOverlayForgot.classList.add("show");
+  if (forgotError) {
+    forgotError.textContent = "";
+    forgotError.classList.add("hidden");
+  }
+}
+
+/* Close auth overlays when background clicked */
+
+[authOverlayLogin, authOverlayRegister, authOverlayForgot].forEach(
+  (ov) => {
+    if (!ov) return;
+    ov.addEventListener("click", (e) => {
+      if (e.target === ov) {
+        hideAllAuthOverlays();
+      }
+    });
+  }
+);
+
+/* ---------- Account header state ---------- */
+
+function applyUserState() {
+  const loggedIn = !!(currentUser && currentUser.id);
+
+  if (loggedIn) {
+    if (loginBtn) loginBtn.classList.add("hidden");
+    if (accountControl) accountControl.classList.remove("hidden");
+    if (helpBtn) helpBtn.classList.add("hidden");
+    if (settingsControl) settingsControl.classList.add("hidden");
+
+    if (accountNameLabel) {
+      accountNameLabel.textContent =
+        currentUser.first_name || "Account";
+    }
+
+    const lang = currentUser.preferred_language || currentLocale;
+    setLocale(lang, { persist: false });
+    applyUserTheme(currentUser.preferred_theme || null);
+
+    if (addJournalButton) addJournalButton.classList.remove("hidden");
+    if (addJournalHint) addJournalHint.classList.remove("hidden");
+  } else {
+    if (loginBtn) loginBtn.classList.remove("hidden");
+    if (accountControl) accountControl.classList.add("hidden");
+    if (helpBtn) helpBtn.classList.remove("hidden");
+    if (settingsControl) settingsControl.classList.remove("hidden");
+
+    applyGuestTheme();
+    setLocale(currentLocale, { persist: true });
+
+    if (addJournalButton) addJournalButton.classList.add("hidden");
+    if (addJournalHint) addJournalHint.classList.add("hidden");
+  }
+}
+
+/* ---------- Fetch current user on load ---------- */
+
+async function fetchCurrentUser() {
+  try {
+    const data = await apiFetchJSON("/api/auth/me", {
+      method: "GET"
+    });
+    currentUser = data.user || null;
+  } catch (e) {
+    currentUser = null;
+  }
+  applyUserState();
+}
+
+/* ---------- Auth flows ---------- */
+
+/* Login */
+
+if (loginBtn) {
+  loginBtn.addEventListener("click", () => {
+    openLoginOverlay();
+  });
+}
+
+if (cancelLoginBtn) {
+  cancelLoginBtn.addEventListener("click", () => {
+    hideAllAuthOverlays();
+  });
+}
+
+if (openRegisterFromLoginBtn) {
+  openRegisterFromLoginBtn.addEventListener("click", () => {
+    openRegisterOverlay();
+  });
+}
+
+if (openForgotFromLoginBtn) {
+  openForgotFromLoginBtn.addEventListener("click", () => {
+    openForgotOverlay();
+  });
+}
+
+if (loginForm) {
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!loginIdentifierInput || !loginPasswordInput) return;
+
+    const identifier = loginIdentifierInput.value.trim();
+    const password = loginPasswordInput.value;
+
+    if (!identifier || !password) {
+      if (loginError) {
+        loginError.textContent = "Email or username and password are required.";
+        loginError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (submitLoginBtn) submitLoginBtn.disabled = true;
+
+    try {
+      const data = await apiFetchJSON("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ identifier, password })
+      });
+      currentUser = data.user || null;
+      hideAllAuthOverlays();
+      applyUserState();
+    } catch (err) {
+      if (loginError) {
+        loginError.textContent = err.message || "Invalid credentials.";
+        loginError.classList.remove("hidden");
+      }
+    } finally {
+      if (submitLoginBtn) submitLoginBtn.disabled = false;
+      if (loginPasswordInput) loginPasswordInput.value = "";
+    }
+  });
+}
+
+/* Register */
+
+if (cancelRegisterBtn) {
+  cancelRegisterBtn.addEventListener("click", () => {
+    hideAllAuthOverlays();
+  });
+}
+
+if (registerForm) {
+  registerForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (
+      !registerFirstName ||
+      !registerLastName ||
+      !registerUsername ||
+      !registerEmail ||
+      !registerPassword ||
+      !registerConfirmPassword
+    )
+      return;
+
+    const first_name = registerFirstName.value.trim();
+    const last_name = registerLastName.value.trim();
+    const username = registerUsername.value.trim();
+    const email = registerEmail.value.trim();
+    const password = registerPassword.value;
+    const confirm = registerConfirmPassword.value;
+
+    if (!first_name || !last_name || !username || !email || !password) {
+      if (registerError) {
+        registerError.textContent = "All fields are required.";
+        registerError.classList.remove("hidden");
+      }
+      return;
+    }
+    if (password !== confirm) {
+      if (registerError) {
+        registerError.textContent = "Passwords do not match.";
+        registerError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (submitRegisterBtn) submitRegisterBtn.disabled = true;
+
+    try {
+      const data = await apiFetchJSON("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          first_name,
+          last_name,
+          username,
+          email,
+          password
+        })
+      });
+      currentUser = data.user || null;
+      hideAllAuthOverlays();
+      applyUserState();
+    } catch (err) {
+      if (registerError) {
+        registerError.textContent = err.message || "Unable to create account.";
+        registerError.classList.remove("hidden");
+      }
+    } finally {
+      if (submitRegisterBtn) submitRegisterBtn.disabled = false;
+      if (registerPassword) registerPassword.value = "";
+      if (registerConfirmPassword) registerConfirmPassword.value = "";
+    }
+  });
+}
+
+/* Forgot password */
+
+if (cancelForgotBtn) {
+  cancelForgotBtn.addEventListener("click", () => {
+    hideAllAuthOverlays();
+  });
+}
+
+if (forgotForm) {
+  forgotForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (
+      !forgotEmail ||
+      !forgotFirstName ||
+      !forgotLastName ||
+      !forgotNewPassword ||
+      !forgotConfirmPassword
+    )
+      return;
+
+    const email = forgotEmail.value.trim();
+    const first_name = forgotFirstName.value.trim();
+    const last_name = forgotLastName.value.trim();
+    const new_password = forgotNewPassword.value;
+    const confirm_password = forgotConfirmPassword.value;
+
+    if (
+      !email ||
+      !first_name ||
+      !last_name ||
+      !new_password ||
+      !confirm_password
+    ) {
+      if (forgotError) {
+        forgotError.textContent = "All fields are required.";
+        forgotError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (new_password !== confirm_password) {
+      if (forgotError) {
+        forgotError.textContent = "Passwords do not match.";
+        forgotError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (submitForgotBtn) submitForgotBtn.disabled = true;
+
+    try {
+      await apiFetchJSON("/api/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          first_name,
+          last_name,
+          new_password,
+          confirm_password
+        })
+      });
+      hideAllAuthOverlays();
+      openLoginOverlay();
+    } catch (err) {
+      if (forgotError) {
+        forgotError.textContent = err.message || "Unable to reset password.";
+        forgotError.classList.remove("hidden");
+      }
+    } finally {
+      if (submitForgotBtn) submitForgotBtn.disabled = false;
+      if (forgotNewPassword) forgotNewPassword.value = "";
+      if (forgotConfirmPassword) forgotConfirmPassword.value = "";
+    }
+  });
+}
+
+/* ---------- Account menu actions ---------- */
+
+if (accountBtn && accountMenu) {
+  accountBtn.addEventListener("click", () => {
+    const isOpen = accountMenu.classList.contains("open");
+    if (isOpen) {
+      accountMenu.classList.remove("open");
+      accountBtn.setAttribute("aria-expanded", "false");
+    } else {
+      accountMenu.classList.add("open");
+      accountBtn.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!accountMenu.classList.contains("open")) return;
+    if (
+      accountMenu.contains(e.target) ||
+      accountBtn.contains(e.target)
+    )
+      return;
+    accountMenu.classList.remove("open");
+    accountBtn.setAttribute("aria-expanded", "false");
+  });
+
+  accountMenu.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".accountMenuItem");
+    if (!btn) return;
+    const action = btn.dataset.action;
+
+    if (action === "journal") {
+      openJournalOverlay();
+    } else if (action === "settings") {
+      openAccountSettingsOverlay();
+    } else if (action === "logout") {
+      try {
+        await apiFetchJSON("/api/auth/logout", {
+          method: "POST"
+        });
+      } catch (err) {}
+      currentUser = null;
+      applyUserState();
+    }
+
+    accountMenu.classList.remove("open");
+    accountBtn.setAttribute("aria-expanded", "false");
+  });
+}
+
+/* ---------- Account settings overlay ---------- */
+
+let accountSettingsSnapshot = {
+  theme: null,
+  language: null
+};
+
+function openAccountSettingsOverlay() {
+  if (!currentUser) return;
+  const currentTheme =
+    root.getAttribute("data-theme") || "dark";
+  const currentLang = currentLocale;
+
+  accountSettingsSnapshot = {
+    theme: currentTheme,
+    language: currentLang
+  };
+
+  if (accountSettingsOverlay) {
+    accountSettingsOverlay.classList.add("show");
+  }
+  if (accountSettingsError) {
+    accountSettingsError.textContent = "";
+    accountSettingsError.classList.add("hidden");
+  }
+}
+
+function closeAccountSettingsOverlay(resetToSnapshot) {
+  if (resetToSnapshot && currentUser && accountSettingsSnapshot) {
+    applyUserTheme(accountSettingsSnapshot.theme);
+    setLocale(accountSettingsSnapshot.language, { persist: false });
+  }
+  if (accountSettingsOverlay) {
+    accountSettingsOverlay.classList.remove("show");
+  }
+}
+
+if (accountSettingsOverlay) {
+  accountSettingsOverlay.addEventListener("click", (e) => {
+    if (e.target === accountSettingsOverlay) {
+      closeAccountSettingsOverlay(true);
+    }
+  });
+}
+
+if (cancelAccountSettingsBtn) {
+  cancelAccountSettingsBtn.addEventListener("click", () => {
+    closeAccountSettingsOverlay(true);
+  });
+}
+
+if (accountThemeToggle) {
+  accountThemeToggle.addEventListener("click", () => {
+    if (!currentUser) return;
+    const current =
+      root.getAttribute("data-theme") === "light"
+        ? "light"
+        : "dark";
+    const next = current === "dark" ? "light" : "dark";
+    applyUserTheme(next);
+    accountSettingsSnapshot.theme = next;
+  });
+}
+
+if (accountLangToggle && accountLangMenu) {
+  accountLangToggle.addEventListener("click", () => {
+    const isOpen = accountLangMenu.classList.contains("open");
+    if (isOpen) {
+      accountLangMenu.classList.remove("open");
+      accountLangToggle.setAttribute("aria-expanded", "false");
+    } else {
+      accountLangMenu.classList.add("open");
+      accountLangToggle.setAttribute("aria-expanded", "true");
+    }
+  });
+
+  accountLangMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest(".langOption");
+    if (!btn) return;
+    const code = btn.dataset.locale;
+    if (!code) return;
+    const normalized = normalizeLocaleCode(code);
+    accountLangMenu.classList.remove("open");
+    accountLangToggle.setAttribute("aria-expanded", "false");
+    accountSettingsSnapshot.language = normalized;
+    setLocale(normalized, { persist: false });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!accountLangMenu.classList.contains("open")) return;
+    if (
+      accountLangMenu.contains(e.target) ||
+      accountLangToggle.contains(e.target)
+    )
+      return;
+    accountLangMenu.classList.remove("open");
+    accountLangToggle.setAttribute("aria-expanded", "false");
+  });
+}
+
+if (accountSettingsForm) {
+  accountSettingsForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const preferred_language = accountSettingsSnapshot.language;
+    const preferred_theme = accountSettingsSnapshot.theme;
+
+    if (saveAccountSettingsBtn) saveAccountSettingsBtn.disabled = true;
+
+    try {
+      const data = await apiFetchJSON("/api/auth/update-settings", {
+        method: "POST",
+        body: JSON.stringify({
+          preferred_language,
+          preferred_theme
+        })
+      });
+      currentUser = data.user || currentUser;
+      applyUserTheme(currentUser.preferred_theme || null);
+      setLocale(currentUser.preferred_language || currentLocale, {
+        persist: false
+      });
+      if (accountSettingsError) {
+        accountSettingsError.textContent = "";
+        accountSettingsError.classList.add("hidden");
+      }
+      closeAccountSettingsOverlay(false);
+    } catch (err) {
+      if (accountSettingsError) {
+        accountSettingsError.textContent =
+          err.message || "Unable to save settings.";
+        accountSettingsError.classList.remove("hidden");
+      }
+    } finally {
+      if (saveAccountSettingsBtn)
+        saveAccountSettingsBtn.disabled = false;
+    }
+  });
+}
+
+/* ---------- Journal overlay and APIs ---------- */
+
+function openJournalOverlay() {
+  if (!currentUser) {
+    openLoginOverlay();
+    return;
+  }
+  if (journalOverlay) {
+    journalOverlay.classList.add("show");
+  }
+  if (journalEmptyState) journalEmptyState.classList.remove("hidden");
+  if (journalDetail) journalDetail.classList.add("hidden");
+  loadJournals();
+}
+
+function closeJournalOverlay() {
+  if (journalOverlay) {
+    journalOverlay.classList.remove("show");
+  }
+  currentJournal = null;
+  isEditingJournal = false;
+  isCreatingJournal = false;
+}
+
+if (closeJournalBtn) {
+  closeJournalBtn.addEventListener("click", () => {
+    closeJournalOverlay();
+  });
+}
+
+if (journalOverlay) {
+  journalOverlay.addEventListener("click", (e) => {
+    if (e.target === journalOverlay) {
+      closeJournalOverlay();
+    }
+  });
+}
+
+async function loadJournals() {
+  if (!currentUser) return;
+  try {
+    const data = await apiFetchJSON("/api/journals", {
+      method: "GET"
+    });
+    journals = data.journals || [];
+    renderJournalLists();
+  } catch (err) {
+    // Fail silently for now
+  }
+}
+
+function renderJournalLists() {
+  if (!pinnedJournalList || !journalList) return;
+
+  pinnedJournalList.innerHTML = "";
+  journalList.innerHTML = "";
+
+  const pinned = journals.filter((j) => j.is_pinned);
+  const others = journals.filter((j) => !j.is_pinned);
+
+  if (pinned.length === 0) {
+    pinnedJournalList.classList.add("hidden");
+  } else {
+    pinnedJournalList.classList.remove("hidden");
+  }
+
+  function makeRow(journal) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "journalListItem";
+
+    const title = document.createElement("div");
+    title.className = "journalListTitle";
+    title.textContent = journal.title || "Journal entry";
+
+    const meta = document.createElement("div");
+    meta.className = "journalListMeta";
+    meta.textContent = formatDateTime(journal.created_at);
+
+    btn.appendChild(title);
+    btn.appendChild(meta);
+
+    if (journal.has_self_harm_flag) {
+      const flag = document.createElement("span");
+      flag.className = "journalListFlag";
+      flag.textContent = "⚠️";
+      btn.appendChild(flag);
+    }
+
+    btn.addEventListener("click", () => {
+      openJournalDetail(journal.id);
+    });
+
+    return btn;
+  }
+
+  pinned.forEach((j) => {
+    pinnedJournalList.appendChild(makeRow(j));
+  });
+  others.forEach((j) => {
+    journalList.appendChild(makeRow(j));
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString();
+  } catch (e) {
+    return "";
+  }
+}
+
+async function openJournalDetail(journalId) {
+  if (!currentUser) return;
+  try {
+    const data = await apiFetchJSON(`/api/journals/${journalId}`, {
+      method: "GET"
+    });
+    const journal = data.journal;
+    currentJournal = journal;
+    isEditingJournal = false;
+    isCreatingJournal = false;
+
+    if (journalEmptyState) journalEmptyState.classList.add("hidden");
+    if (journalDetail) journalDetail.classList.remove("hidden");
+    if (journalDetailActionsRow)
+      journalDetailActionsRow.classList.add("hidden");
+
+    if (journalDetailTitle) {
+      journalDetailTitle.textContent = journal.title || "Journal entry";
+    }
+    if (journalDetailMeta) {
+      journalDetailMeta.textContent = formatDateTime(
+        journal.created_at
+      );
+    }
+    if (journalDetailSourceText) {
+      journalDetailSourceText.textContent = journal.source_text || "";
+    }
+    if (journalDetailAnalysis) {
+      const analysis = journal.analysis_json || {};
+      const core = analysis.coreMixture || [];
+      if (Array.isArray(core) && core.length > 0) {
+        const lines = core.map((row) => {
+          const label =
+            row.labelLocalized || row.label || row.id || "";
+          const pct =
+            typeof row.percent === "number"
+              ? row.percent.toFixed(1)
+              : "0.0";
+          return `${label}: ${pct}%`;
+        });
+        journalDetailAnalysis.textContent = lines.join("\n");
+      } else {
+        journalDetailAnalysis.textContent = "";
+      }
+    }
+    if (journalDetailText) {
+      journalDetailText.value = journal.journal_text || "";
+      journalDetailText.disabled = true;
+    }
+
+    if (journalFlagButton) {
+      if (journal.has_self_harm_flag) {
+        journalFlagButton.classList.remove("hidden");
+      } else {
+        journalFlagButton.classList.add("hidden");
+      }
+    }
+
+    if (journalPinToggleButton) {
+      journalPinToggleButton.textContent = journal.is_pinned
+        ? "Unpin"
+        : "Pin";
+    }
+  } catch (err) {
+    // If failed, keep current state
+  }
+}
+
+if (journalFlagButton) {
+  journalFlagButton.addEventListener("click", () => {
+    showCrisisModal();
+  });
+}
+
+/* Journal edit menu */
+
+if (journalEditMenuBtn && journalEditMenuDropdown) {
+  journalEditMenuBtn.addEventListener("click", () => {
+    const isOpen = !journalEditMenuDropdown.classList.contains(
+      "hidden"
+    );
+    if (isOpen) {
+      journalEditMenuDropdown.classList.add("hidden");
+    } else {
+      journalEditMenuDropdown.classList.remove("hidden");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (journalEditMenuDropdown.classList.contains("hidden")) return;
+    if (
+      journalEditMenuDropdown.contains(e.target) ||
+      journalEditMenuBtn.contains(e.target)
+    )
+      return;
+    journalEditMenuDropdown.classList.add("hidden");
+  });
+}
+
+if (journalEditButton) {
+  journalEditButton.addEventListener("click", () => {
+    if (!currentJournal || !journalDetailText) return;
+    isEditingJournal = true;
+    isCreatingJournal = false;
+    journalDetailText.disabled = false;
+    if (journalDetailActionsRow)
+      journalDetailActionsRow.classList.remove("hidden");
+    if (journalEditMenuDropdown)
+      journalEditMenuDropdown.classList.add("hidden");
+  });
+}
+
+if (journalPinToggleButton) {
+  journalPinToggleButton.addEventListener("click", async () => {
+    if (!currentJournal) return;
+    if (journalEditMenuDropdown)
+      journalEditMenuDropdown.classList.add("hidden");
+    try {
+      const nextPinned = !currentJournal.is_pinned;
+      const data = await apiFetchJSON(
+        `/api/journals/${currentJournal.id}/pin`,
+        {
+          method: "POST",
+          body: JSON.stringify({ is_pinned: nextPinned })
+        }
+      );
+      currentJournal = data.journal || currentJournal;
+      if (journalPinToggleButton) {
+        journalPinToggleButton.textContent = currentJournal.is_pinned
+          ? "Unpin"
+          : "Pin";
+      }
+      await loadJournals();
+    } catch (err) {
+      // ignore for now
+    }
+  });
+}
+
+if (cancelJournalEditBtn) {
+  cancelJournalEditBtn.addEventListener("click", () => {
+    if (!currentJournal || !journalDetailText) return;
+    journalDetailText.value = currentJournal.journal_text || "";
+    journalDetailText.disabled = true;
+    isEditingJournal = false;
+    isCreatingJournal = false;
+    if (journalDetailActionsRow)
+      journalDetailActionsRow.classList.add("hidden");
+  });
+}
+
+if (saveJournalEditBtn) {
+  saveJournalEditBtn.addEventListener("click", async () => {
+    if (!currentJournal || !journalDetailText) return;
+    const updatedText = journalDetailText.value;
+    try {
+      const data = await apiFetchJSON(
+        `/api/journals/${currentJournal.id}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            journal_text: updatedText
+          })
+        }
+      );
+      currentJournal = data.journal || currentJournal;
+      journalDetailText.disabled = true;
+      isEditingJournal = false;
+      isCreatingJournal = false;
+      if (journalDetailActionsRow)
+        journalDetailActionsRow.classList.add("hidden");
+      await loadJournals();
+    } catch (err) {
+      // ignore for now
+    }
+  });
+}
+
+/* ---------- Add to journal from analysis ---------- */
+
+let newJournalOverlay = null;
+let newJournalSourceEl = null;
+let newJournalAnalysisEl = null;
+let newJournalTextEl = null;
+let newJournalCancelBtn = null;
+let newJournalSaveBtn = null;
+
+function ensureNewJournalOverlay() {
+  if (newJournalOverlay) return;
+
+  const overlayEl = document.createElement("div");
+  overlayEl.id = "newJournalOverlay";
+  overlayEl.className = "overlay";
+  overlayEl.setAttribute("role", "dialog");
+  overlayEl.setAttribute("aria-modal", "true");
+
+  const modal = document.createElement("div");
+  modal.className = "modal authModal";
+
+  const header = document.createElement("div");
+  header.className = "journalHeaderRow";
+
+  const h2 = document.createElement("h2");
+  h2.textContent = "New journal entry";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "ghost";
+  closeBtn.textContent = "Cancel";
+
+  header.appendChild(h2);
+  header.appendChild(closeBtn);
+
+  const content = document.createElement("div");
+  content.className = "journalNewContent";
+
+  const srcBlock = document.createElement("div");
+  srcBlock.className = "journalSourceBlock";
+  const srcTitle = document.createElement("h4");
+  srcTitle.textContent = "Original text";
+  newJournalSourceEl = document.createElement("p");
+  srcBlock.appendChild(srcTitle);
+  srcBlock.appendChild(newJournalSourceEl);
+
+  const analBlock = document.createElement("div");
+  analBlock.className = "journalAnalysisBlock";
+  const analTitle = document.createElement("h4");
+  analTitle.textContent = "Analysis snapshot";
+  newJournalAnalysisEl = document.createElement("pre");
+  analBlock.appendChild(analTitle);
+  analBlock.appendChild(newJournalAnalysisEl);
+
+  const textBlock = document.createElement("div");
+  textBlock.className = "journalTextBlock";
+  const textTitle = document.createElement("h4");
+  textTitle.textContent = "Journal";
+  newJournalTextEl = document.createElement("textarea");
+  newJournalTextEl.className = "journalEditArea";
+  textBlock.appendChild(textTitle);
+  textBlock.appendChild(newJournalTextEl);
+
+  content.appendChild(srcBlock);
+  content.appendChild(analBlock);
+  content.appendChild(textBlock);
+
+  const actionsRow = document.createElement("div");
+  actionsRow.className = "actionsRow";
+  newJournalCancelBtn = document.createElement("button");
+  newJournalCancelBtn.type = "button";
+  newJournalCancelBtn.className = "ghost";
+  newJournalCancelBtn.textContent = "Cancel";
+  newJournalSaveBtn = document.createElement("button");
+  newJournalSaveBtn.type = "button";
+  newJournalSaveBtn.className = "btn";
+  newJournalSaveBtn.textContent = "Save";
+  actionsRow.appendChild(newJournalCancelBtn);
+  actionsRow.appendChild(newJournalSaveBtn);
+
+  modal.appendChild(header);
+  modal.appendChild(content);
+  modal.appendChild(actionsRow);
+  overlayEl.appendChild(modal);
+  document.body.appendChild(overlayEl);
+
+  newJournalOverlay = overlayEl;
+
+  overlayEl.addEventListener("click", (e) => {
+    if (e.target === overlayEl) {
+      closeNewJournalOverlay();
+    }
+  });
+  closeBtn.addEventListener("click", () => {
+    closeNewJournalOverlay();
+  });
+  newJournalCancelBtn.addEventListener("click", () => {
+    closeNewJournalOverlay();
+  });
+  newJournalSaveBtn.addEventListener("click", () => {
+    saveNewJournalEntry();
+  });
+}
+
+function openNewJournalOverlay() {
+  if (!lastAnalysisSnapshot) {
+    setStatus("Run an analysis before adding to journal.");
+    return;
+  }
+  if (!currentUser) {
+    openLoginOverlay();
+    return;
+  }
+  ensureNewJournalOverlay();
+  const { text, data } = lastAnalysisSnapshot;
+  if (newJournalSourceEl) {
+    newJournalSourceEl.textContent = text || "";
+  }
+  if (newJournalAnalysisEl) {
+    const core = (data && data.coreMixture) || [];
+    if (Array.isArray(core) && core.length > 0) {
+      const lines = core.map((row) => {
+        const label =
+          row.labelLocalized || row.label || row.id || "";
+        const pct =
+          typeof row.percent === "number"
+            ? row.percent.toFixed(1)
+            : "0.0";
+        return `${label}: ${pct}%`;
+      });
+      newJournalAnalysisEl.textContent = lines.join("\n");
+    } else {
+      newJournalAnalysisEl.textContent = "";
+    }
+  }
+  if (newJournalTextEl) {
+    newJournalTextEl.value = "";
+  }
+  if (newJournalOverlay) {
+    newJournalOverlay.classList.add("show");
+  }
+}
+
+function closeNewJournalOverlay() {
+  if (newJournalOverlay) {
+    newJournalOverlay.classList.remove("show");
+  }
+}
+
+async function saveNewJournalEntry() {
+  if (!lastAnalysisSnapshot || !currentUser || !newJournalTextEl)
+    return;
+  const { text, data } = lastAnalysisSnapshot;
+  const journal_text = newJournalTextEl.value || "";
+
+  const title = `Journal entry ${new Date().toLocaleString()}`;
+
+  try {
+    await apiFetchJSON("/api/journals", {
+      method: "POST",
+      body: JSON.stringify({
+        title,
+        source_text: text,
+        analysis_json: data,
+        journal_text
+      })
+    });
+    closeNewJournalOverlay();
+    if (journalOverlay && journalOverlay.classList.contains("show")) {
+      await loadJournals();
+    }
+  } catch (err) {
+    // Optionally surface error
+  }
+}
+
+if (addJournalButton) {
+  addJournalButton.addEventListener("click", () => {
+    if (!currentUser) {
+      openLoginOverlay();
+      return;
+    }
+    openNewJournalOverlay();
+  });
+}
+
 /* ---------- Initial setup ---------- */
 
-initBars();
-buildLangMenu();
-setLocale(currentLocale);
-renderBarsZero();
-wordCountAndLimit();
+function initialSetup() {
+  initBars();
+  buildLangMenuFor(langMenu);
+  buildLangMenuFor(accountLangMenu);
+  setLocale(currentLocale);
+  renderBarsZero();
+  wordCountAndLimit();
+  applyGuestTheme();
+  loadSiteState();
+  fetchCurrentUser();
+}
+
+document.addEventListener("DOMContentLoaded", initialSetup);
