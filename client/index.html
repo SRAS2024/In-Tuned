@@ -90,18 +90,28 @@
             </div>
           </div>
 
+          <div class="topbarDivider" aria-hidden="true"></div>
+
           <!-- Login button for guests -->
           <button
             id="loginBtn"
-            class="btn smallBtn"
+            class="loginBtn"
             type="button"
             data-i18n="loginButtonLabel"
           >
-            Login
+            Log in
           </button>
 
           <!-- Account control for logged in users -->
           <div id="accountControl" class="accountControl hidden">
+            <button
+              id="homeBtn"
+              class="iconBtn homeBtn hidden"
+              type="button"
+              aria-label="Home"
+            >
+              <span class="homeIcon" aria-hidden="true">⌂</span>
+            </button>
             <button
               id="accountBtn"
               class="accountBtn"
@@ -183,27 +193,38 @@
         <section class="grid" aria-label="Emotion analysis layout">
           <div class="card">
             <label for="text" data-i18n="inputLabel">Text</label>
-            <textarea
-              id="text"
-              aria-label="Text to analyze"
-              data-i18n-placeholder="inputPlaceholder"
-              placeholder="Type a short passage. For example: I am grateful and excited to begin something new today."
-            ></textarea>
-
-            <div class="row">
-              <button
-                id="analyze"
-                class="btn"
-                data-i18n="analyzeButton"
-              >
-                Analyze
-              </button>
+            <div class="inputShell">
+              <textarea
+                id="text"
+                aria-label="Text to analyze"
+                data-i18n-placeholder="inputPlaceholder"
+                placeholder="Type a message..."
+              ></textarea>
               <span
                 id="wordInfo"
+                class="wordInfo"
                 data-i18n="wordInfoDefault"
               >
                 250 word maximum
               </span>
+            </div>
+
+            <div class="row">
+              <button
+                id="analyze"
+                class="btn primaryBtn"
+                data-i18n="analyzeButton"
+              >
+                Analyze
+              </button>
+              <button
+                id="addJournalButton"
+                class="iconBtn primaryIconBtn hidden"
+                type="button"
+                aria-label="Save this analysis as a journal entry"
+              >
+                +
+              </button>
               <span
                 id="emojiTray"
                 class="emojiInline"
@@ -295,21 +316,14 @@
                 <div class="value" id="v-emotion">N/A</div>
               </div>
 
-              <!-- Add to journal button for logged in users -->
               <div class="meta metaSecondary">
-                <button
-                  id="addJournalButton"
-                  class="btn smallBtn"
-                  type="button"
+                <div
+                  class="label"
+                  data-i18n="resultsBarnhartLabel"
                 >
-                  Add to journal
-                </button>
-                <span
-                  id="addJournalHint"
-                  class="hint"
-                >
-                  Saves your text, bar chart result, and a journal note.
-                </span>
+                  Barnhart rating
+                </div>
+                <div class="value" id="v-barnhart">N/A</div>
               </div>
             </div>
           </div>
@@ -391,7 +405,7 @@
           <a
             href="tel:988"
             id="crisisHotline"
-            class="btnLink"
+            class="btn secondaryBtn"
           >
             <span data-i18n="crisisHotlineCta">
               Contact suicide hotline
@@ -402,7 +416,7 @@
           <a
             href="tel:911"
             id="crisisEmergency"
-            class="ghostLink"
+            class="btn dangerBtn"
           >
             <span data-i18n="crisisEmergencyCta">
               Contact emergency services
@@ -423,7 +437,7 @@
       </div>
     </div>
 
-    <!-- Auth: Login -->
+    <!-- Auth: Log in -->
     <div
       id="authOverlayLogin"
       class="overlay"
@@ -440,7 +454,7 @@
             <div class="title" data-i18n="appTitle">In tuned</div>
           </div>
         </div>
-        <h2 id="authLoginTitle">Login</h2>
+        <h2 id="authLoginTitle">Log in</h2>
         <form id="loginForm" novalidate>
           <label class="fieldLabel" for="loginIdentifier">
             Email or username
@@ -492,9 +506,9 @@
             <button
               id="submitLogin"
               type="submit"
-              class="btn"
+              class="btn primaryBtn"
             >
-              Login
+              Log in
             </button>
           </div>
         </form>
@@ -593,7 +607,7 @@
             <button
               id="submitRegister"
               type="submit"
-              class="btn"
+              class="btn primaryBtn"
             >
               Create account
             </button>
@@ -682,7 +696,7 @@
             <button
               id="submitForgot"
               type="submit"
-              class="btn"
+              class="btn primaryBtn"
             >
               Reset password
             </button>
@@ -712,7 +726,10 @@
         </div>
         <div class="journalLayout">
           <aside class="journalListPane">
-            <div class="journalSectionHeader">
+            <div
+              id="pinnedSectionHeader"
+              class="journalSectionHeader hidden"
+            >
               <span>Pinned</span>
             </div>
             <div
@@ -741,12 +758,43 @@
               class="journalDetail hidden"
             >
               <div class="journalDetailHeader">
+                <button
+                  id="journalBackButton"
+                  type="button"
+                  class="iconBtn backBtn"
+                  aria-label="Back to journal list"
+                >
+                  ←
+                </button>
                 <div>
                   <h3 id="journalDetailTitle"></h3>
                   <p
                     id="journalDetailMeta"
                     class="journalMeta"
                   ></p>
+                  <div class="journalMetaRow">
+                    <span class="journalMetaLabel">Dominant</span>
+                    <span
+                      id="journalDetailDominant"
+                      class="journalMetaValue"
+                    >
+                      N/A
+                    </span>
+                    <span class="journalMetaLabel">Current</span>
+                    <span
+                      id="journalDetailEmotion"
+                      class="journalMetaValue"
+                    >
+                      N/A
+                    </span>
+                    <span class="journalMetaLabel">Barnhart rating</span>
+                    <span
+                      id="journalDetailBarnhart"
+                      class="journalMetaValue"
+                    >
+                      N/A
+                    </span>
+                  </div>
                 </div>
                 <div class="journalDetailActions">
                   <button
@@ -779,6 +827,13 @@
                       type="button"
                     >
                       Pin
+                    </button>
+                    <button
+                      id="journalDeleteButton"
+                      type="button"
+                      class="dangerTextButton"
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -817,13 +872,46 @@
                 <button
                   id="saveJournalEdit"
                   type="button"
-                  class="btn"
+                  class="btn primaryBtn"
                 >
                   Save
                 </button>
               </div>
             </div>
           </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- Journal delete confirmation -->
+    <div
+      id="journalDeleteConfirmOverlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="journalDeleteConfirmTitle"
+    >
+      <div class="modal">
+        <h2 id="journalDeleteConfirmTitle">Delete journal entry?</h2>
+        <p>
+          Are you sure you want to delete this journal? This action cannot be
+          undone.
+        </p>
+        <div class="actionsRow">
+          <button
+            id="cancelJournalDelete"
+            type="button"
+            class="ghost"
+          >
+            Cancel
+          </button>
+          <button
+            id="confirmJournalDelete"
+            type="button"
+            class="btn dangerBtn"
+          >
+            Delete journal
+          </button>
         </div>
       </div>
     </div>
@@ -906,7 +994,7 @@
             <button
               id="saveAccountSettings"
               type="submit"
-              class="btn"
+              class="btn primaryBtn"
             >
               Save
             </button>
