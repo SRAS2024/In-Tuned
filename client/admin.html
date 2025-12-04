@@ -427,6 +427,33 @@
         font-size: 0.78rem;
         color: #9ca3af;
       }
+
+      /* Live site preview */
+
+      .site-preview-panel {
+        margin-bottom: 4px;
+      }
+
+      .site-preview-wrapper {
+        margin-top: 10px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #1f2937;
+        background: #020617;
+      }
+
+      .site-preview-frame {
+        width: 100%;
+        height: 420px;
+        border: 0;
+        display: block;
+      }
+
+      @media (max-width: 640px) {
+        .site-preview-frame {
+          height: 360px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -492,6 +519,22 @@
             Logout
           </button>
         </div>
+
+        <!-- Live site preview so admin mirrors homepage -->
+        <section class="admin-panel site-preview-panel">
+          <h3>Live site preview</h3>
+          <p class="helper">
+            This preview mirrors the main homepage so you can see how maintenance
+            and notices will look in real time.
+          </p>
+          <div class="site-preview-wrapper">
+            <iframe
+              src="/"
+              title="In tuned live preview"
+              class="site-preview-frame"
+            ></iframe>
+          </div>
+        </section>
 
         <div class="admin-section-row">
           <!-- Developer Updates / Maintenance -->
@@ -560,14 +603,21 @@
               ></textarea>
             </div>
 
-            <div class="field-group" style="display: flex; align-items: center; gap: 8px;">
+            <div
+              class="field-group"
+              style="display: flex; align-items: center; gap: 8px;"
+            >
               <input
                 id="notice-active"
                 type="checkbox"
                 checked
                 style="width: 16px; height: 16px;"
               />
-              <label for="notice-active" class="field-label" style="margin: 0;">
+              <label
+                for="notice-active"
+                class="field-label"
+                style="margin: 0;"
+              >
                 Set as active notice
               </label>
             </div>
@@ -629,7 +679,11 @@
                 />
               </div>
 
-              <button id="upload-lexicon-button" type="submit" class="primary-button">
+              <button
+                id="upload-lexicon-button"
+                type="submit"
+                class="primary-button"
+              >
                 Upload lexicon
               </button>
             </form>
@@ -685,7 +739,11 @@
           <button id="dev-password-cancel" class="ghost-button">
             Cancel
           </button>
-          <button id="dev-password-confirm" class="primary-button" style="width: auto;">
+          <button
+            id="dev-password-confirm"
+            class="primary-button"
+            style="width: auto;"
+          >
             Confirm
           </button>
         </div>
