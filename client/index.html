@@ -621,7 +621,7 @@
       </div>
     </div>
 
-    <!-- Auth: Forgot password -->
+    <!-- Auth: Forgot password (two step flow) -->
     <div
       id="authOverlayForgot"
       class="overlay"
@@ -640,71 +640,94 @@
         </div>
         <h2 id="authForgotTitle">Reset password</h2>
         <form id="forgotForm" novalidate>
-          <label class="fieldLabel" for="forgotEmail">
-            Email
-          </label>
-          <input
-            id="forgotEmail"
-            class="fieldInput"
-            type="email"
-            autocomplete="email"
-          />
-
-          <label class="fieldLabel" for="forgotFirstName">
-            First name
-          </label>
-          <input
-            id="forgotFirstName"
-            class="fieldInput"
-            type="text"
-          />
-
-          <label class="fieldLabel" for="forgotLastName">
-            Last name
-          </label>
-          <input
-            id="forgotLastName"
-            class="fieldInput"
-            type="text"
-          />
-
-          <label class="fieldLabel" for="forgotNewPassword">
-            New password
-          </label>
-          <input
-            id="forgotNewPassword"
-            class="fieldInput"
-            type="password"
-            autocomplete="new-password"
-          />
-
-          <label class="fieldLabel" for="forgotConfirmPassword">
-            Re enter new password
-          </label>
-          <input
-            id="forgotConfirmPassword"
-            class="fieldInput"
-            type="password"
-            autocomplete="new-password"
-          />
-
           <p id="forgotError" class="errorText hidden"></p>
 
-          <div class="actionsRow">
-            <button
-              id="cancelForgot"
-              type="button"
-              class="ghost"
-            >
-              Cancel
-            </button>
-            <button
-              id="submitForgot"
-              type="submit"
-              class="btn primaryBtn"
-            >
-              Reset password
-            </button>
+          <!-- Step 1: identity -->
+          <div id="forgotStepIdentity">
+            <label class="fieldLabel" for="forgotEmail">
+              Email
+            </label>
+            <input
+              id="forgotEmail"
+              class="fieldInput"
+              type="email"
+              autocomplete="email"
+            />
+
+            <label class="fieldLabel" for="forgotFirstName">
+              First name
+            </label>
+            <input
+              id="forgotFirstName"
+              class="fieldInput"
+              type="text"
+            />
+
+            <label class="fieldLabel" for="forgotLastName">
+              Last name
+            </label>
+            <input
+              id="forgotLastName"
+              class="fieldInput"
+              type="text"
+            />
+
+            <div class="actionsRow">
+              <button
+                id="cancelForgot"
+                type="button"
+                class="ghost"
+              >
+                Cancel
+              </button>
+              <button
+                id="forgotContinue"
+                type="button"
+                class="btn primaryBtn"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2: reset password -->
+          <div id="forgotStepReset" class="hidden">
+            <label class="fieldLabel" for="forgotNewPassword">
+              New password
+            </label>
+            <input
+              id="forgotNewPassword"
+              class="fieldInput"
+              type="password"
+              autocomplete="new-password"
+            />
+
+            <label class="fieldLabel" for="forgotConfirmPassword">
+              Re enter new password
+            </label>
+            <input
+              id="forgotConfirmPassword"
+              class="fieldInput"
+              type="password"
+              autocomplete="new-password"
+            />
+
+            <div class="actionsRow">
+              <button
+                id="cancelForgotReset"
+                type="button"
+                class="ghost"
+              >
+                Cancel
+              </button>
+              <button
+                id="submitForgot"
+                type="submit"
+                class="btn primaryBtn"
+              >
+                Reset password
+              </button>
+            </div>
           </div>
         </form>
       </div>
