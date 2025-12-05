@@ -96,7 +96,13 @@ const LOCALES = {
       journalDefaultTitle: "Journal entry",
       journalPin: "Pin",
       journalUnpin: "Unpin",
-      accountLabel: "Account"
+      accountLabel: "Account",
+      loginButtonLabel: "Log in",
+      maintenanceTitle: "In tuned is temporarily offline",
+      maintenanceMessage:
+        "Site is currently down due to maintenance. We will be back shortly.",
+      maintenanceNote:
+        "Thank you for your patience while we finish a few upgrades."
     },
     emotions: {
       anger: "Anger",
@@ -171,7 +177,13 @@ const LOCALES = {
       journalDefaultTitle: "Entrada de diario",
       journalPin: "Fijar",
       journalUnpin: "Quitar fijación",
-      accountLabel: "Cuenta"
+      accountLabel: "Cuenta",
+      loginButtonLabel: "Iniciar sesión",
+      maintenanceTitle: "In tuned está temporalmente fuera de línea",
+      maintenanceMessage:
+        "El sitio está en mantenimiento en este momento. Volveremos en breve.",
+      maintenanceNote:
+        "Gracias por tu paciencia mientras terminamos algunas mejoras."
     },
     emotions: {
       anger: "Ira",
@@ -246,7 +258,13 @@ const LOCALES = {
       journalDefaultTitle: "Entrada de diário",
       journalPin: "Fixar",
       journalUnpin: "Desafixar",
-      accountLabel: "Conta"
+      accountLabel: "Conta",
+      loginButtonLabel: "Entrar",
+      maintenanceTitle: "In tuned está temporariamente fora do ar",
+      maintenanceMessage:
+        "O site está em manutenção no momento. Voltaremos em breve.",
+      maintenanceNote:
+        "Obrigado pela sua paciência enquanto concluímos algumas melhorias."
     },
     emotions: {
       anger: "Raiva",
@@ -1283,6 +1301,7 @@ async function loadSiteState() {
     const maintenance = !!data.maintenance_mode;
     const message =
       data.maintenance_message ||
+      t("maintenanceMessage") ||
       "Site is currently down due to maintenance. We will be back shortly.";
     const notice = data.notice;
 
@@ -1399,7 +1418,12 @@ function applyUserState() {
     if (addJournalButton) addJournalButton.classList.remove("hidden");
     if (addJournalHint) addJournalHint.classList.remove("hidden");
   } else {
-    if (loginBtn) loginBtn.classList.remove("hidden");
+    if (loginBtn) {
+      loginBtn.classList.remove("hidden");
+      // Ensure login button label matches current locale
+      const label = t("loginButtonLabel") || "Log in";
+      loginBtn.textContent = label;
+    }
     if (accountControl) accountControl.classList.add("hidden");
     if (helpBtn) helpBtn.classList.remove("hidden");
     if (settingsControl) settingsControl.classList.remove("hidden");
