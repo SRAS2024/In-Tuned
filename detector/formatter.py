@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -278,7 +278,9 @@ def _normalize_mixture_vector(
     emotions_raw: Dict[str, Dict[str, Any]]
 ) -> Dict[str, float]:
     """
-    Detector may return mixture as 0 to 1 weights or 0 to 100 percents.
+    Detector may return mixture as:
+      - 0 to 1 weights
+      - 0 to 100 percents
     Normalize to 0 to 1 weights.
     If missing or all zero, derive from scores.
     """
@@ -951,7 +953,11 @@ def _fallback_raw(text: str, loc: str, reason: str) -> Dict[str, Any]:
         "humor": 0.0,
         "confidence": 0.0,
         "risk_level": "none",
-        "meta": {"fallback": True, "fallback_reason": reason},
+        "meta": {
+            "fallback": True,
+            "fallback_reason": reason,
+            "global_intensity": 0.0,
+        },
     }
 
 
@@ -969,26 +975,34 @@ def format_for_client(
 
     try:
         detector_res = analyze_text(text, domain=domain)
-        # New detector returns DetectorOutput dataclass, so convert to dict
+
+        # DetectorOutput dataclass or similar
         if hasattr(detector_res, "to_dict"):
             raw = detector_res.to_dict()  # type: ignore[assignment]
         elif isinstance(detector_res, dict):
             raw = detector_res  # type: ignore[assignment]
         else:
-            raw = _fallback_raw(
-                text,
-                loc,
-                f"analyze_text returned unsupported type {type(detector_res).__name__}",
-            )
+            # Try dataclass conversion
+            try:
+                raw = asdict(detector_res)  # type: ignore[arg-type]
+            except Exception:
+                raw = _fallback_raw(
+                    text,
+                    loc,
+                    f"analyze_text returned unsupported type {type(detector_res).__name__}",
+                )
     except InvalidTextError as e:
         raw = _fallback_raw(text, loc, f"InvalidTextError: {e}")
     except Exception as e:
         raw = _fallback_raw(text, loc, f"Exception: {e}")
 
     emotions_raw = _normalize_emotions_shape(raw.get("emotions", {}))
-    mixture_vector = _normalize_mixture_vector(
-        raw.get("mixture_vector"), emotions_raw
-    )
+
+    # Support both mixture_vector and mixture style keys from detector
+    mv_source = raw.get("mixture_vector")
+    if mv_source is None:
+        mv_source = raw.get("mixture") or raw.get("mixtureVector")
+    mixture_vector = _normalize_mixture_vector(mv_source, emotions_raw)
 
     emotion_order = list(EMOTIONS)
 
@@ -1027,8 +1041,14 @@ def format_for_client(
     dominant_raw = raw.get("dominant") or {}
     current_raw = raw.get("current") or {}
 
+    if not getattr(dominant_raw, "get", None):
+        dominant_raw = {}
+
     if not dominant_raw.get("label"):
-        best_id = max(mixture_vector.items(), key=lambda kv: kv[1])[0]
+        if mixture_vector:
+            best_id = max(mixture_vector.items(), key=lambda kv: kv[1])[0]
+        else:
+            best_id = EMOTIONS[0]
         best_em = emotions_raw.get(best_id, {}) or {}
         dominant_raw = {
             "label": best_id,
@@ -1036,6 +1056,9 @@ def format_for_client(
             "score": best_em.get("score", 0.0),
             "percent": mixture_vector.get(best_id, 0.0) * 100.0,
         }
+
+    if not getattr(current_raw, "get", None):
+        current_raw = {}
 
     if not current_raw.get("label"):
         current_raw = dominant_raw
@@ -1050,12 +1073,81 @@ def format_for_client(
         current_block, mixture_vector, loc, mixture_profile, meta
     )
 
+    # Language guess normalization
+    lang_raw = raw.get("language") or raw.get("language_guess") or raw.get("lang")
+    if isinstance(lang_raw, str):
+        language_guess: Dict[str, Any] = {
+            "locale": _normalize_locale(lang_raw),
+            "confidence": 1.0,
+        }
+    elif isinstance(lang_raw, dict):
+        language_guess = lang_raw
+    else:
+        language_guess = {}
+
+    # Risk normalization
+    raw_risk = raw.get("risk") or {}
+    risk_level = raw_risk.get("level") or raw.get("risk_level") or "none"
+    risk_score = _safe_float(raw_risk.get("score"), 0.0)
+    risk_reason = raw_risk.get("reason") or raw_risk.get("explanation") or ""
     hotline = get_hotline_for_region(region, loc)
+
+    risk_block = {
+        "level": risk_level,
+        "score": risk_score,
+        "reason": risk_reason,
+        "hotline": hotline,
+    }
+
+    # Metrics with extended meta consistency
+    metrics: Dict[str, Any] = {
+        "arousal": _safe_float(raw.get("arousal"), 0.0),
+        "sarcasm": _safe_float(raw.get("sarcasm"), 0.0),
+        "humor": _safe_float(raw.get("humor"), 0.0),
+        "confidence": _safe_float(raw.get("confidence"), 0.0),
+        "mixtureProfile": mixture_profile,
+    }
+
+    global_intensity = _safe_float(meta.get("global_intensity"), 0.0)
+    pos_int = _safe_float(meta.get("positive_intensity"), 0.0)
+    neg_int = _safe_float(meta.get("negative_intensity"), 0.0)
+    neu_int = _safe_float(meta.get("neutral_intensity"), 0.0)
+    certainty = _safe_float(meta.get("certainty"), 0.0)
+    uncertainty = _safe_float(meta.get("uncertainty"), 0.0)
+
+    if any(
+        v > 0.0
+        for v in (
+            global_intensity,
+            pos_int,
+            neg_int,
+            neu_int,
+            certainty,
+            uncertainty,
+        )
+    ):
+        metrics.update(
+            {
+                "globalIntensity": global_intensity,
+                "positiveIntensity": pos_int,
+                "negativeIntensity": neg_int,
+                "neutralIntensity": neu_int,
+                "certainty": certainty,
+                "uncertainty": uncertainty,
+            }
+        )
+
+    token_count = meta.get("token_count")
+    clause_count = meta.get("clause_count")
+    if token_count is not None:
+        metrics["tokenCount"] = int(_safe_float(token_count, 0.0))
+    if clause_count is not None:
+        metrics["clauseCount"] = int(_safe_float(clause_count, 0.0))
 
     payload: Dict[str, Any] = {
         "text": raw.get("text", text),
         "locale": loc,
-        "languageGuess": raw.get("language", {}) or {},
+        "languageGuess": language_guess,
         "emotionOrder": emotion_order,
         "coreMixture": mixture_rows,
         "analysis": analysis_rows,
@@ -1063,17 +1155,8 @@ def format_for_client(
             "dominant": dominant_block,
             "current": current_block,
         },
-        "metrics": {
-            "arousal": _safe_float(raw.get("arousal"), 0.0),
-            "sarcasm": _safe_float(raw.get("sarcasm"), 0.0),
-            "humor": _safe_float(raw.get("humor"), 0.0),
-            "confidence": _safe_float(raw.get("confidence"), 0.0),
-            "mixtureProfile": mixture_profile,
-        },
-        "risk": {
-            "level": raw.get("risk_level", "none"),
-            "hotline": hotline,
-        },
+        "metrics": metrics,
+        "risk": risk_block,
         "meta": meta,
     }
     return payload
