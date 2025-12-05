@@ -330,16 +330,6 @@
                 </div>
                 <div class="value" id="v-emotion">N/A</div>
               </div>
-
-              <div class="meta metaSecondary">
-                <div
-                  class="label"
-                  data-i18n="resultsBarnhartLabel"
-                >
-                  Barnhart rating
-                </div>
-                <div class="value" id="v-barnhart">N/A</div>
-              </div>
             </div>
           </div>
         </section>
@@ -470,7 +460,7 @@
           </div>
         </div>
         <h2 id="authLoginTitle">Log in</h2>
-        <form id="loginForm" novalidate>
+        <form id="loginForm" novalidate autocomplete="off">
           <label class="fieldLabel" for="loginIdentifier">
             Email or username
           </label>
@@ -478,7 +468,7 @@
             id="loginIdentifier"
             class="fieldInput"
             type="text"
-            autocomplete="username"
+            autocomplete="off"
           />
 
           <label class="fieldLabel" for="loginPassword">
@@ -488,7 +478,7 @@
             id="loginPassword"
             class="fieldInput"
             type="password"
-            autocomplete="current-password"
+            autocomplete="off"
           />
 
           <p id="loginError" class="errorText hidden"></p>
