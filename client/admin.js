@@ -115,7 +115,6 @@
   function refreshSitePreview() {
     const frame = sitePreviewFrame || document.querySelector(".site-preview-frame");
     if (frame && frame.contentWindow) {
-      // Reload to reflect latest maintenance or notice state
       frame.contentWindow.location.reload();
     }
   }
@@ -179,7 +178,13 @@
 
       setTimeout(async () => {
         hideElement(loginView);
-        showElement(dashboard);
+
+        // Make sure the dashboard is visible and uses flex layout
+        if (dashboard) {
+          showElement(dashboard);
+          dashboard.style.display = "flex";
+        }
+
         loginButton.disabled = false;
         await refreshAdminState();
         refreshSitePreview();
@@ -203,7 +208,11 @@
     }
 
     showElement(loginView);
-    hideElement(dashboard);
+
+    if (dashboard) {
+      hideElement(dashboard);
+      dashboard.style.display = "none";
+    }
 
     loginPassword.value = "";
     hideElement(loadingContainer);
