@@ -245,6 +245,7 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 def _as_percent(v: Any, default: float = 0.0) -> float:
     """
     Accepts 0 to 1 or 0 to 100 values and normalizes to 0 to 100.
+    Just rescales the detector value, does not renormalize across emotions.
     """
     val = _safe_float(v, default)
     if val <= 1.0:
@@ -275,43 +276,61 @@ def _normalize_emotions_shape(emotions: Any) -> Dict[str, Dict[str, Any]]:
 
 def _normalize_mixture_vector(
     mixture_vector: Any,
-    emotions_raw: Dict[str, Dict[str, Any]]
+    emotions_raw: Dict[str, Dict[str, Any]],
 ) -> Dict[str, float]:
     """
-    Detector may return mixture as:
-      - 0 to 1 weights
-      - 0 to 100 percents
-    Normalize to 0 to 1 weights.
-    If missing or all zero, derive from scores.
+    Use the detector mixture as is, only clamped to [0,1].
+    If mixture is missing, derive from detector percents.
+    If percents are missing too, derive from scores as a last resort.
+    No renormalization if the detector already gave a mixture.
     """
-    mv_in: Dict[str, float] = {}
+    mv: Dict[str, float] = {}
+
+    # Case 1: detector provided mixture_vector
     if isinstance(mixture_vector, dict):
-        for k, v in mixture_vector.items():
-            mv_in[str(k)] = max(_safe_float(v, 0.0), 0.0)
+        for eid in EMOTIONS:
+            mv[eid] = _clamp(
+                _safe_float(mixture_vector.get(eid, 0.0), 0.0),
+                0.0,
+                1.0,
+            )
+        return mv
 
-    # Detect scale
-    if any(v > 1.5 for v in mv_in.values()):
-        mv = {k: v / 100.0 for k, v in mv_in.items()}
-    else:
-        mv = dict(mv_in)
-
-    total = sum(mv.values())
-    if total <= 0.0:
-        # derive from scores if possible
-        scores = {
-            eid: max(_safe_float(emotions_raw.get(eid, {}).get("score"), 0.0), 0.0)
-            for eid in EMOTIONS
-        }
-        st = sum(scores.values())
-        if st > 0.0:
-            mv = {eid: scores[eid] / st for eid in EMOTIONS}
+    # Case 2: no mixture, derive from detector percents
+    has_percent = False
+    for eid in EMOTIONS:
+        em = emotions_raw.get(eid) or {}
+        p_raw = None
+        if isinstance(em, dict):
+            p_raw = em.get("percent", em.get("pct"))
+        if p_raw is not None:
+            p = _as_percent(p_raw, 0.0)
+            mv[eid] = _clamp(p / 100.0, 0.0, 1.0)
+            has_percent = True
         else:
-            mv = {eid: 0.0 for eid in EMOTIONS}
+            mv[eid] = 0.0
 
-    return {
-        eid: _clamp(_safe_float(mv.get(eid), 0.0), 0.0, 1.0)
-        for eid in EMOTIONS
-    }
+    if has_percent:
+        return mv
+
+    # Case 3: fall back to scores, normalized so something nontrivial comes out
+    scores: Dict[str, float] = {}
+    for eid in EMOTIONS:
+        em = emotions_raw.get(eid) or {}
+        s = 0.0
+        if isinstance(em, dict):
+            s = max(_safe_float(em.get("score"), 0.0), 0.0)
+        scores[eid] = s
+
+    total = sum(scores.values())
+    if total > 0.0:
+        for eid in EMOTIONS:
+            mv[eid] = scores[eid] / total
+    else:
+        for eid in EMOTIONS:
+            mv[eid] = 0.0
+
+    return mv
 
 
 def _intensity_bucket_from_percent(percent: float) -> str:
@@ -656,6 +675,7 @@ def _apply_mixture_nuance_to_current(
     meta = meta or {}
 
     if primary_weight < 0.08 and secondary_weight < 0.08:
+        block["mixtureSummaryKind"] = "single"
         return block
 
     if (
@@ -858,14 +878,20 @@ def _format_emotion_row(
     mixture_value: float,
     locale: str,
 ) -> Dict[str, Any]:
+    """
+    Percent follows detector percent or pct directly when present.
+    Mixture is independent and comes from detector mixture_vector.
+    No renormalization across emotions.
+    """
     loc = _normalize_locale(locale)
     label_en = EMOTION_LABELS["en"].get(emotion_id, emotion_id)
     label_local = EMOTION_LABELS.get(loc, {}).get(emotion_id, label_en)
 
-    percent = detector_emotion.get("percent", detector_emotion.get("pct"))
-    if percent is None:
-        percent = mixture_value * 100.0
-    percent = _as_percent(percent, mixture_value * 100.0)
+    percent_raw = detector_emotion.get("percent", detector_emotion.get("pct"))
+    if percent_raw is not None:
+        percent = _as_percent(percent_raw, 0.0)
+    else:
+        percent = _clamp(_safe_float(mixture_value, 0.0) * 100.0, 0.0, 100.0)
 
     score = _safe_float(detector_emotion.get("score"), 0.0)
     emoji = detector_emotion.get("emoji", "😐")
@@ -879,7 +905,7 @@ def _format_emotion_row(
         "scoreDisplay": f"{score:.3f}",
         "percent": round(percent, 3),
         "percentDisplay": f"{percent:.1f}",
-        "mixture": round(max(mixture_value, 0.0), 6),
+        "mixture": round(_clamp(mixture_value, 0.0, 1.0), 6),
     }
 
 
@@ -895,8 +921,8 @@ def _format_result_block(
     label_local = EMOTION_LABELS.get(loc, {}).get(emotion_id, label_en)
 
     score = _safe_float(detector_result.get("score"), 0.0)
-    percent = detector_result.get("percent", detector_result.get("pct", 0.0))
-    percent = _as_percent(percent, 0.0)
+    percent_raw = detector_result.get("percent", detector_result.get("pct", 0.0))
+    percent = _as_percent(percent_raw, 0.0)
     emoji = detector_result.get("emoji", "😐")
 
     if kind == "current":
@@ -1050,11 +1076,16 @@ def format_for_client(
         else:
             best_id = EMOTIONS[0]
         best_em = emotions_raw.get(best_id, {}) or {}
+        best_percent = best_em.get("percent", best_em.get("pct"))
+        if best_percent is not None:
+            dom_percent = _as_percent(best_percent, 0.0)
+        else:
+            dom_percent = mixture_vector.get(best_id, 0.0) * 100.0
         dominant_raw = {
             "label": best_id,
             "emoji": best_em.get("emoji", "😐"),
             "score": best_em.get("score", 0.0),
-            "percent": mixture_vector.get(best_id, 0.0) * 100.0,
+            "percent": dom_percent,
         }
 
     if not getattr(current_raw, "get", None):
