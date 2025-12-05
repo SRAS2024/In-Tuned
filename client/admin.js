@@ -8,7 +8,8 @@
   const loginError = document.getElementById("admin-login-error");
   const loginUsername = document.getElementById("admin-username");
   const loginPassword = document.getElementById("admin-password");
-  const loadingContainer = document.getElementById("admin-loading-container");
+
+  const loadingOverlay = document.getElementById("admin-loading-overlay");
   const loadingFill = document.getElementById("admin-loading-fill");
 
   const dashboard = document.getElementById("admin-dashboard");
@@ -121,8 +122,8 @@
 
   function setChipState(enabled) {
     currentMaintenanceEnabled = enabled;
+    if (!maintenanceStatusChip) return;
     if (enabled) {
-      // Maintenance mode enabled means site is down for maintenance
       maintenanceStatusChip.textContent = "Offline";
       maintenanceStatusChip.classList.add("offline");
     } else {
@@ -141,13 +142,29 @@
     }
   }
 
+  // Loading overlay helpers
+
+  function showLoadingOverlay() {
+    if (!loadingOverlay || !loadingFill) return;
+    loadingFill.style.width = "0%";
+    loadingOverlay.classList.add("show");
+    requestAnimationFrame(() => {
+      loadingFill.style.width = "100%";
+    });
+  }
+
+  function hideLoadingOverlay() {
+    if (!loadingOverlay || !loadingFill) return;
+    loadingOverlay.classList.remove("show");
+    loadingFill.style.width = "0%";
+  }
+
   // Login flow
 
   async function handleAdminLogin(event) {
     event.preventDefault();
     hideElement(loginError);
-    hideElement(loadingContainer);
-    loadingFill.style.width = "0%";
+    hideLoadingOverlay();
 
     const username = loginUsername.value.trim();
     const password = loginPassword.value;
@@ -170,31 +187,38 @@
         throw new Error(data.error || "Not authorized");
       }
 
-      // Show welcome loading bar for three seconds
-      showElement(loadingContainer);
-      requestAnimationFrame(() => {
-        loadingFill.style.width = "100%";
-      });
+      // Hide login card, then show centered loading overlay
+      if (loginView) {
+        hideElement(loginView);
+      }
+
+      showLoadingOverlay();
 
       setTimeout(async () => {
-        hideElement(loginView);
+        hideLoadingOverlay();
 
-        // Make sure the dashboard is visible and uses flex layout
         if (dashboard) {
           showElement(dashboard);
           dashboard.style.display = "flex";
         }
 
         loginButton.disabled = false;
-        await refreshAdminState();
-        refreshSitePreview();
+
+        try {
+          await refreshAdminState();
+          refreshSitePreview();
+        } catch (e) {
+          // Ignore refresh errors in this step
+        }
       }, 3000);
     } catch (err) {
       loginButton.disabled = false;
       loginError.textContent = "Not authorized";
       showElement(loginError);
-      hideElement(loadingContainer);
-      loadingFill.style.width = "0%";
+      hideLoadingOverlay();
+      if (loginView) {
+        showElement(loginView);
+      }
     }
   }
 
@@ -207,7 +231,9 @@
       // Ignore logout error
     }
 
-    showElement(loginView);
+    if (loginView) {
+      showElement(loginView);
+    }
 
     if (dashboard) {
       hideElement(dashboard);
@@ -215,8 +241,7 @@
     }
 
     loginPassword.value = "";
-    hideElement(loadingContainer);
-    loadingFill.style.width = "0%";
+    hideLoadingOverlay();
     hideElement(loginError);
     loginError.textContent = "";
   }
@@ -238,9 +263,14 @@
         "Site is currently down due to maintenance. We will be back shortly.";
 
       maintenanceToggleProgrammatic = true;
-      maintenanceToggle.checked = enabled;
+      if (maintenanceToggle) {
+        maintenanceToggle.checked = enabled;
+      }
       maintenanceToggleProgrammatic = false;
-      maintenanceMessageInput.value = message;
+
+      if (maintenanceMessageInput) {
+        maintenanceMessageInput.value = message;
+      }
       setChipState(enabled);
 
       renderNotices(notices);
@@ -249,8 +279,10 @@
 
       refreshSitePreview();
     } catch (err) {
-      maintenanceError.textContent = err.message;
-      showElement(maintenanceError);
+      if (maintenanceError) {
+        maintenanceError.textContent = err.message;
+        showElement(maintenanceError);
+      }
     }
   }
 
@@ -264,9 +296,13 @@
       hideElement(lexiconError);
       lexiconError.textContent = "";
     } catch (err) {
-      lexiconError.textContent = err.message;
-      showElement(lexiconError);
-      lexiconFileList.innerHTML = "";
+      if (lexiconError) {
+        lexiconError.textContent = err.message;
+        showElement(lexiconError);
+      }
+      if (lexiconFileList) {
+        lexiconFileList.innerHTML = "";
+      }
     }
   }
 
@@ -277,15 +313,17 @@
   // Maintenance toggle and modal
 
   function openDevPasswordModal() {
+    if (!devPasswordModal || !devPasswordInput || !devPasswordError) return;
     devPasswordInput.value = "";
     devPasswordError.textContent = "";
     hideElement(devPasswordError);
-    showElement(devPasswordModal);
+    devPasswordModal.classList.add("show");
     devPasswordInput.focus();
   }
 
   function closeDevPasswordModal() {
-    hideElement(devPasswordModal);
+    if (!devPasswordModal || !devPasswordInput || !devPasswordError) return;
+    devPasswordModal.classList.remove("show");
     devPasswordInput.value = "";
     devPasswordError.textContent = "";
     hideElement(devPasswordError);
@@ -293,19 +331,18 @@
   }
 
   async function handleMaintenanceToggleChange() {
-    if (maintenanceToggleProgrammatic) return;
+    if (maintenanceToggleProgrammatic || !maintenanceToggle) return;
 
     const wantEnabled = maintenanceToggle.checked;
 
     if (wantEnabled) {
-      // Require developer password
       pendingMaintenanceEnable = true;
       openDevPasswordModal();
     } else {
-      // Disable without developer password
       try {
         const message =
-          maintenanceMessageInput.value.trim() ||
+          (maintenanceMessageInput &&
+            maintenanceMessageInput.value.trim()) ||
           "Site is currently down due to maintenance. We will be back shortly.";
         await apiFetchJSON("/api/admin/maintenance", {
           method: "POST",
@@ -330,20 +367,23 @@
   }
 
   async function handleDevPasswordConfirm() {
-    const password = devPasswordInput.value;
+    const password = devPasswordInput ? devPasswordInput.value : "";
     if (!pendingMaintenanceEnable) {
       closeDevPasswordModal();
       return;
     }
     if (!password) {
-      devPasswordError.textContent = "Developer password is required.";
-      showElement(devPasswordError);
+      if (devPasswordError) {
+        devPasswordError.textContent = "Developer password is required.";
+        showElement(devPasswordError);
+      }
       return;
     }
 
     try {
       const message =
-        maintenanceMessageInput.value.trim() ||
+        (maintenanceMessageInput &&
+          maintenanceMessageInput.value.trim()) ||
         "Site is currently down due to maintenance. We will be back shortly.";
 
       await apiFetchJSON("/api/admin/maintenance", {
@@ -363,10 +403,14 @@
       pendingMaintenanceEnable = false;
       refreshSitePreview();
     } catch (err) {
-      devPasswordError.textContent = err.message;
-      showElement(devPasswordError);
+      if (devPasswordError) {
+        devPasswordError.textContent = err.message;
+        showElement(devPasswordError);
+      }
       maintenanceToggleProgrammatic = true;
-      maintenanceToggle.checked = false;
+      if (maintenanceToggle) {
+        maintenanceToggle.checked = false;
+      }
       maintenanceToggleProgrammatic = false;
       setChipState(false);
       refreshSitePreview();
@@ -376,13 +420,17 @@
   function handleDevPasswordCancel() {
     closeDevPasswordModal();
     maintenanceToggleProgrammatic = true;
-    maintenanceToggle.checked = currentMaintenanceEnabled;
+    if (maintenanceToggle) {
+      maintenanceToggle.checked = currentMaintenanceEnabled;
+    }
     maintenanceToggleProgrammatic = false;
   }
 
   // Notices
 
   function renderNotices(notices) {
+    if (!noticeList) return;
+
     if (!Array.isArray(notices) || notices.length === 0) {
       noticeList.innerHTML =
         '<p style="font-size:0.8rem;color:#9ca3af;margin:4px 0;">No notices yet.</p>';
@@ -393,10 +441,10 @@
 
     notices.forEach((notice) => {
       const row = document.createElement("div");
-      row.className = "notice-row";
+      row.className = "noticeRow";
 
       const main = document.createElement("div");
-      main.className = "notice-main";
+      main.className = "noticeMain";
 
       const textSpan = document.createElement("span");
       textSpan.textContent = notice.text || "";
@@ -420,7 +468,7 @@
       badge.textContent = notice.is_active ? "Active" : "Inactive";
 
       const button = document.createElement("button");
-      button.className = "small-button";
+      button.className = "ghost";
       button.textContent = notice.is_active ? "Deactivate" : "Activate";
       button.addEventListener("click", () =>
         toggleNoticeActive(notice.id, !notice.is_active)
@@ -456,8 +504,8 @@
     hideElement(noticeError);
     noticeError.textContent = "";
 
-    const text = noticeText.value.trim();
-    const isActive = noticeActiveCheckbox.checked;
+    const text = noticeText ? noticeText.value.trim() : "";
+    const isActive = noticeActiveCheckbox ? noticeActiveCheckbox.checked : true;
 
     if (!text) {
       noticeError.textContent = "Notice text is required.";
@@ -473,8 +521,12 @@
         body: JSON.stringify({ text, is_active: isActive })
       });
 
-      noticeText.value = "";
-      noticeActiveCheckbox.checked = true;
+      if (noticeText) {
+        noticeText.value = "";
+      }
+      if (noticeActiveCheckbox) {
+        noticeActiveCheckbox.checked = true;
+      }
       await loadSiteSettings();
       refreshSitePreview();
     } catch (err) {
@@ -488,6 +540,8 @@
   // Lexicons
 
   function renderLexiconFiles(files) {
+    if (!lexiconFileList) return;
+
     if (!Array.isArray(files) || files.length === 0) {
       lexiconFileList.innerHTML =
         '<p style="font-size:0.8rem;color:#9ca3af;margin:4px 0;">No lexicon files uploaded yet.</p>';
@@ -498,10 +552,10 @@
 
     files.forEach((file) => {
       const row = document.createElement("div");
-      row.className = "file-row";
+      row.className = "fileRow";
 
       const main = document.createElement("div");
-      main.className = "file-row-main";
+      main.className = "fileRowMain";
 
       const nameSpan = document.createElement("span");
       nameSpan.textContent = file.filename || "";
@@ -517,8 +571,9 @@
 
       const side = document.createElement("div");
       const deleteButton = document.createElement("button");
-      deleteButton.className = "small-button danger";
+      deleteButton.className = "ghost";
       deleteButton.textContent = "Delete";
+      deleteButton.style.fontSize = "0.8rem";
       deleteButton.addEventListener("click", () => deleteLexiconFile(file.id));
 
       side.appendChild(deleteButton);
@@ -551,8 +606,10 @@
     hideElement(lexiconError);
     lexiconError.textContent = "";
 
-    const language = lexiconLanguageSelect.value;
-    const file = lexiconFileInput.files[0];
+    const language = lexiconLanguageSelect ? lexiconLanguageSelect.value : "";
+    const file = lexiconFileInput && lexiconFileInput.files
+      ? lexiconFileInput.files[0]
+      : null;
 
     if (!language || !file) {
       lexiconError.textContent = "Language and file are required.";
@@ -565,17 +622,23 @@
     formData.append("file", file);
 
     const button = document.getElementById("upload-lexicon-button");
-    button.disabled = true;
+    if (button) {
+      button.disabled = true;
+    }
 
     try {
       await apiFetchForm("/api/admin/lexicons/upload", formData);
-      lexiconFileInput.value = "";
+      if (lexiconFileInput) {
+        lexiconFileInput.value = "";
+      }
       await loadLexicons();
     } catch (err) {
       lexiconError.textContent = err.message;
       showElement(lexiconError);
     } finally {
-      button.disabled = false;
+      if (button) {
+        button.disabled = false;
+      }
     }
   }
 
