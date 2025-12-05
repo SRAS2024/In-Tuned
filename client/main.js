@@ -359,7 +359,15 @@ const fields = {
   passion: $("v-passion"),
   surprise: $("v-surprise"),
   dominant_emotion: $("v-dominant"),
-  emotion: $("v-emotion")
+  emotion: $("v-emotion"),
+  secondary_emotion: $("v-secondary"),
+  mixed_state: $("v-mixed"),
+  valence: $("v-valence"),
+  activation: $("v-activation"),
+  intensity: $("v-intensity"),
+  confidence_metric: $("v-confidence"),
+  pattern: $("v-pattern"),
+  prototype: $("v-prototype")
 };
 
 const emojiTray = $("emojiTray");
@@ -1077,6 +1085,51 @@ function getResultEmotionLabel(entry) {
   );
 }
 
+/* Metric rendering helper for valence, activation, intensity, confidence, pattern, prototype */
+
+function renderMetricField(el, sourceObj, fallbackNumber) {
+  if (!el) return;
+
+  if (!sourceObj && typeof fallbackNumber !== "number") {
+    el.textContent = "N/A";
+    return;
+  }
+
+  const obj = sourceObj || {};
+  const parts = [];
+
+  const label =
+    obj.labelLocalized ||
+    obj.label ||
+    obj.rating ||
+    obj.bucket ||
+    obj.name ||
+    "";
+
+  if (label) {
+    parts.push(label);
+  }
+
+  let num = null;
+  if (typeof obj.score === "number") {
+    num = obj.score;
+  } else if (typeof obj.value === "number") {
+    num = obj.value;
+  } else if (typeof fallbackNumber === "number") {
+    num = fallbackNumber;
+  }
+
+  if (typeof num === "number") {
+    parts.push(num.toFixed(3));
+  }
+
+  if (!parts.length) {
+    el.textContent = "N/A";
+  } else {
+    el.textContent = parts.join(" · ");
+  }
+}
+
 /**
  * Build the text block for an analysis snapshot.
  * Only includes emotions with percent greater than zero,
@@ -1143,6 +1196,88 @@ function buildAnalysisSnapshotText(analysis) {
 }
 
 /* ---------- Apply API analysis to UI ---------- */
+
+function renderResultsMeta(data) {
+  const results = data.results || {};
+  const metrics = data.metrics || {};
+
+  const secondary = results.secondary || {};
+  if (fields.secondary_emotion) {
+    const label = getResultEmotionLabel(secondary) || "N/A";
+    fields.secondary_emotion.textContent = label;
+  }
+
+  const mixed = results.mixed_state || {};
+  if (fields.mixed_state) {
+    let mixedLabel = "N/A";
+    if (typeof mixed.is_mixed === "boolean") {
+      mixedLabel = mixed.is_mixed
+        ? t("resultsMixedYes") || "Yes"
+        : t("resultsMixedNo") || "No";
+    } else if (mixed.labelLocalized || mixed.label) {
+      mixedLabel = mixed.labelLocalized || mixed.label;
+    }
+    fields.mixed_state.textContent = mixedLabel;
+  }
+
+  const valenceObj =
+    results.valence ||
+    metrics.valence ||
+    data.valence ||
+    null;
+  const activationObj =
+    results.activation ||
+    metrics.activation ||
+    data.activation ||
+    null;
+  const intensityObj =
+    results.intensity ||
+    metrics.intensity ||
+    data.intensity ||
+    null;
+  const patternObj =
+    results.pattern ||
+    data.pattern ||
+    metrics.pattern ||
+    null;
+  const prototypeObj =
+    results.prototype ||
+    data.prototype ||
+    metrics.prototype ||
+    null;
+
+  if (fields.valence) {
+    renderMetricField(fields.valence, valenceObj);
+  }
+  if (fields.activation) {
+    renderMetricField(fields.activation, activationObj);
+  }
+  if (fields.intensity) {
+    renderMetricField(fields.intensity, intensityObj);
+  }
+  if (fields.pattern) {
+    renderMetricField(fields.pattern, patternObj);
+  }
+  if (fields.prototype) {
+    renderMetricField(fields.prototype, prototypeObj);
+  }
+
+  if (fields.confidence_metric) {
+    const confidenceObj =
+      results.confidence ||
+      metrics.confidence_detail ||
+      null;
+    const confidenceNumber =
+      typeof metrics.confidence === "number"
+        ? metrics.confidence
+        : undefined;
+    renderMetricField(
+      fields.confidence_metric,
+      confidenceObj,
+      confidenceNumber
+    );
+  }
+}
 
 function applyAnalysisFromApi(data, sourceText) {
   const analysis = data.analysis || [];
@@ -1211,6 +1346,8 @@ function applyAnalysisFromApi(data, sourceText) {
     setStatus("");
   }
 
+  renderResultsMeta(data);
+
   const risk = data.risk || {};
   applyRiskToUI(risk);
 
@@ -1237,6 +1374,7 @@ if (analyzeBtn && textArea) {
 
     setStatus(t("statusAnalyzing") || "Analyzing...");
     textArea.classList.remove("input-error");
+    if (analyzeBtn) analyzeBtn.disabled = true;
 
     const payload = {
       text,
@@ -1271,6 +1409,8 @@ if (analyzeBtn && textArea) {
       textArea.classList.add("input-error");
       resetToZero();
       lastAnalysisSnapshot = null;
+    } finally {
+      if (analyzeBtn) analyzeBtn.disabled = false;
     }
   });
 }
@@ -1420,7 +1560,6 @@ function applyUserState() {
   } else {
     if (loginBtn) {
       loginBtn.classList.remove("hidden");
-      // Ensure login button label matches current locale
       const label = t("loginButtonLabel") || "Log in";
       loginBtn.textContent = label;
     }
@@ -1488,7 +1627,8 @@ if (loginForm) {
 
     if (!identifier || !password) {
       if (loginError) {
-        loginError.textContent = "Email or username and password are required.";
+        loginError.textContent =
+          "Email or username and password are required.";
         loginError.classList.remove("hidden");
       }
       return;
@@ -1506,7 +1646,8 @@ if (loginForm) {
       applyUserState();
     } catch (err) {
       if (loginError) {
-        loginError.textContent = err.message || "Invalid credentials.";
+        loginError.textContent =
+          err.message || "Invalid credentials.";
         loginError.classList.remove("hidden");
       }
     } finally {
@@ -1577,7 +1718,8 @@ if (registerForm) {
       applyUserState();
     } catch (err) {
       if (registerError) {
-        registerError.textContent = err.message || "Unable to create account.";
+        registerError.textContent =
+          err.message || "Unable to create account.";
         registerError.classList.remove("hidden");
       }
     } finally {
@@ -1653,7 +1795,8 @@ if (forgotForm) {
       openLoginOverlay();
     } catch (err) {
       if (forgotError) {
-        forgotError.textContent = err.message || "Unable to reset password.";
+        forgotError.textContent =
+          err.message || "Unable to reset password.";
         forgotError.classList.remove("hidden");
       }
     } finally {
