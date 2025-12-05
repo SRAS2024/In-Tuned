@@ -71,8 +71,7 @@ const LOCALES = {
       statusAnalyzing: "Analyzing...",
       statusLowSignal:
         "Too little text to understand how you feel. Try adding a bit more detail.",
-      statusNeedAnalysis:
-        "Run an analysis before adding to journal.",
+      statusNeedAnalysis: "Run an analysis before adding to journal.",
       crisisTitle: "Wait! You are priceless and important.",
       crisisBody:
         "If you or your loved ones are having any thoughts of self harm or suicide, help is always available to you. This world needs you in it.",
@@ -437,7 +436,7 @@ const registerError = $("registerError");
 const cancelRegisterBtn = $("cancelRegister");
 const submitRegisterBtn = $("submitRegister");
 
-// Forgot form
+// Forgot form (two step flow)
 const forgotForm = $("forgotForm");
 const forgotEmail = $("forgotEmail");
 const forgotFirstName = $("forgotFirstName");
@@ -447,6 +446,10 @@ const forgotConfirmPassword = $("forgotConfirmPassword");
 const forgotError = $("forgotError");
 const cancelForgotBtn = $("cancelForgot");
 const submitForgotBtn = $("submitForgot");
+const forgotStepIdentity = $("forgotStepIdentity");
+const forgotStepReset = $("forgotStepReset");
+const forgotContinueBtn = $("forgotContinue");
+const cancelForgotResetBtn = $("cancelForgotReset");
 
 /* Account settings overlay */
 const accountSettingsOverlay = $("accountSettingsOverlay");
@@ -464,6 +467,7 @@ const addJournalButton = $("addJournalButton");
 const addJournalHint = $("addJournalHint");
 const journalOverlay = $("journalOverlay");
 const closeJournalBtn = $("closeJournal");
+const pinnedSectionHeader = $("pinnedSectionHeader");
 const pinnedJournalList = $("pinnedJournalList");
 const journalList = $("journalList");
 const journalEmptyState = $("journalEmptyState");
@@ -474,6 +478,9 @@ const journalDetailSourceText = $("journalDetailSourceText");
 const journalDetailAnalysis = $("journalDetailAnalysis");
 const journalDetailText = $("journalDetailText");
 const journalDetailActionsRow = $("journalDetailActionsRow");
+const journalDetailDominant = $("journalDetailDominant");
+const journalDetailEmotion = $("journalDetailEmotion");
+const journalDetailBarnhart = $("journalDetailBarnhart");
 const journalFlagButton = $("journalFlagButton");
 const journalEditMenuBtn = $("journalEditMenu");
 const journalEditMenuDropdown = $("journalEditMenuDropdown");
@@ -481,11 +488,11 @@ const journalEditButton = $("journalEditButton");
 const journalPinToggleButton = $("journalPinToggleButton");
 const cancelJournalEditBtn = $("cancelJournalEdit");
 const saveJournalEditBtn = $("saveJournalEdit");
-/* Delete related controls */
 const journalDeleteButton = $("journalDeleteButton");
 const journalDeleteConfirmOverlay = $("journalDeleteConfirmOverlay");
 const cancelJournalDeleteBtn = $("cancelJournalDelete");
 const confirmJournalDeleteBtn = $("confirmJournalDelete");
+const journalBackButton = $("journalBackButton");
 
 /* Analyze button */
 const analyzeBtn = $("analyze");
@@ -1519,6 +1526,10 @@ function openForgotOverlay() {
     forgotError.textContent = "";
     forgotError.classList.add("hidden");
   }
+  if (forgotStepIdentity) forgotStepIdentity.classList.remove("hidden");
+  if (forgotStepReset) forgotStepReset.classList.add("hidden");
+  if (forgotNewPassword) forgotNewPassword.value = "";
+  if (forgotConfirmPassword) forgotConfirmPassword.value = "";
 }
 
 /* Close auth overlays when background clicked */
@@ -1730,11 +1741,43 @@ if (registerForm) {
   });
 }
 
-/* Forgot password */
+/* Forgot password (two step flow) */
 
 if (cancelForgotBtn) {
   cancelForgotBtn.addEventListener("click", () => {
     hideAllAuthOverlays();
+  });
+}
+
+if (cancelForgotResetBtn) {
+  cancelForgotResetBtn.addEventListener("click", () => {
+    hideAllAuthOverlays();
+  });
+}
+
+if (forgotContinueBtn) {
+  forgotContinueBtn.addEventListener("click", () => {
+    if (!forgotEmail || !forgotFirstName || !forgotLastName) return;
+
+    const email = forgotEmail.value.trim();
+    const first_name = forgotFirstName.value.trim();
+    const last_name = forgotLastName.value.trim();
+
+    if (!email || !first_name || !last_name) {
+      if (forgotError) {
+        forgotError.textContent = "All fields are required.";
+        forgotError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (forgotError) {
+      forgotError.textContent = "";
+      forgotError.classList.add("hidden");
+    }
+
+    if (forgotStepIdentity) forgotStepIdentity.classList.add("hidden");
+    if (forgotStepReset) forgotStepReset.classList.remove("hidden");
   });
 }
 
@@ -2035,6 +2078,13 @@ if (journalOverlay) {
   });
 }
 
+if (journalBackButton) {
+  journalBackButton.addEventListener("click", () => {
+    if (journalDetail) journalDetail.classList.add("hidden");
+    if (journalEmptyState) journalEmptyState.classList.remove("hidden");
+  });
+}
+
 async function loadJournals() {
   if (!currentUser) return;
   try {
@@ -2058,8 +2108,10 @@ function renderJournalLists() {
 
   if (pinned.length === 0) {
     pinnedJournalList.classList.add("hidden");
+    if (pinnedSectionHeader) pinnedSectionHeader.classList.add("hidden");
   } else {
     pinnedJournalList.classList.remove("hidden");
+    if (pinnedSectionHeader) pinnedSectionHeader.classList.remove("hidden");
   }
 
   function makeRow(journal) {
@@ -2140,14 +2192,43 @@ async function openJournalDetail(journalId) {
     if (journalDetailSourceText) {
       journalDetailSourceText.textContent = journal.source_text || "";
     }
+
+    const analysis = journal.analysis_json || {};
     if (journalDetailAnalysis) {
-      const analysis = journal.analysis_json || {};
       journalDetailAnalysis.textContent =
         buildAnalysisSnapshotText(analysis);
     }
+
     if (journalDetailText) {
       journalDetailText.value = journal.journal_text || "";
       journalDetailText.disabled = true;
+    }
+
+    const results = (analysis && analysis.results) || {};
+    const dom = results.dominant || {};
+    const cur = results.current || {};
+    const metrics = (analysis && analysis.metrics) || {};
+
+    if (journalDetailDominant) {
+      journalDetailDominant.textContent =
+        getResultEmotionLabel(dom) || "N/A";
+    }
+    if (journalDetailEmotion) {
+      journalDetailEmotion.textContent =
+        getResultEmotionLabel(cur) || "N/A";
+    }
+    if (journalDetailBarnhart) {
+      let barnVal = null;
+      if (
+        metrics.barnhart &&
+        typeof metrics.barnhart.score === "number"
+      ) {
+        barnVal = metrics.barnhart.score;
+      } else if (typeof metrics.confidence === "number") {
+        barnVal = metrics.confidence;
+      }
+      journalDetailBarnhart.textContent =
+        typeof barnVal === "number" ? barnVal.toFixed(3) : "N/A";
     }
 
     if (journalFlagButton) {
