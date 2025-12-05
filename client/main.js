@@ -287,9 +287,9 @@ let currentLocale = getInitialLocale();
 
 /* ---------- Global state ---------- */
 
-let currentUser = null; // { id, first_name, preferred_language, preferred_theme, ... } or null
-let lastAcceptedText = ""; // for input word limit
-let lastAnalysisSnapshot = null; // { text, data }
+let currentUser = null;
+let lastAcceptedText = "";
+let lastAnalysisSnapshot = null;
 let journals = [];
 let currentJournal = null;
 let isEditingJournal = false;
@@ -455,6 +455,11 @@ const journalEditButton = $("journalEditButton");
 const journalPinToggleButton = $("journalPinToggleButton");
 const cancelJournalEditBtn = $("cancelJournalEdit");
 const saveJournalEditBtn = $("saveJournalEdit");
+/* Delete related controls */
+const journalDeleteButton = $("journalDeleteButton");
+const journalDeleteConfirmOverlay = $("journalDeleteConfirmOverlay");
+const cancelJournalDeleteBtn = $("cancelJournalDelete");
+const confirmJournalDeleteBtn = $("confirmJournalDelete");
 
 /* Analyze button */
 const analyzeBtn = $("analyze");
@@ -1040,6 +1045,85 @@ function detectRegionFromNavigator() {
   return "US";
 }
 
+/* ---------- Helpers for analysis result labels and snapshots ---------- */
+
+function getResultEmotionLabel(entry) {
+  if (!entry) return "";
+  return (
+    entry.labelLocalized ||
+    entry.nuancedLabelLocalized ||
+    entry.nuancedLabel ||
+    entry.label ||
+    entry.emotionId ||
+    ""
+  );
+}
+
+/**
+ * Build the text block for an analysis snapshot.
+ * Only includes emotions with percent greater than zero,
+ * then appends Dominant and Current emotion lines.
+ */
+function buildAnalysisSnapshotText(analysis) {
+  if (!analysis || typeof analysis !== "object") return "";
+
+  const core = Array.isArray(analysis.coreMixture)
+    ? analysis.coreMixture
+    : [];
+
+  const nonZero = core
+    .filter(
+      (row) =>
+        row &&
+        typeof row.percent === "number" &&
+        row.percent > 0
+    )
+    .slice()
+    .sort(
+      (a, b) =>
+        (b.percent || 0) - (a.percent || 0)
+    );
+
+  const lines = [];
+
+  nonZero.forEach((row) => {
+    const label =
+      row.labelLocalized || row.label || row.id || "";
+    const pct =
+      typeof row.percent === "number"
+        ? row.percent.toFixed(1)
+        : "0.0";
+    if (label) {
+      lines.push(`${label}: ${pct}%`);
+    }
+  });
+
+  const results = analysis.results || {};
+  const dom = results.dominant || {};
+  const cur = results.current || {};
+
+  const domName = getResultEmotionLabel(dom);
+  const curName = getResultEmotionLabel(cur);
+
+  if (domName || curName) {
+    const domLabel = t("resultsDominantLabel") || "Dominant";
+    const curLabel =
+      t("resultsEmotionLabel") || "Current emotion";
+
+    if (lines.length > 0) {
+      lines.push("");
+    }
+    if (domName) {
+      lines.push(`${domLabel}: ${domName}`);
+    }
+    if (curName) {
+      lines.push(`${curLabel}: ${curName}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 /* ---------- Apply API analysis to UI ---------- */
 
 function applyAnalysisFromApi(data, sourceText) {
@@ -1073,18 +1157,10 @@ function applyAnalysisFromApi(data, sourceText) {
   const cur = results.current || {};
 
   const domLabel =
-    dom.labelLocalized ||
-    dom.label ||
-    dom.emotionId ||
-    "N/A";
+    getResultEmotionLabel(dom) || "N/A";
 
   const curLabel =
-    cur.nuancedLabelLocalized ||
-    cur.nuancedLabel ||
-    cur.labelLocalized ||
-    cur.label ||
-    cur.emotionId ||
-    "N/A";
+    getResultEmotionLabel(cur) || "N/A";
 
   if (fields.dominant_emotion) {
     fields.dominant_emotion.textContent = domLabel;
@@ -1120,7 +1196,6 @@ function applyAnalysisFromApi(data, sourceText) {
   const risk = data.risk || {};
   applyRiskToUI(risk);
 
-  // Save snapshot for journaling
   lastAnalysisSnapshot = {
     text: sourceText,
     data
@@ -1241,7 +1316,6 @@ async function loadSiteState() {
       }
     }
   } catch (e) {
-    // If site state fails, fall back to normal app with no banner
     if (maintenanceShell) maintenanceShell.classList.add("hidden");
     if (appHeader) appHeader.classList.remove("hidden");
     if (appMain) appMain.classList.remove("hidden");
@@ -1803,7 +1877,6 @@ async function loadJournals() {
     journals = data.journals || [];
     renderJournalLists();
   } catch (err) {
-    // Fail silently for now
   }
 }
 
@@ -1902,21 +1975,8 @@ async function openJournalDetail(journalId) {
     }
     if (journalDetailAnalysis) {
       const analysis = journal.analysis_json || {};
-      const core = analysis.coreMixture || [];
-      if (Array.isArray(core) && core.length > 0) {
-        const lines = core.map((row) => {
-          const label =
-            row.labelLocalized || row.label || row.id || "";
-          const pct =
-            typeof row.percent === "number"
-              ? row.percent.toFixed(1)
-              : "0.0";
-          return `${label}: ${pct}%`;
-        });
-        journalDetailAnalysis.textContent = lines.join("\n");
-      } else {
-        journalDetailAnalysis.textContent = "";
-      }
+      journalDetailAnalysis.textContent =
+        buildAnalysisSnapshotText(analysis);
     }
     if (journalDetailText) {
       journalDetailText.value = journal.journal_text || "";
@@ -1937,7 +1997,6 @@ async function openJournalDetail(journalId) {
         : t("journalPin") || "Pin";
     }
   } catch (err) {
-    // If failed, keep current state
   }
 }
 
@@ -2007,7 +2066,54 @@ if (journalPinToggleButton) {
       }
       await loadJournals();
     } catch (err) {
-      // ignore for now
+    }
+  });
+}
+
+/* Journal delete menu item and confirmation */
+
+if (journalDeleteButton) {
+  journalDeleteButton.addEventListener("click", () => {
+    if (!currentJournal || !journalDeleteConfirmOverlay) return;
+    if (journalEditMenuDropdown) {
+      journalEditMenuDropdown.classList.add("hidden");
+    }
+    journalDeleteConfirmOverlay.classList.add("show");
+  });
+}
+
+if (cancelJournalDeleteBtn && journalDeleteConfirmOverlay) {
+  cancelJournalDeleteBtn.addEventListener("click", () => {
+    journalDeleteConfirmOverlay.classList.remove("show");
+  });
+}
+
+if (journalDeleteConfirmOverlay) {
+  journalDeleteConfirmOverlay.addEventListener("click", (e) => {
+    if (e.target === journalDeleteConfirmOverlay) {
+      journalDeleteConfirmOverlay.classList.remove("show");
+    }
+  });
+}
+
+if (confirmJournalDeleteBtn && journalDeleteConfirmOverlay) {
+  confirmJournalDeleteBtn.addEventListener("click", async () => {
+    if (!currentJournal) {
+      journalDeleteConfirmOverlay.classList.remove("show");
+      return;
+    }
+    try {
+      await apiFetchJSON(`/api/journals/${currentJournal.id}`, {
+        method: "DELETE"
+      });
+      currentJournal = null;
+      if (journalDetail) journalDetail.classList.add("hidden");
+      if (journalEmptyState)
+        journalEmptyState.classList.remove("hidden");
+      await loadJournals();
+    } catch (err) {
+    } finally {
+      journalDeleteConfirmOverlay.classList.remove("show");
     }
   });
 }
@@ -2046,7 +2152,6 @@ if (saveJournalEditBtn) {
         journalDetailActionsRow.classList.add("hidden");
       await loadJournals();
     } catch (err) {
-      // ignore for now
     }
   });
 }
@@ -2178,21 +2283,8 @@ function openNewJournalOverlay() {
     newJournalSourceEl.textContent = text || "";
   }
   if (newJournalAnalysisEl) {
-    const core = (data && data.coreMixture) || [];
-    if (Array.isArray(core) && core.length > 0) {
-      const lines = core.map((row) => {
-        const label =
-          row.labelLocalized || row.label || row.id || "";
-        const pct =
-          typeof row.percent === "number"
-            ? row.percent.toFixed(1)
-            : "0.0";
-        return `${label}: ${pct}%`;
-      });
-      newJournalAnalysisEl.textContent = lines.join("\n");
-    } else {
-      newJournalAnalysisEl.textContent = "";
-    }
+    newJournalAnalysisEl.textContent =
+      buildAnalysisSnapshotText(data || {});
   }
   if (newJournalTextEl) {
     newJournalTextEl.value = "";
@@ -2232,7 +2324,6 @@ async function saveNewJournalEntry() {
       await loadJournals();
     }
   } catch (err) {
-    // Optionally surface error
   }
 }
 
