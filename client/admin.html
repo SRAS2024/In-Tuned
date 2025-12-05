@@ -12,7 +12,7 @@
     />
     <link rel="stylesheet" href="styles.css" />
     <style>
-      /* Admin specific layout, scoped to avoid conflicts */
+      /* Admin layout, built to reuse core site styles */
 
       body {
         margin: 0;
@@ -20,181 +20,138 @@
           "Segoe UI", sans-serif;
       }
 
-      .admin-wrap {
+      .adminWrap {
         min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .adminMain {
+        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 24px;
+        padding: 24px 16px 40px;
       }
 
-      .admin-header {
-        font-size: 1.4rem;
-        font-weight: 700;
-        margin-bottom: 24px;
+      .adminFooter {
+        text-align: center;
+        padding: 12px 16px 20px;
+        font-size: 0.8rem;
+        opacity: 0.8;
+      }
+
+      .adminTopbar {
+        justify-content: center;
+      }
+
+      .adminTopbar .brand {
+        margin: 12px auto 0;
+      }
+
+      .adminTopbar .brandText {
         text-align: center;
       }
 
-      .admin-card {
+      .adminTopbar .brandText .subtitle {
+        font-size: 0.85rem;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      .adminCard {
         width: 100%;
-        max-width: 480px;
-        background-color: rgba(15, 23, 42, 0.95);
-        border-radius: 16px;
-        padding: 24px 20px 20px;
-        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.4);
-        color: #e5e7eb;
+        max-width: 460px;
       }
 
-      .admin-card h1 {
-        margin: 0 0 8px;
-        font-size: 1.6rem;
+      .adminCard h1 {
+        margin-top: 0;
+        margin-bottom: 6px;
+        font-size: 1.5rem;
       }
 
-      .admin-card p.subtle {
-        margin: 0 0 20px;
+      .adminCard p.subtle {
+        margin-top: 0;
+        margin-bottom: 18px;
         font-size: 0.9rem;
-        color: #9ca3af;
+        opacity: 0.8;
       }
 
-      .field-group {
+      .fieldGroup {
         margin-bottom: 16px;
       }
 
-      .field-label {
-        display: block;
-        margin-bottom: 6px;
+      .loadingBarLabel {
         font-size: 0.9rem;
-        font-weight: 500;
+        margin-bottom: 8px;
+        text-align: center;
       }
 
-      .field-input {
-        width: 100%;
-        border-radius: 10px;
-        border: 1px solid #374151;
-        background: #020617;
-        color: #e5e7eb;
-        padding: 10px 12px;
-        font-size: 0.95rem;
-        outline: none;
-      }
-
-      .field-input:focus {
-        border-color: #38bdf8;
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6);
-      }
-
-      .primary-button {
-        width: 100%;
-        border: none;
-        border-radius: 999px;
-        padding: 10px 14px;
-        font-size: 0.98rem;
-        font-weight: 600;
-        cursor: pointer;
-        background: linear-gradient(120deg, #22d3ee, #38bdf8);
-        color: #020617;
-      }
-
-      .primary-button:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
-
-      .error-text {
-        font-size: 0.85rem;
-        color: #f97373;
-        margin-top: 6px;
-      }
-
-      .hidden {
-        display: none !important;
-      }
-
-      .loading-bar-wrapper {
-        margin-top: 18px;
-      }
-
-      .loading-bar-label {
-        font-size: 0.9rem;
-        margin-bottom: 6px;
-      }
-
-      .loading-bar {
+      .loadingBar {
         position: relative;
         width: 100%;
         height: 8px;
         border-radius: 999px;
-        background: #0f172a;
         overflow: hidden;
       }
 
-      .loading-bar-fill {
+      .loadingBarFill {
         position: absolute;
         top: 0;
         left: 0;
         height: 100%;
         width: 0%;
         border-radius: inherit;
-        background: #38bdf8;
         transition: width 3s ease-out;
       }
 
-      /* Dashboard layout */
-
-      .admin-dashboard {
+      .adminDashboard {
         width: 100%;
         max-width: 1080px;
-        margin: 0 auto;
         display: none;
         flex-direction: column;
         gap: 24px;
       }
 
-      .admin-dashboard-header {
+      .adminDashboardHeader {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 8px;
       }
 
-      .admin-dashboard-header h2 {
+      .adminDashboardHeader h2 {
         margin: 0;
-        font-size: 1.4rem;
+        font-size: 1.3rem;
       }
 
-      .admin-section-row {
+      .adminSectionRow {
         display: grid;
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr);
         gap: 20px;
       }
 
       @media (max-width: 768px) {
-        .admin-section-row {
+        .adminSectionRow {
           grid-template-columns: minmax(0, 1fr);
         }
       }
 
-      .admin-panel {
-        background-color: rgba(15, 23, 42, 0.95);
-        border-radius: 16px;
-        padding: 18px 16px 16px;
-        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
-        color: #e5e7eb;
+      .adminPanel h3 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.05rem;
       }
 
-      .admin-panel h3 {
-        margin: 0 0 10px;
-        font-size: 1.1rem;
-      }
-
-      .admin-panel p.helper {
-        margin: 0 0 14px;
+      .adminPanel p.helper {
+        margin-top: 0;
+        margin-bottom: 14px;
         font-size: 0.86rem;
-        color: #9ca3af;
+        opacity: 0.8;
       }
 
-      .toggle-row {
+      .toggleRow {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -202,49 +159,41 @@
         margin: 8px 0 10px;
       }
 
-      .toggle-label {
+      .toggleLabel {
         font-size: 0.95rem;
       }
 
-      .toggle-switch {
+      .toggleSwitch {
         position: relative;
         width: 52px;
         height: 28px;
       }
 
-      .toggle-switch input {
+      .toggleSwitch input {
         opacity: 0;
         width: 0;
         height: 0;
       }
 
-      .toggle-track {
+      .toggleTrack {
         position: absolute;
-        cursor: pointer;
         inset: 0;
-        background-color: #111827;
         border-radius: 999px;
-        border: 1px solid #374151;
+        cursor: pointer;
         transition: background-color 0.2s ease, box-shadow 0.2s ease;
       }
 
-      .toggle-thumb {
+      .toggleThumb {
         position: absolute;
         top: 2px;
         left: 2px;
         width: 22px;
         height: 22px;
         border-radius: 50%;
-        background-color: #e5e7eb;
         transition: transform 0.2s ease;
       }
 
-      .toggle-switch input:checked + .toggle-track {
-        background-color: #0ea5e9;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
-      }
-
-      .toggle-switch input:checked + .toggle-track .toggle-thumb {
+      .toggleSwitch input:checked + .toggleTrack .toggleThumb {
         transform: translateX(22px);
       }
 
@@ -255,129 +204,66 @@
         padding: 4px 10px;
         border-radius: 999px;
         font-size: 0.8rem;
-        background-color: rgba(15, 118, 110, 0.18);
-        color: #6ee7b7;
-        border: 1px solid rgba(34, 197, 94, 0.18);
       }
 
       .chip.offline {
-        background-color: rgba(185, 28, 28, 0.2);
-        color: #fecaca;
-        border-color: rgba(239, 68, 68, 0.4);
+        opacity: 0.85;
       }
 
-      .dev-password-modal {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.75);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 40;
-      }
-
-      .dev-password-card {
-        width: 100%;
-        max-width: 380px;
-        background-color: #020617;
-        border-radius: 16px;
-        padding: 20px 18px 16px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
-        color: #e5e7eb;
-      }
-
-      .dev-password-actions {
-        margin-top: 16px;
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-      }
-
-      .ghost-button {
-        border-radius: 999px;
-        padding: 8px 13px;
-        border: 1px solid #4b5563;
-        background: transparent;
-        color: #e5e7eb;
-        font-size: 0.9rem;
-        cursor: pointer;
-      }
-
-      .ghost-button:hover {
-        background-color: rgba(31, 41, 55, 0.8);
-      }
-
-      .small-button {
-        border-radius: 999px;
-        padding: 6px 10px;
-        border: 1px solid #4b5563;
-        background: transparent;
-        color: #e5e7eb;
-        font-size: 0.8rem;
-        cursor: pointer;
-      }
-
-      .small-button.danger {
-        border-color: rgba(248, 113, 113, 0.9);
-        color: #fecaca;
-      }
-
-      .file-list {
+      .fileList {
         margin-top: 10px;
         max-height: 200px;
         overflow-y: auto;
         border-radius: 10px;
-        background: rgba(15, 23, 42, 0.85);
-        border: 1px solid #1f2937;
         padding: 6px 8px;
+        font-size: 0.82rem;
       }
 
-      .file-row {
+      .fileRow {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 10px;
         padding: 4px 2px;
-        font-size: 0.82rem;
       }
 
-      .file-row + .file-row {
-        border-top: 1px solid rgba(31, 41, 55, 0.8);
+      .fileRow + .fileRow {
+        border-top-width: 1px;
+        border-top-style: solid;
       }
 
-      .file-row-main {
+      .fileRowMain {
         display: flex;
         flex-direction: column;
       }
 
-      .file-row-main span.language {
+      .fileRowMain span.language {
         font-size: 0.76rem;
-        color: #9ca3af;
+        opacity: 0.8;
       }
 
-      .notice-list {
+      .noticeList {
         margin-top: 8px;
         max-height: 180px;
         overflow-y: auto;
         border-radius: 10px;
-        border: 1px solid #1f2937;
-        background: rgba(15, 23, 42, 0.85);
         padding: 6px 8px;
         font-size: 0.82rem;
       }
 
-      .notice-row + .notice-row {
-        border-top: 1px solid rgba(31, 41, 55, 0.8);
+      .noticeRow + .noticeRow {
+        border-top-width: 1px;
+        border-top-style: solid;
       }
 
-      .notice-row {
+      .noticeRow {
         padding: 4px 2px;
         display: flex;
         justify-content: space-between;
         gap: 8px;
       }
 
-      .notice-main {
+      .noticeMain {
         display: flex;
         flex-direction: column;
       }
@@ -388,360 +274,377 @@
         padding: 2px 7px;
         border-radius: 999px;
         font-size: 0.7rem;
-        background: rgba(56, 189, 248, 0.16);
-        color: #7dd3fc;
-        border: 1px solid rgba(56, 189, 248, 0.45);
       }
 
       .badge.inactive {
-        background: transparent;
-        border-color: rgba(75, 85, 99, 0.9);
-        color: #9ca3af;
+        opacity: 0.75;
       }
 
-      textarea.notice-input {
-        width: 100%;
-        min-height: 70px;
-        resize: vertical;
-        border-radius: 10px;
-        border: 1px solid #374151;
-        background: #020617;
-        color: #e5e7eb;
-        padding: 8px 10px;
-        font-size: 0.9rem;
-        outline: none;
-      }
-
-      textarea.notice-input:focus {
-        border-color: #38bdf8;
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.6);
-      }
-
-      select,
-      input[type="file"] {
-        font-size: 0.9rem;
-      }
-
-      .section-footer {
+      .sectionFooter {
         margin-top: 10px;
         font-size: 0.78rem;
-        color: #9ca3af;
+        opacity: 0.8;
       }
 
-      /* Live site preview */
+      /* Centered loading overlay after successful login */
 
-      .site-preview-panel {
-        margin-bottom: 4px;
+      .adminLoadingOverlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 40;
       }
 
-      .site-preview-wrapper {
-        margin-top: 10px;
-        border-radius: 16px;
-        overflow: hidden;
-        border: 1px solid #1f2937;
-        background: #020617;
+      .adminLoadingOverlay.show {
+        display: flex;
       }
 
-      .site-preview-frame {
+      .adminLoadingCard {
         width: 100%;
-        height: 420px;
-        border: 0;
-        display: block;
+        max-width: 360px;
+        text-align: center;
       }
 
-      @media (max-width: 640px) {
-        .site-preview-frame {
-          height: 360px;
-        }
+      .adminLoadingCard .loadingTitle {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 1rem;
+      }
+
+      .adminLoadingCard .loadingBar {
+        margin-top: 4px;
+      }
+
+      /* Developer password modal uses existing overlay/modal styling,
+         this only adjusts minor layout */
+
+      .devPasswordCard {
+        width: 100%;
+        max-width: 380px;
+      }
+
+      .devPasswordActions {
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .hidden {
+        display: none !important;
       }
     </style>
   </head>
   <body>
-    <div class="admin-wrap">
-      <!-- Login view -->
-      <div id="admin-login-view" class="admin-card">
-        <h1>Administrative Site</h1>
-        <p class="subtle">
-          Sign in with the administrative credentials to manage maintenance,
-          lexicons, and notices.
-        </p>
-
-        <form id="admin-login-form" novalidate>
-          <div class="field-group">
-            <label class="field-label" for="admin-username">Username</label>
-            <input
-              id="admin-username"
-              class="field-input"
-              type="text"
-              autocomplete="username"
-              placeholder="Enter admin username"
-            />
+    <div class="wrap adminWrap">
+      <header class="topbar adminTopbar">
+        <div class="brand" aria-label="In tuned home">
+          <div class="logo" aria-hidden="true">
+            <div class="mark" aria-hidden="true"></div>
           </div>
-
-          <div class="field-group">
-            <label class="field-label" for="admin-password">Password</label>
-            <input
-              id="admin-password"
-              class="field-input"
-              type="password"
-              autocomplete="current-password"
-              placeholder="Enter admin password"
-            />
-            <p id="admin-login-error" class="error-text hidden">
-              Not authorized
-            </p>
+          <div class="brandText">
+            <div class="title">In tuned</div>
+            <div class="subtitle">Administrative site</div>
           </div>
-
-          <button id="admin-login-button" type="submit" class="primary-button">
-            Login
-          </button>
-
-          <div
-            id="admin-loading-container"
-            class="loading-bar-wrapper hidden"
-          >
-            <div class="loading-bar-label">Welcome, Ryan!</div>
-            <div class="loading-bar">
-              <div
-                id="admin-loading-fill"
-                class="loading-bar-fill"
-              ></div>
-            </div>
-          </div>
-        </form>
-      </div>
-
-      <!-- Dashboard view -->
-      <div id="admin-dashboard" class="admin-dashboard">
-        <div class="admin-dashboard-header">
-          <h2>Welcome, Ryan!</h2>
-          <button id="admin-logout-button" class="ghost-button">
-            Logout
-          </button>
         </div>
+      </header>
 
-        <!-- Live site preview so admin mirrors homepage -->
-        <section class="admin-panel site-preview-panel">
-          <h3>Live site preview</h3>
-          <p class="helper">
-            This preview mirrors the main homepage so you can see how maintenance
-            and notices will look in real time.
+      <main class="adminMain">
+        <!-- Login view -->
+        <section id="admin-login-view" class="card adminCard">
+          <h1>Administrative access</h1>
+          <p class="subtle">
+            Sign in with the administrative credentials to manage maintenance,
+            lexicons, and notices.
           </p>
-          <div class="site-preview-wrapper">
-            <iframe
-              src="/"
-              title="In tuned live preview"
-              class="site-preview-frame"
-            ></iframe>
-          </div>
+
+          <form id="admin-login-form" novalidate>
+            <div class="fieldGroup">
+              <label class="fieldLabel" for="admin-username">Username</label>
+              <input
+                id="admin-username"
+                class="fieldInput"
+                type="text"
+                autocomplete="username"
+                placeholder="Enter admin username"
+              />
+            </div>
+
+            <div class="fieldGroup">
+              <label class="fieldLabel" for="admin-password">Password</label>
+              <input
+                id="admin-password"
+                class="fieldInput"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Enter admin password"
+              />
+              <p id="admin-login-error" class="errorText hidden">
+                Not authorized
+              </p>
+            </div>
+
+            <button
+              id="admin-login-button"
+              type="submit"
+              class="btn primaryBtn"
+            >
+              Login
+            </button>
+          </form>
         </section>
 
-        <div class="admin-section-row">
-          <!-- Developer Updates / Maintenance -->
-          <section class="admin-panel">
-            <h3>Developer Updates</h3>
-            <p class="helper">
-              Control the maintenance banner and site availability message.
-            </p>
-
-            <div class="toggle-row">
-              <div>
-                <div class="toggle-label">
-                  Site is currently down due to maintenance
-                </div>
-                <div id="maintenance-status-chip" class="chip offline">
-                  Offline
-                </div>
-              </div>
-              <label class="toggle-switch">
-                <input
-                  id="maintenance-toggle"
-                  type="checkbox"
-                  aria-label="Toggle maintenance mode"
-                />
-                <div class="toggle-track">
-                  <div class="toggle-thumb"></div>
-                </div>
-              </label>
-            </div>
-
-            <div class="field-group">
-              <label class="field-label" for="maintenance-message">
-                Maintenance message
-              </label>
-              <textarea
-                id="maintenance-message"
-                class="notice-input"
-                placeholder="Site is currently down due to maintenance. We will be back shortly."
-              ></textarea>
-            </div>
-
-            <p id="maintenance-error" class="error-text hidden"></p>
-
-            <div class="section-footer">
-              Turning maintenance on requires the developer password. Turning it
-              off does not.
-            </div>
-          </section>
-
-          <!-- Notices -->
-          <section class="admin-panel">
-            <h3>Notices</h3>
-            <p class="helper">
-              Add a notice that appears under the logo on the main site. If
-              there is no active notice, nothing will be shown.
-            </p>
-
-            <div class="field-group">
-              <label class="field-label" for="notice-text">
-                New notice text
-              </label>
-              <textarea
-                id="notice-text"
-                class="notice-input"
-                placeholder="Type a short notice to display under the logo."
-              ></textarea>
-            </div>
-
-            <div
-              class="field-group"
-              style="display: flex; align-items: center; gap: 8px;"
-            >
-              <input
-                id="notice-active"
-                type="checkbox"
-                checked
-                style="width: 16px; height: 16px;"
-              />
-              <label
-                for="notice-active"
-                class="field-label"
-                style="margin: 0;"
-              >
-                Set as active notice
-              </label>
-            </div>
-
-            <button id="add-notice-button" class="primary-button">
-              Add notice
+        <!-- Dashboard view -->
+        <section id="admin-dashboard" class="adminDashboard">
+          <div class="adminDashboardHeader">
+            <h2>Welcome, Ryan</h2>
+            <button id="admin-logout-button" class="ghost">
+              Logout
             </button>
+          </div>
 
-            <p id="notice-error" class="error-text hidden"></p>
+          <div class="adminSectionRow">
+            <!-- Developer Updates / Maintenance -->
+            <section class="card adminPanel">
+              <h3>Developer updates</h3>
+              <p class="helper">
+                Control the maintenance banner and site availability message.
+              </p>
 
-            <div id="notice-list" class="notice-list"></div>
-
-            <div class="section-footer">
-              Only one notice is active at a time. Older notices are kept for
-              reference.
-            </div>
-          </section>
-        </div>
-
-        <div class="admin-section-row">
-          <!-- Lexicons -->
-          <section class="admin-panel">
-            <h3>Lexicons</h3>
-            <p class="helper">
-              Upload or remove lexicon files for English, Spanish, and
-              Portuguese. These files are available to the detector as
-              dictionaries and data sets.
-            </p>
-
-            <form
-              id="lexicon-upload-form"
-              enctype="multipart/form-data"
-              novalidate
-            >
-              <div class="field-group">
-                <label class="field-label" for="lexicon-language">
-                  Language
+              <div class="toggleRow">
+                <div>
+                  <div class="toggleLabel">
+                    Site is currently down due to maintenance
+                  </div>
+                  <div
+                    id="maintenance-status-chip"
+                    class="chip offline"
+                  >
+                    Offline
+                  </div>
+                </div>
+                <label class="toggleSwitch">
+                  <input
+                    id="maintenance-toggle"
+                    type="checkbox"
+                    aria-label="Toggle maintenance mode"
+                  />
+                  <div class="toggleTrack">
+                    <div class="toggleThumb"></div>
+                  </div>
                 </label>
-                <select
-                  id="lexicon-language"
-                  class="field-input"
-                  style="padding-right: 30px;"
-                >
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="pt">Portuguese</option>
-                </select>
               </div>
 
-              <div class="field-group">
-                <label class="field-label" for="lexicon-file">
-                  Lexicon file
+              <div class="fieldGroup">
+                <label class="fieldLabel" for="maintenance-message">
+                  Maintenance message
                 </label>
-                <input
-                  id="lexicon-file"
-                  class="field-input"
-                  type="file"
-                  accept=".pdf,.json,.txt,.csv"
-                />
+                <textarea
+                  id="maintenance-message"
+                  class="fieldInput"
+                  style="min-height: 70px; resize: vertical;"
+                  placeholder="Site is currently down due to maintenance. We will be back shortly."
+                ></textarea>
               </div>
 
-              <button
-                id="upload-lexicon-button"
-                type="submit"
-                class="primary-button"
+              <p id="maintenance-error" class="errorText hidden"></p>
+
+              <div class="sectionFooter">
+                Turning maintenance on requires the developer password. Turning
+                it off does not.
+              </div>
+            </section>
+
+            <!-- Notices -->
+            <section class="card adminPanel">
+              <h3>Notices</h3>
+              <p class="helper">
+                Add a notice that appears under the logo on the main site. If
+                there is no active notice, nothing will be shown.
+              </p>
+
+              <div class="fieldGroup">
+                <label class="fieldLabel" for="notice-text">
+                  New notice text
+                </label>
+                <textarea
+                  id="notice-text"
+                  class="fieldInput"
+                  style="min-height: 70px; resize: vertical;"
+                  placeholder="Type a short notice to display under the logo."
+                ></textarea>
+              </div>
+
+              <div
+                class="fieldGroup"
+                style="display: flex; align-items: center; gap: 8px;"
               >
-                Upload lexicon
+                <input
+                  id="notice-active"
+                  type="checkbox"
+                  checked
+                  style="width: 16px; height: 16px;"
+                />
+                <label
+                  for="notice-active"
+                  class="fieldLabel"
+                  style="margin: 0;"
+                >
+                  Set as active notice
+                </label>
+              </div>
+
+              <button id="add-notice-button" class="btn primaryBtn">
+                Add notice
               </button>
-            </form>
 
-            <p id="lexicon-error" class="error-text hidden"></p>
+              <p id="notice-error" class="errorText hidden"></p>
 
-            <div id="lexicon-file-list" class="file-list"></div>
+              <div id="notice-list" class="noticeList"></div>
 
-            <div class="section-footer">
-              Large lexicons are stored in Postgres. The detector can load the
-              newest file for each language during analysis.
-            </div>
-          </section>
+              <div class="sectionFooter">
+                Only one notice is active at a time. Older notices are kept for
+                reference.
+              </div>
+            </section>
+          </div>
 
-          <!-- Reserved for future admin tools -->
-          <section class="admin-panel">
-            <h3>Admin notes</h3>
-            <p class="helper">
-              This panel is reserved for future tools and metrics. For now it
-              simply confirms that you are authenticated as the administrator.
-            </p>
-            <p style="font-size: 0.9rem; color: #9ca3af;">
-              Logged in as
-              <strong>Ryan Simonds</strong>.
-            </p>
-          </section>
+          <div class="adminSectionRow">
+            <!-- Lexicons -->
+            <section class="card adminPanel">
+              <h3>Lexicons</h3>
+              <p class="helper">
+                Upload or remove lexicon files for English, Spanish, and
+                Portuguese. These files are available to the detector as
+                dictionaries and data sets.
+              </p>
+
+              <form
+                id="lexicon-upload-form"
+                enctype="multipart/form-data"
+                novalidate
+              >
+                <div class="fieldGroup">
+                  <label class="fieldLabel" for="lexicon-language">
+                    Language
+                  </label>
+                  <select
+                    id="lexicon-language"
+                    class="fieldInput"
+                    style="padding-right: 30px;"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="pt">Portuguese</option>
+                  </select>
+                </div>
+
+                <div class="fieldGroup">
+                  <label class="fieldLabel" for="lexicon-file">
+                    Lexicon file
+                  </label>
+                  <input
+                    id="lexicon-file"
+                    class="fieldInput"
+                    type="file"
+                    accept=".pdf,.json,.txt,.csv"
+                  />
+                </div>
+
+                <button
+                  id="upload-lexicon-button"
+                  type="submit"
+                  class="btn primaryBtn"
+                >
+                  Upload lexicon
+                </button>
+              </form>
+
+              <p id="lexicon-error" class="errorText hidden"></p>
+
+              <div id="lexicon-file-list" class="fileList"></div>
+
+              <div class="sectionFooter">
+                Large lexicons are stored in Postgres. The detector can load the
+                newest file for each language during analysis.
+              </div>
+            </section>
+
+            <!-- Simple confirmation panel -->
+            <section class="card adminPanel">
+              <h3>Admin notes</h3>
+              <p class="helper">
+                This panel is reserved for future tools and metrics. For now it
+                simply confirms that you are authenticated as the administrator.
+              </p>
+              <p style="font-size: 0.9rem; opacity: 0.85;">
+                Logged in as
+                <strong>Ryan Simonds</strong>.
+              </p>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <footer class="adminFooter">
+        © 2025 In tuned. All rights reserved.
+      </footer>
+    </div>
+
+    <!-- Centered loading overlay shown after successful login -->
+    <div
+      id="admin-loading-overlay"
+      class="adminLoadingOverlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="card adminLoadingCard">
+        <p class="loadingTitle">Welcome, Ryan. Loading admin tools.</p>
+        <div class="loadingBar">
+          <div
+            id="admin-loading-fill"
+            class="loadingBarFill"
+          ></div>
         </div>
       </div>
     </div>
 
     <!-- Developer password modal -->
-    <div id="dev-password-modal" class="dev-password-modal">
-      <div class="dev-password-card">
-        <h3>Enable maintenance</h3>
+    <div
+      id="dev-password-modal"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="devPasswordTitle"
+    >
+      <div class="modal authModal devPasswordCard">
+        <h3 id="devPasswordTitle">Enable maintenance</h3>
         <p class="helper">
           Enter the developer password to turn on maintenance mode.
         </p>
 
-        <div class="field-group">
-          <label class="field-label" for="dev-password-input">
+        <div class="fieldGroup">
+          <label class="fieldLabel" for="dev-password-input">
             Developer password
           </label>
           <input
             id="dev-password-input"
-            class="field-input"
+            class="fieldInput"
             type="password"
             autocomplete="off"
           />
-          <p id="dev-password-error" class="error-text hidden"></p>
+          <p id="dev-password-error" class="errorText hidden"></p>
         </div>
 
-        <div class="dev-password-actions">
-          <button id="dev-password-cancel" class="ghost-button">
+        <div class="devPasswordActions">
+          <button id="dev-password-cancel" class="ghost">
             Cancel
           </button>
           <button
             id="dev-password-confirm"
-            class="primary-button"
+            class="btn primaryBtn"
             style="width: auto;"
           >
             Confirm
