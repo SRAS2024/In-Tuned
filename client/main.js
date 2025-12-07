@@ -1139,8 +1139,9 @@ function renderMetricField(el, sourceObj, fallbackNumber) {
 
 /**
  * Build the text block for an analysis snapshot.
- * Only includes emotions with percent greater than zero,
- * then appends Dominant and Current emotion lines.
+ * Emotions are listed with labels on the left and
+ * percentages aligned in a column on the right.
+ * Then Dominant and Current emotion lines are appended.
  */
 function buildAnalysisSnapshotText(analysis) {
   if (!analysis || typeof analysis !== "object") return "";
@@ -1162,18 +1163,34 @@ function buildAnalysisSnapshotText(analysis) {
         (b.percent || 0) - (a.percent || 0)
     );
 
-  const lines = [];
+  const rows = [];
 
   nonZero.forEach((row) => {
-    const label =
+    const baseLabel =
       row.labelLocalized || row.label || row.id || "";
-    const pct =
-      typeof row.percent === "number"
-        ? row.percent.toFixed(1)
-        : "0.0";
-    if (label) {
-      lines.push(`${label}: ${pct}%`);
+    if (!baseLabel) return;
+    const labelWithColon = `${baseLabel}:`;
+    const pctNum =
+      typeof row.percent === "number" ? row.percent : 0;
+    const pctStr = pctNum.toFixed(1);
+    rows.push({
+      label: labelWithColon,
+      pct: pctStr
+    });
+  });
+
+  let maxLabelLen = 0;
+  rows.forEach((r) => {
+    if (r.label.length > maxLabelLen) {
+      maxLabelLen = r.label.length;
     }
+  });
+
+  const lines = [];
+
+  rows.forEach((r) => {
+    const paddedLabel = r.label.padEnd(maxLabelLen + 2);
+    lines.push(`${paddedLabel}${r.pct}%`);
   });
 
   const results = analysis.results || {};
@@ -2457,6 +2474,9 @@ function ensureNewJournalOverlay() {
   analTitle.textContent =
     t("journalAnalysisSnapshotLabel") || "Analysis snapshot";
   newJournalAnalysisEl = document.createElement("pre");
+  newJournalAnalysisEl.style.fontFamily =
+    'SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  newJournalAnalysisEl.style.whiteSpace = "pre-wrap";
   analBlock.appendChild(analTitle);
   analBlock.appendChild(newJournalAnalysisEl);
 
@@ -2585,6 +2605,32 @@ if (addJournalButton) {
   });
 }
 
+/* ---------- Responsive header for small screens ---------- */
+
+function applyResponsiveHeaderLayout() {
+  if (!appHeader) return;
+  const isMobile =
+    window.matchMedia &&
+    window.matchMedia("(max-width: 640px)").matches;
+
+  if (isMobile) {
+    appHeader.style.display = "flex";
+    appHeader.style.alignItems = "center";
+    appHeader.style.justifyContent = "space-between";
+    appHeader.style.gap = "12px";
+  } else {
+    appHeader.style.display = "";
+    appHeader.style.alignItems = "";
+    appHeader.style.justifyContent = "";
+    appHeader.style.gap = "";
+  }
+}
+
+function setupResponsiveHeader() {
+  applyResponsiveHeaderLayout();
+  window.addEventListener("resize", applyResponsiveHeaderLayout);
+}
+
 /* ---------- Initial setup ---------- */
 
 function initialSetup() {
@@ -2597,6 +2643,14 @@ function initialSetup() {
   applyGuestTheme();
   loadSiteState();
   fetchCurrentUser();
+
+  if (journalDetailAnalysis) {
+    journalDetailAnalysis.style.fontFamily =
+      'SF Mono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+    journalDetailAnalysis.style.whiteSpace = "pre-wrap";
+  }
+
+  setupResponsiveHeader();
 }
 
 document.addEventListener("DOMContentLoaded", initialSetup);
