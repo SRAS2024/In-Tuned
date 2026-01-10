@@ -672,16 +672,29 @@ textarea.input-error {
 /* Row under textarea */
 
 .row {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.7rem;
   margin-top: 1rem;
-  grid-template-columns: auto auto 1fr auto;
 }
+
+.row .status {
+  flex: 1;
+  min-width: 100px;
+}
+
+.row .emojiInline {
+  margin-left: auto;
+}
+
 @media (max-width: 720px) {
   .row {
-    grid-template-columns: auto 1fr;
-    row-gap: 0.5rem;
+    gap: 0.5rem 0.7rem;
+  }
+  .row .status {
+    flex-basis: 100%;
+    order: 10;
   }
   #emojiTray {
     justify-content: flex-start;
@@ -1547,4 +1560,376 @@ textarea.input-error {
   .langToggle {
     transition: none !important;
   }
+}
+
+/* Entry help container - divider and help button */
+
+.entryHelpContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.entryHelpDivider {
+  width: 1px;
+  height: 28px;
+  background: var(--border);
+}
+
+.entryHelpBtn {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+/* Logged-in help button (icon style) */
+
+.loggedInHelpBtn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(
+      circle at 0% 0%,
+      rgba(248, 250, 252, 0.09),
+      transparent 55%
+    ),
+    var(--surface);
+  color: var(--ink);
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.loggedInHelpBtn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, 0.7);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+}
+
+.loggedInHelpBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.8);
+}
+
+/* Feedback popup modal */
+
+.feedbackModal {
+  max-width: 540px;
+}
+
+.feedbackHeader {
+  margin-bottom: 0.5rem;
+}
+
+.feedbackHeader h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.feedbackNotice {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin: 0 0 1rem 0;
+  padding: 0.6rem 0.8rem;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 10px;
+}
+
+.feedbackContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.feedbackSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.feedbackReadonly {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: default;
+  resize: none;
+}
+
+.requiredIndicator {
+  color: #f97373;
+  font-weight: 600;
+}
+
+.feedbackActionsRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+
+/* Feedback analysis rating display */
+
+.feedbackAnalysisRating {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.feedbackEmotionRow {
+  display: grid;
+  grid-template-columns: 90px 1fr 55px;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.feedbackEmotionLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.feedbackEmotionBarContainer {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bar-bg);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.feedbackEmotionBar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.15);
+}
+
+.feedbackEmotionValue {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+}
+
+.feedbackResultsSummary {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.feedbackSummaryLabel {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-right: 0.35rem;
+}
+
+.feedbackSummaryValue {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Admin feedback section */
+
+.feedbackStatsRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.feedbackStatItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.feedbackStatLabel {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.feedbackStatValue {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 0.2rem 0.6rem;
+  background: var(--accent-soft);
+  border-radius: 8px;
+}
+
+.feedbackActions {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+/* Admin feedback view modal */
+
+.feedbackViewModal {
+  max-width: 680px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.feedbackViewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.feedbackViewHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.feedbackViewContent {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 50vh;
+  padding-right: 0.3rem;
+}
+
+.noFeedback {
+  font-size: 0.92rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.feedbackEntry {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.feedbackEntry:last-child {
+  margin-bottom: 0;
+}
+
+.feedbackEntryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.feedbackEntryNumber {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.feedbackEntryDate {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.feedbackEntrySection {
+  margin-bottom: 0.6rem;
+}
+
+.feedbackEntrySection:last-child {
+  margin-bottom: 0;
+}
+
+.feedbackEntrySectionLabel {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.feedbackEntryText,
+.feedbackEntryAnalysis,
+.feedbackEntryUserFeedback {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.feedbackEntryText {
+  color: var(--ink);
+  padding: 0.45rem 0.6rem;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.feedbackEntryAnalysis {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.feedbackEntryMixture {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+.feedbackMixtureItem {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.feedbackEntryFeedback {
+  background: rgba(37, 99, 235, 0.06);
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.feedbackEntryUserFeedback {
+  color: var(--ink);
+}
+
+.feedbackViewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
 }

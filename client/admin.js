@@ -40,6 +40,16 @@
 
   const sitePreviewFrame = document.querySelector(".site-preview-frame");
 
+  // Feedback elements
+  const feedbackCount = document.getElementById("feedback-count");
+  const viewFeedbackButton = document.getElementById("view-feedback-button");
+  const downloadFeedbackButton = document.getElementById("download-feedback-button");
+  const feedbackError = document.getElementById("feedback-error");
+  const feedbackViewModal = document.getElementById("feedback-view-modal");
+  const feedbackViewContent = document.getElementById("feedback-view-content");
+  const closeFeedbackView = document.getElementById("close-feedback-view");
+  const downloadFromViewButton = document.getElementById("download-from-view-button");
+
   let currentMaintenanceEnabled = false;
   let maintenanceToggleProgrammatic = false;
   let pendingMaintenanceEnable = false;
@@ -307,7 +317,169 @@
   }
 
   async function refreshAdminState() {
-    await Promise.all([loadSiteSettings(), loadLexicons()]);
+    await Promise.all([loadSiteSettings(), loadLexicons(), loadFeedback()]);
+  }
+
+  // Feedback functions
+
+  let currentFeedbackData = [];
+
+  async function loadFeedback() {
+    try {
+      const data = await apiFetchJSON("/api/admin/feedback", {
+        method: "GET"
+      });
+      currentFeedbackData = data.feedback || [];
+      const count = data.count || 0;
+
+      if (feedbackCount) {
+        feedbackCount.textContent = count.toString();
+      }
+
+      hideElement(feedbackError);
+      if (feedbackError) feedbackError.textContent = "";
+    } catch (err) {
+      if (feedbackError) {
+        feedbackError.textContent = err.message;
+        showElement(feedbackError);
+      }
+    }
+  }
+
+  function renderFeedbackView(feedbackList) {
+    if (!feedbackViewContent) return;
+
+    if (!Array.isArray(feedbackList) || feedbackList.length === 0) {
+      feedbackViewContent.innerHTML = '<p class="noFeedback">No feedback entries yet.</p>';
+      return;
+    }
+
+    feedbackViewContent.innerHTML = "";
+
+    feedbackList.forEach((item, idx) => {
+      const entry = document.createElement("div");
+      entry.className = "feedbackEntry";
+
+      const header = document.createElement("div");
+      header.className = "feedbackEntryHeader";
+      header.innerHTML = `
+        <span class="feedbackEntryNumber">Entry #${idx + 1}</span>
+        <span class="feedbackEntryDate">${formatDateTime(item.created_at)}</span>
+      `;
+
+      const entryText = document.createElement("div");
+      entryText.className = "feedbackEntrySection";
+      entryText.innerHTML = `
+        <span class="feedbackEntrySectionLabel">Entry text:</span>
+        <p class="feedbackEntryText">${escapeHtml(item.entry_text || "")}</p>
+      `;
+
+      const analysisSection = document.createElement("div");
+      analysisSection.className = "feedbackEntrySection";
+
+      const analysis = item.analysis_json || {};
+      const results = analysis.results || {};
+      const dominant = results.dominant || {};
+      const current = results.current || {};
+
+      const domLabel = dominant.labelLocalized || dominant.nuancedLabel || dominant.label || "N/A";
+      const curLabel = current.labelLocalized || current.nuancedLabel || current.label || "N/A";
+
+      let analysisHtml = '<span class="feedbackEntrySectionLabel">Analysis:</span>';
+      analysisHtml += `<p class="feedbackEntryAnalysis">Dominant: ${escapeHtml(domLabel)} | Current: ${escapeHtml(curLabel)}</p>`;
+
+      const coreMixture = analysis.coreMixture || [];
+      if (coreMixture.length > 0) {
+        analysisHtml += '<div class="feedbackEntryMixture">';
+        coreMixture.forEach((em) => {
+          if (em.percent > 0) {
+            analysisHtml += `<span class="feedbackMixtureItem">${escapeHtml(em.label || em.id)}: ${em.percent.toFixed(1)}%</span>`;
+          }
+        });
+        analysisHtml += '</div>';
+      }
+      analysisSection.innerHTML = analysisHtml;
+
+      const feedbackSection = document.createElement("div");
+      feedbackSection.className = "feedbackEntrySection feedbackEntryFeedback";
+      feedbackSection.innerHTML = `
+        <span class="feedbackEntrySectionLabel">User feedback:</span>
+        <p class="feedbackEntryUserFeedback">${escapeHtml(item.feedback_text || "")}</p>
+      `;
+
+      entry.appendChild(header);
+      entry.appendChild(entryText);
+      entry.appendChild(analysisSection);
+      entry.appendChild(feedbackSection);
+      feedbackViewContent.appendChild(entry);
+    });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function openFeedbackViewModal() {
+    renderFeedbackView(currentFeedbackData);
+    if (feedbackViewModal) {
+      feedbackViewModal.classList.add("show");
+    }
+  }
+
+  function closeFeedbackViewModal() {
+    if (feedbackViewModal) {
+      feedbackViewModal.classList.remove("show");
+    }
+  }
+
+  async function downloadFeedback() {
+    hideElement(feedbackError);
+    if (feedbackError) feedbackError.textContent = "";
+
+    if (downloadFeedbackButton) downloadFeedbackButton.disabled = true;
+    if (downloadFromViewButton) downloadFromViewButton.disabled = true;
+
+    try {
+      // Fetch the download
+      const response = await fetch("/api/admin/feedback/download", {
+        method: "GET",
+        credentials: "same-origin"
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to download feedback document");
+      }
+
+      // Get the blob and trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "feedback_document.txt";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // After successful download, delete the feedback
+      await apiFetchJSON("/api/admin/feedback/delete", {
+        method: "DELETE"
+      });
+
+      // Refresh the feedback list
+      closeFeedbackViewModal();
+      await loadFeedback();
+    } catch (err) {
+      if (feedbackError) {
+        feedbackError.textContent = err.message || "Failed to download feedback.";
+        showElement(feedbackError);
+      }
+    } finally {
+      if (downloadFeedbackButton) downloadFeedbackButton.disabled = false;
+      if (downloadFromViewButton) downloadFromViewButton.disabled = false;
+    }
   }
 
   // Maintenance toggle and modal
@@ -679,6 +851,27 @@
         if (event.key === "Enter") {
           event.preventDefault();
           handleDevPasswordConfirm();
+        }
+      });
+    }
+
+    // Feedback event listeners
+    if (viewFeedbackButton) {
+      viewFeedbackButton.addEventListener("click", openFeedbackViewModal);
+    }
+    if (downloadFeedbackButton) {
+      downloadFeedbackButton.addEventListener("click", downloadFeedback);
+    }
+    if (closeFeedbackView) {
+      closeFeedbackView.addEventListener("click", closeFeedbackViewModal);
+    }
+    if (downloadFromViewButton) {
+      downloadFromViewButton.addEventListener("click", downloadFeedback);
+    }
+    if (feedbackViewModal) {
+      feedbackViewModal.addEventListener("click", (event) => {
+        if (event.target === feedbackViewModal) {
+          closeFeedbackViewModal();
         }
       });
     }

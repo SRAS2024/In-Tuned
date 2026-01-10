@@ -335,6 +335,177 @@
       .hidden {
         display: none !important;
       }
+
+      /* Feedback section styles */
+      .feedbackStatsRow {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.9rem;
+      }
+
+      .feedbackStatItem {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .feedbackStatLabel {
+        font-size: 0.88rem;
+        opacity: 0.8;
+      }
+
+      .feedbackStatValue {
+        font-size: 1.05rem;
+        font-weight: 700;
+        padding: 0.25rem 0.7rem;
+        background: rgba(37, 99, 235, 0.12);
+        border-radius: 8px;
+      }
+
+      .feedbackActions {
+        display: flex;
+        gap: 0.6rem;
+        margin-bottom: 0.75rem;
+      }
+
+      /* Feedback view modal */
+      .feedbackViewModal {
+        max-width: 720px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .feedbackViewHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.85rem;
+        padding-bottom: 0.65rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+      }
+
+      .feedbackViewHeader h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+
+      .feedbackViewContent {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 55vh;
+        padding-right: 0.4rem;
+      }
+
+      .noFeedback {
+        font-size: 0.92rem;
+        opacity: 0.7;
+        text-align: center;
+        padding: 2rem 0;
+      }
+
+      .feedbackEntry {
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 12px;
+        padding: 0.9rem 1.05rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .feedbackEntry:last-child {
+        margin-bottom: 0;
+      }
+
+      .feedbackEntryHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.7rem;
+        padding-bottom: 0.55rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      }
+
+      .feedbackEntryNumber {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #60a5fa;
+      }
+
+      .feedbackEntryDate {
+        font-size: 0.78rem;
+        opacity: 0.7;
+      }
+
+      .feedbackEntrySection {
+        margin-bottom: 0.65rem;
+      }
+
+      .feedbackEntrySection:last-child {
+        margin-bottom: 0;
+      }
+
+      .feedbackEntrySectionLabel {
+        display: block;
+        font-size: 0.76rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.7;
+        margin-bottom: 0.3rem;
+      }
+
+      .feedbackEntryText,
+      .feedbackEntryAnalysis,
+      .feedbackEntryUserFeedback {
+        margin: 0;
+        font-size: 0.88rem;
+        line-height: 1.55;
+      }
+
+      .feedbackEntryText {
+        padding: 0.5rem 0.7rem;
+        background: rgba(15, 23, 42, 0.6);
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+      }
+
+      .feedbackEntryAnalysis {
+        font-weight: 500;
+      }
+
+      .feedbackEntryMixture {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.4rem;
+      }
+
+      .feedbackMixtureItem {
+        font-size: 0.78rem;
+        padding: 0.22rem 0.55rem;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 6px;
+        opacity: 0.85;
+      }
+
+      .feedbackEntryFeedback {
+        background: rgba(37, 99, 235, 0.08);
+        padding: 0.65rem 0.8rem;
+        border-radius: 8px;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+      }
+
+      .feedbackViewActions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        margin-top: 0.95rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.35);
+      }
     </style>
   </head>
   <body>
@@ -572,6 +743,49 @@
               </div>
             </section>
 
+            <!-- Feedback section -->
+            <section class="card adminPanel">
+              <h3>Feedback</h3>
+              <p class="helper">
+                Review anonymous user feedback about analysis accuracy.
+                This feedback helps refine the emotion detector.
+              </p>
+
+              <div class="feedbackStatsRow">
+                <div class="feedbackStatItem">
+                  <span class="feedbackStatLabel">Total feedback entries:</span>
+                  <span id="feedback-count" class="feedbackStatValue">0</span>
+                </div>
+              </div>
+
+              <div class="feedbackActions">
+                <button
+                  id="view-feedback-button"
+                  class="btn secondaryBtn"
+                  type="button"
+                >
+                  View Feedback
+                </button>
+                <button
+                  id="download-feedback-button"
+                  class="btn primaryBtn"
+                  type="button"
+                >
+                  Download
+                </button>
+              </div>
+
+              <p id="feedback-error" class="errorText hidden"></p>
+
+              <div class="sectionFooter">
+                After downloading, the feedback document will be deleted to
+                keep the database clean. A new document will be created as
+                new feedback is submitted.
+              </div>
+            </section>
+          </div>
+
+          <div class="adminSectionRow">
             <!-- Simple confirmation panel -->
             <section class="card adminPanel">
               <h3>Admin notes</h3>
@@ -648,6 +862,36 @@
             style="width: auto;"
           >
             Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback view modal -->
+    <div
+      id="feedback-view-modal"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedbackViewTitle"
+    >
+      <div class="modal feedbackViewModal">
+        <div class="feedbackViewHeader">
+          <h3 id="feedbackViewTitle">Feedback Document</h3>
+          <button id="close-feedback-view" class="ghost" type="button">
+            Close
+          </button>
+        </div>
+        <div id="feedback-view-content" class="feedbackViewContent">
+          <p class="noFeedback">No feedback entries yet.</p>
+        </div>
+        <div class="feedbackViewActions">
+          <button
+            id="download-from-view-button"
+            class="btn primaryBtn"
+            type="button"
+          >
+            Download Document
           </button>
         </div>
       </div>
