@@ -497,6 +497,18 @@ const journalBackButton = $("journalBackButton");
 /* Analyze button */
 const analyzeBtn = $("analyze");
 
+/* Entry help / feedback elements */
+const entryHelpContainer = $("entryHelpContainer");
+const entryHelpBtn = $("entryHelpBtn");
+const loggedInHelpBtn = $("loggedInHelpBtn");
+const feedbackOverlay = $("feedbackOverlay");
+const feedbackEntryText = $("feedbackEntryText");
+const feedbackAnalysisRating = $("feedbackAnalysisRating");
+const feedbackText = $("feedbackText");
+const feedbackError = $("feedbackError");
+const cancelFeedbackBtn = $("cancelFeedback");
+const submitFeedbackBtn = $("submitFeedback");
+
 /* ---------- Utility helpers ---------- */
 
 const titleCase = (s) => {
@@ -776,6 +788,7 @@ function resetToZero() {
     emojiTray.title = "";
   }
   renderBarsZero();
+  hideEntryHelpButton();
 }
 
 /* ---------- Locale application ---------- */
@@ -1379,6 +1392,9 @@ function applyAnalysisFromApi(data, sourceText) {
     text: sourceText,
     data
   };
+
+  // Show the help button after successful analysis
+  showEntryHelpButton();
 }
 
 /* ---------- Analyze button handler ---------- */
@@ -2602,6 +2618,217 @@ if (addJournalButton) {
       return;
     }
     openNewJournalOverlay();
+  });
+}
+
+/* ---------- Feedback / Help popup ---------- */
+
+function showEntryHelpButton() {
+  if (!lastAnalysisSnapshot) return;
+
+  // For guests (not logged in), show the container with divider + Help button
+  if (!currentUser) {
+    if (entryHelpContainer) entryHelpContainer.classList.remove("hidden");
+    if (loggedInHelpBtn) loggedInHelpBtn.classList.add("hidden");
+  } else {
+    // For logged-in users, show the icon button next to the plus button
+    if (entryHelpContainer) entryHelpContainer.classList.add("hidden");
+    if (loggedInHelpBtn) loggedInHelpBtn.classList.remove("hidden");
+  }
+}
+
+function hideEntryHelpButton() {
+  if (entryHelpContainer) entryHelpContainer.classList.add("hidden");
+  if (loggedInHelpBtn) loggedInHelpBtn.classList.add("hidden");
+}
+
+function buildFeedbackAnalysisRating(analysis) {
+  if (!feedbackAnalysisRating) return;
+
+  feedbackAnalysisRating.innerHTML = "";
+
+  const core = Array.isArray(analysis.coreMixture)
+    ? analysis.coreMixture
+    : [];
+
+  const nonZero = core
+    .filter(
+      (row) =>
+        row &&
+        typeof row.percent === "number" &&
+        row.percent > 0
+    )
+    .slice()
+    .sort((a, b) => (b.percent || 0) - (a.percent || 0));
+
+  // Build emotion bars display
+  nonZero.forEach((row) => {
+    const emotionRow = document.createElement("div");
+    emotionRow.className = "feedbackEmotionRow";
+
+    const label = document.createElement("span");
+    label.className = "feedbackEmotionLabel";
+    label.textContent = row.labelLocalized || row.label || row.id || "";
+
+    const barContainer = document.createElement("div");
+    barContainer.className = "feedbackEmotionBarContainer";
+
+    const bar = document.createElement("div");
+    bar.className = "feedbackEmotionBar";
+    bar.style.width = `${row.percent}%`;
+    bar.style.background = `var(--c-${row.id})`;
+
+    const value = document.createElement("span");
+    value.className = "feedbackEmotionValue";
+    value.textContent = `${row.percent.toFixed(1)}%`;
+
+    barContainer.appendChild(bar);
+    emotionRow.appendChild(label);
+    emotionRow.appendChild(barContainer);
+    emotionRow.appendChild(value);
+    feedbackAnalysisRating.appendChild(emotionRow);
+  });
+
+  // Add dominant and current emotion
+  const results = analysis.results || {};
+  const dom = results.dominant || {};
+  const cur = results.current || {};
+
+  const domLabel = getResultEmotionLabel(dom);
+  const curLabel = getResultEmotionLabel(cur);
+
+  if (domLabel || curLabel) {
+    const resultsSummary = document.createElement("div");
+    resultsSummary.className = "feedbackResultsSummary";
+
+    if (domLabel) {
+      const domRow = document.createElement("div");
+      domRow.innerHTML = `<span class="feedbackSummaryLabel">Dominant:</span> <span class="feedbackSummaryValue">${domLabel}</span>`;
+      resultsSummary.appendChild(domRow);
+    }
+
+    if (curLabel) {
+      const curRow = document.createElement("div");
+      curRow.innerHTML = `<span class="feedbackSummaryLabel">Current:</span> <span class="feedbackSummaryValue">${curLabel}</span>`;
+      resultsSummary.appendChild(curRow);
+    }
+
+    feedbackAnalysisRating.appendChild(resultsSummary);
+  }
+}
+
+function openFeedbackOverlay() {
+  if (!lastAnalysisSnapshot) {
+    setStatus("Please run an analysis first.");
+    return;
+  }
+
+  const { text, data } = lastAnalysisSnapshot;
+
+  // Prefill the entry text
+  if (feedbackEntryText) {
+    feedbackEntryText.value = text || "";
+  }
+
+  // Build the analysis rating display
+  if (data) {
+    buildFeedbackAnalysisRating(data);
+  }
+
+  // Clear feedback text and error
+  if (feedbackText) {
+    feedbackText.value = "";
+  }
+  if (feedbackError) {
+    feedbackError.textContent = "";
+    feedbackError.classList.add("hidden");
+  }
+
+  if (feedbackOverlay) {
+    feedbackOverlay.classList.add("show");
+  }
+}
+
+function closeFeedbackOverlay() {
+  if (feedbackOverlay) {
+    feedbackOverlay.classList.remove("show");
+  }
+  if (feedbackText) {
+    feedbackText.value = "";
+  }
+  if (feedbackError) {
+    feedbackError.textContent = "";
+    feedbackError.classList.add("hidden");
+  }
+}
+
+async function submitFeedback() {
+  if (!lastAnalysisSnapshot) {
+    if (feedbackError) {
+      feedbackError.textContent = "No analysis data available.";
+      feedbackError.classList.remove("hidden");
+    }
+    return;
+  }
+
+  const feedback = feedbackText ? feedbackText.value.trim() : "";
+
+  if (!feedback) {
+    if (feedbackError) {
+      feedbackError.textContent = "Feedback is required.";
+      feedbackError.classList.remove("hidden");
+    }
+    return;
+  }
+
+  if (submitFeedbackBtn) submitFeedbackBtn.disabled = true;
+
+  try {
+    const { text, data } = lastAnalysisSnapshot;
+
+    await apiFetchJSON("/api/feedback", {
+      method: "POST",
+      body: JSON.stringify({
+        entry_text: text,
+        analysis_json: data,
+        feedback_text: feedback
+      })
+    });
+
+    closeFeedbackOverlay();
+    setStatus("Feedback submitted. Thank you!");
+  } catch (err) {
+    if (feedbackError) {
+      feedbackError.textContent = err.message || "Failed to submit feedback.";
+      feedbackError.classList.remove("hidden");
+    }
+  } finally {
+    if (submitFeedbackBtn) submitFeedbackBtn.disabled = false;
+  }
+}
+
+// Event listeners for feedback popup
+if (entryHelpBtn) {
+  entryHelpBtn.addEventListener("click", openFeedbackOverlay);
+}
+
+if (loggedInHelpBtn) {
+  loggedInHelpBtn.addEventListener("click", openFeedbackOverlay);
+}
+
+if (cancelFeedbackBtn) {
+  cancelFeedbackBtn.addEventListener("click", closeFeedbackOverlay);
+}
+
+if (submitFeedbackBtn) {
+  submitFeedbackBtn.addEventListener("click", submitFeedback);
+}
+
+if (feedbackOverlay) {
+  feedbackOverlay.addEventListener("click", (e) => {
+    if (e.target === feedbackOverlay) {
+      closeFeedbackOverlay();
+    }
   });
 }
 

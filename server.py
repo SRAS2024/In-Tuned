@@ -160,6 +160,19 @@ def init_db() -> None:
     """
   )
 
+  # Feedback table (for anonymous user feedback on analysis accuracy)
+  cur.execute(
+    """
+    CREATE TABLE IF NOT EXISTS feedback (
+      id SERIAL PRIMARY KEY,
+      entry_text TEXT NOT NULL,
+      analysis_json JSONB,
+      feedback_text TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    """
+  )
+
   conn.commit()
   cur.close()
   conn.close()
@@ -1281,6 +1294,205 @@ def api_pin_journal(journal_id: int) -> object:
     return jsonify({"error": "Journal not found"}), 404
 
   return jsonify({"ok": True, "journal": row})
+
+
+# ---------------------------------------------------------------------------
+# Feedback APIs (anonymous submission for analysis accuracy)
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/feedback", methods=["POST"])
+def api_submit_feedback() -> object:
+  """
+  Submit anonymous feedback about analysis accuracy.
+
+  Expected JSON body:
+    {
+      "entry_text": "...",          # Original analyzed text
+      "analysis_json": {...},       # Full analysis data
+      "feedback_text": "..."        # User's feedback (required)
+    }
+
+  Note: No user account is attached to feedback submissions.
+  """
+  data = request.get_json(silent=True) or {}
+  entry_text = (data.get("entry_text") or "").strip()
+  analysis_json = data.get("analysis_json")
+  feedback_text = (data.get("feedback_text") or "").strip()
+
+  if not entry_text:
+    return jsonify({"error": "Entry text is required"}), 400
+
+  if not feedback_text:
+    return jsonify({"error": "Feedback is required"}), 400
+
+  json_payload = Jsonb(analysis_json) if analysis_json is not None else None
+
+  conn = get_db()
+  cur = conn.cursor()
+  cur.execute(
+    """
+    INSERT INTO feedback (entry_text, analysis_json, feedback_text)
+    VALUES (%s, %s, %s)
+    RETURNING id, created_at;
+    """,
+    (entry_text, json_payload, feedback_text),
+  )
+  row = cur.fetchone()
+  conn.commit()
+  cur.close()
+  conn.close()
+
+  return jsonify({"ok": True, "feedback_id": row["id"]})
+
+
+# ---------------------------------------------------------------------------
+# Admin Feedback APIs
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/admin/feedback", methods=["GET"])
+def api_admin_get_feedback() -> object:
+  """
+  Get all feedback entries for the admin to review.
+  Returns feedback formatted as a document.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  conn = get_db()
+  cur = conn.cursor()
+  cur.execute(
+    """
+    SELECT id, entry_text, analysis_json, feedback_text, created_at
+    FROM feedback
+    ORDER BY created_at DESC;
+    """
+  )
+  rows = cur.fetchall()
+  cur.close()
+  conn.close()
+
+  return jsonify({"ok": True, "feedback": rows, "count": len(rows)})
+
+
+@app.route("/api/admin/feedback/download", methods=["GET"])
+def api_admin_download_feedback() -> object:
+  """
+  Download all feedback as a formatted text document.
+  Returns the feedback content as a downloadable text file.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  conn = get_db()
+  cur = conn.cursor()
+  cur.execute(
+    """
+    SELECT id, entry_text, analysis_json, feedback_text, created_at
+    FROM feedback
+    ORDER BY created_at DESC;
+    """
+  )
+  rows = cur.fetchall()
+  cur.close()
+  conn.close()
+
+  # Build the document content
+  lines = []
+  lines.append("=" * 60)
+  lines.append("IN TUNED - FEEDBACK DOCUMENT")
+  lines.append("=" * 60)
+  lines.append(f"Generated: {__import__('datetime').datetime.now().isoformat()}")
+  lines.append(f"Total Feedback Entries: {len(rows)}")
+  lines.append("=" * 60)
+  lines.append("")
+
+  for idx, row in enumerate(rows, 1):
+    lines.append("-" * 60)
+    lines.append(f"FEEDBACK #{idx}")
+    lines.append("-" * 60)
+    lines.append(f"ID: {row['id']}")
+    lines.append(f"Submitted: {row['created_at']}")
+    lines.append("")
+    lines.append("ENTRY TEXT:")
+    lines.append(row["entry_text"] or "(empty)")
+    lines.append("")
+
+    analysis = row.get("analysis_json") or {}
+    if analysis:
+      results = analysis.get("results", {})
+      dominant = results.get("dominant", {})
+      current = results.get("current", {})
+
+      dom_label = (
+        dominant.get("labelLocalized")
+        or dominant.get("nuancedLabel")
+        or dominant.get("label")
+        or "N/A"
+      )
+      cur_label = (
+        current.get("labelLocalized")
+        or current.get("nuancedLabel")
+        or current.get("label")
+        or "N/A"
+      )
+
+      lines.append("ANALYSIS SUMMARY:")
+      lines.append(f"  Dominant: {dom_label}")
+      lines.append(f"  Current: {cur_label}")
+
+      core_mix = analysis.get("coreMixture", [])
+      if core_mix:
+        lines.append("  Core Mixture:")
+        for em in core_mix:
+          if em.get("percent", 0) > 0:
+            lines.append(f"    - {em.get('label', em.get('id', 'Unknown'))}: {em.get('percent', 0):.1f}%")
+      lines.append("")
+
+    lines.append("USER FEEDBACK:")
+    lines.append(row["feedback_text"] or "(empty)")
+    lines.append("")
+    lines.append("")
+
+  lines.append("=" * 60)
+  lines.append("END OF FEEDBACK DOCUMENT")
+  lines.append("=" * 60)
+
+  document_content = "\n".join(lines)
+
+  from flask import Response
+
+  response = Response(
+    document_content,
+    mimetype="text/plain",
+    headers={"Content-Disposition": "attachment; filename=feedback_document.txt"}
+  )
+
+  return response
+
+
+@app.route("/api/admin/feedback/delete", methods=["DELETE"])
+def api_admin_delete_all_feedback() -> object:
+  """
+  Delete all feedback entries after download.
+  This clears the feedback table to start fresh.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  conn = get_db()
+  cur = conn.cursor()
+  cur.execute("DELETE FROM feedback;")
+  deleted_count = cur.rowcount
+  conn.commit()
+  cur.close()
+  conn.close()
+
+  return jsonify({"ok": True, "deleted_count": deleted_count})
 
 
 # ---------------------------------------------------------------------------

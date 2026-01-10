@@ -232,6 +232,17 @@
               >
                 Analyze
               </button>
+              <div id="entryHelpContainer" class="entryHelpContainer hidden">
+                <div class="entryHelpDivider" aria-hidden="true"></div>
+                <button
+                  id="entryHelpBtn"
+                  class="btn secondaryBtn smallBtn entryHelpBtn"
+                  type="button"
+                  aria-label="Report feedback about this analysis"
+                >
+                  Help
+                </button>
+              </div>
               <button
                 id="addJournalButton"
                 class="iconBtn primaryIconBtn hidden"
@@ -239,6 +250,14 @@
                 aria-label="Save this analysis as a journal entry"
               >
                 +
+              </button>
+              <button
+                id="loggedInHelpBtn"
+                class="iconBtn loggedInHelpBtn hidden"
+                type="button"
+                aria-label="Report feedback about this analysis"
+              >
+                ?
               </button>
               <span
                 id="emojiTray"
@@ -1029,6 +1048,75 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Feedback popup overlay -->
+    <div
+      id="feedbackOverlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="feedbackTitle"
+    >
+      <div class="modal feedbackModal">
+        <div class="feedbackHeader">
+          <h2 id="feedbackTitle">Do not feel this analysis is accurate?</h2>
+        </div>
+        <p class="feedbackNotice">
+          Your feedback is completely anonymous and helps improve our emotion detection accuracy.
+        </p>
+
+        <div class="feedbackContent">
+          <div class="feedbackSection">
+            <label class="fieldLabel" for="feedbackEntryText">
+              Entry text
+            </label>
+            <textarea
+              id="feedbackEntryText"
+              class="fieldInput feedbackReadonly"
+              readonly
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="feedbackSection">
+            <label class="fieldLabel">
+              Analysis rating
+            </label>
+            <div id="feedbackAnalysisRating" class="feedbackAnalysisRating"></div>
+          </div>
+
+          <div class="feedbackSection">
+            <label class="fieldLabel" for="feedbackText">
+              Feedback <span class="requiredIndicator">*</span>
+            </label>
+            <textarea
+              id="feedbackText"
+              class="fieldInput"
+              placeholder="Please describe why you feel the analysis was inaccurate..."
+              rows="4"
+            ></textarea>
+            <p id="feedbackError" class="errorText hidden"></p>
+          </div>
+        </div>
+
+        <div class="feedbackActionsRow">
+          <button
+            id="cancelFeedback"
+            type="button"
+            class="ghost"
+          >
+            Cancel
+          </button>
+          <button
+            id="submitFeedback"
+            type="button"
+            class="btn primaryBtn"
+          >
+            Submit
+          </button>
+        </div>
       </div>
     </div>
 
