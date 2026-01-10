@@ -18,7 +18,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from detector.formatter import format_for_client
-from detector.detector import InvalidTextError
+from detector.detector import InvalidTextError, LEXICON_TOKEN, set_lexicon_token
+from detector.external_lexicon import (
+    lookup_word,
+    expand_lexicon_from_external,
+    get_expansion_stats,
+    fetch_and_extract_word,
+    SLANG_WORDS_TO_FETCH,
+    VOCABULARY_WORDS_EN,
+    VOCABULARY_WORDS_ES,
+    VOCABULARY_WORDS_PT,
+)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -592,6 +602,278 @@ def api_admin_delete_lexicon(file_id: int) -> object:
     return jsonify({"error": "Lexicon file not found"}), 404
 
   return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# External lexicon expansion APIs (admin)
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/admin/lexicons/lookup", methods=["POST"])
+def api_admin_lookup_word() -> object:
+  """
+  Look up a single word from external dictionary sources.
+
+  Expected JSON body:
+    - word: string (required)
+    - language: "en", "es", or "pt" (default: "en")
+
+  Returns definitions, examples, and extracted emotion weights.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  data = request.get_json(silent=True) or {}
+  word = (data.get("word") or "").strip().lower()
+  language = (data.get("language") or "en").strip().lower()
+
+  if not word:
+    return jsonify({"error": "word is required"}), 400
+
+  if language not in {"en", "es", "pt"}:
+    return jsonify({"error": "language must be one of 'en', 'es', 'pt'"}), 400
+
+  try:
+    result = lookup_word(word, language)
+    return jsonify({"ok": True, "result": result})
+  except Exception as e:
+    return jsonify({"error": f"Lookup failed: {str(e)}"}), 500
+
+
+@app.route("/api/admin/lexicons/expand", methods=["POST"])
+def api_admin_expand_lexicon() -> object:
+  """
+  Expand the emotion lexicon by fetching words from external sources.
+
+  Expected JSON body:
+    - languages: list of language codes ["en", "es", "pt"] (default: all)
+    - include_slang: boolean (default: true) - fetch from Urban Dictionary
+    - include_vocabulary: boolean (default: true) - fetch vocabulary words
+    - apply_immediately: boolean (default: true) - apply to detector immediately
+
+  This fetches definitions from:
+    - Urban Dictionary (English slang)
+    - Free Dictionary API (English, Spanish, Portuguese)
+
+  And extracts emotion weights from definitions to expand the lexicon.
+
+  Note: This operation can take several minutes due to API rate limiting.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  data = request.get_json(silent=True) or {}
+  languages = data.get("languages", ["en", "es", "pt"])
+  include_slang = data.get("include_slang", True)
+  include_vocabulary = data.get("include_vocabulary", True)
+  apply_immediately = data.get("apply_immediately", True)
+
+  # Validate languages
+  valid_langs = {"en", "es", "pt"}
+  languages = [l for l in languages if l in valid_langs]
+  if not languages:
+    return jsonify({"error": "At least one valid language is required"}), 400
+
+  try:
+    # Get current lexicon
+    original_lexicon = dict(LEXICON_TOKEN)
+
+    # Expand with external sources
+    expanded_lexicon = expand_lexicon_from_external(
+      original_lexicon,
+      languages=languages,
+      include_slang=include_slang,
+      include_vocabulary=include_vocabulary
+    )
+
+    # Get expansion statistics
+    stats = get_expansion_stats(original_lexicon, expanded_lexicon)
+
+    # Apply to detector if requested
+    if apply_immediately:
+      set_lexicon_token(expanded_lexicon, expand_morphology=True)
+
+    return jsonify({
+      "ok": True,
+      "stats": stats,
+      "applied": apply_immediately,
+      "message": f"Added {stats['total_new']} new words across {len(languages)} language(s)"
+    })
+
+  except Exception as e:
+    return jsonify({"error": f"Expansion failed: {str(e)}"}), 500
+
+
+@app.route("/api/admin/lexicons/stats", methods=["GET"])
+def api_admin_lexicon_stats() -> object:
+  """
+  Get statistics about the current emotion lexicon.
+
+  Returns word counts per language and available expansion options.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  stats = {
+    "current_lexicon": {},
+    "expansion_available": {
+      "slang_words": len(SLANG_WORDS_TO_FETCH),
+      "vocabulary_en": len(VOCABULARY_WORDS_EN),
+      "vocabulary_es": len(VOCABULARY_WORDS_ES),
+      "vocabulary_pt": len(VOCABULARY_WORDS_PT),
+    },
+    "total_current": 0,
+    "total_expansion_available": 0
+  }
+
+  for lang, words in LEXICON_TOKEN.items():
+    count = len(words)
+    stats["current_lexicon"][lang] = count
+    stats["total_current"] += count
+
+  stats["total_expansion_available"] = (
+    stats["expansion_available"]["slang_words"] +
+    stats["expansion_available"]["vocabulary_en"] +
+    stats["expansion_available"]["vocabulary_es"] +
+    stats["expansion_available"]["vocabulary_pt"]
+  )
+
+  return jsonify({"ok": True, "stats": stats})
+
+
+@app.route("/api/admin/lexicons/add-word", methods=["POST"])
+def api_admin_add_word_to_lexicon() -> object:
+  """
+  Add a single word to the lexicon by fetching from external sources.
+
+  Expected JSON body:
+    - word: string (required)
+    - language: "en", "es", or "pt" (default: "en")
+    - include_slang: boolean (default: true for English)
+
+  Returns the extracted emotion weights and adds to the active lexicon.
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  data = request.get_json(silent=True) or {}
+  word = (data.get("word") or "").strip().lower()
+  language = (data.get("language") or "en").strip().lower()
+  include_slang = data.get("include_slang", language == "en")
+
+  if not word:
+    return jsonify({"error": "word is required"}), 400
+
+  if language not in {"en", "es", "pt"}:
+    return jsonify({"error": "language must be one of 'en', 'es', 'pt'"}), 400
+
+  try:
+    # Fetch and extract emotion weights
+    weights = fetch_and_extract_word(word, language, include_slang)
+
+    if not weights:
+      return jsonify({
+        "ok": False,
+        "error": "No emotion associations found for this word",
+        "word": word,
+        "language": language
+      }), 404
+
+    # Merge weights into a single emotion vector
+    merged_emotions: Dict[str, float] = {}
+    for w in weights:
+      for emotion, score in w.emotions.items():
+        if emotion not in merged_emotions:
+          merged_emotions[emotion] = 0.0
+        merged_emotions[emotion] = max(merged_emotions[emotion], score)
+
+    # Add to lexicon
+    if language not in LEXICON_TOKEN:
+      LEXICON_TOKEN[language] = {}
+
+    LEXICON_TOKEN[language][word] = merged_emotions
+
+    # Rebuild detector indices
+    set_lexicon_token(LEXICON_TOKEN, expand_morphology=True)
+
+    return jsonify({
+      "ok": True,
+      "word": word,
+      "language": language,
+      "emotions": merged_emotions,
+      "sources": list(set(w.source for w in weights))
+    })
+
+  except Exception as e:
+    return jsonify({"error": f"Failed to add word: {str(e)}"}), 500
+
+
+@app.route("/api/admin/lexicons/add-custom", methods=["POST"])
+def api_admin_add_custom_word() -> object:
+  """
+  Add a word with custom emotion weights (no external lookup).
+
+  Expected JSON body:
+    - word: string (required)
+    - language: "en", "es", or "pt" (default: "en")
+    - emotions: dict of {emotion: weight} (required)
+
+  Example:
+    {
+      "word": "yeet",
+      "language": "en",
+      "emotions": {"joy": 1.5, "surprise": 2.0}
+    }
+  """
+  guard = require_admin()
+  if guard is not None:
+    return guard
+
+  data = request.get_json(silent=True) or {}
+  word = (data.get("word") or "").strip().lower()
+  language = (data.get("language") or "en").strip().lower()
+  emotions = data.get("emotions", {})
+
+  if not word:
+    return jsonify({"error": "word is required"}), 400
+
+  if language not in {"en", "es", "pt"}:
+    return jsonify({"error": "language must be one of 'en', 'es', 'pt'"}), 400
+
+  if not emotions or not isinstance(emotions, dict):
+    return jsonify({"error": "emotions dict is required"}), 400
+
+  valid_emotions = {"anger", "disgust", "fear", "joy", "sadness", "passion", "surprise"}
+  filtered_emotions = {}
+  for emotion, weight in emotions.items():
+    if emotion in valid_emotions:
+      try:
+        filtered_emotions[emotion] = float(weight)
+      except (ValueError, TypeError):
+        pass
+
+  if not filtered_emotions:
+    return jsonify({"error": "At least one valid emotion weight is required"}), 400
+
+  # Add to lexicon
+  if language not in LEXICON_TOKEN:
+    LEXICON_TOKEN[language] = {}
+
+  LEXICON_TOKEN[language][word] = filtered_emotions
+
+  # Rebuild detector indices
+  set_lexicon_token(LEXICON_TOKEN, expand_morphology=True)
+
+  return jsonify({
+    "ok": True,
+    "word": word,
+    "language": language,
+    "emotions": filtered_emotions
+  })
 
 
 # ---------------------------------------------------------------------------
