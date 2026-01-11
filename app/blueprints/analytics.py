@@ -3,11 +3,14 @@ Analytics Blueprint for In-Tuned
 Provides emotion trends, activity stats, and insights
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
-from flask import Blueprint, g
 from collections import defaultdict
 
-from app.utils.responses import api_response, api_error
+from flask import Blueprint, g, request
+
+from app.utils.responses import api_response
 from app.utils.security import require_login
 from app.db.repositories.journal_repository import JournalRepository
 
@@ -37,16 +40,14 @@ def parse_period(period: str) -> datetime:
 @require_login
 def get_emotion_trends():
     """Get emotion distribution and trends for the current user."""
-    from flask import request
-
-    user_id = g.user["id"]
+    user_id = g.user_id
     period = request.args.get("period", "30d")
     start_date = parse_period(period)
 
     repo = JournalRepository()
 
     # Get all journals for user in period
-    journals = repo.find_by_user(user_id, page=1, per_page=10000)
+    journals = repo.find_by_user(user_id, limit=10000, offset=0, include_content=True)
 
     # Filter by date
     filtered = []
@@ -139,16 +140,14 @@ def get_emotion_trends():
 @require_login
 def get_activity_stats():
     """Get activity statistics for the current user."""
-    from flask import request
-
-    user_id = g.user["id"]
+    user_id = g.user_id
     period = request.args.get("period", "30d")
     start_date = parse_period(period)
 
     repo = JournalRepository()
 
     # Get all journals for user
-    journals = repo.find_by_user(user_id, page=1, per_page=10000)
+    journals = repo.find_by_user(user_id, limit=10000, offset=0, include_content=True)
 
     # Group by day
     daily_counts = defaultdict(int)
@@ -207,10 +206,10 @@ def get_activity_stats():
 @require_login
 def get_insights():
     """Generate insights for the current user."""
-    user_id = g.user["id"]
+    user_id = g.user_id
 
     repo = JournalRepository()
-    journals = repo.find_by_user(user_id, page=1, per_page=10000)
+    journals = repo.find_by_user(user_id, limit=10000, offset=0, include_content=True)
 
     insights = []
 
