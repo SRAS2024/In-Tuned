@@ -77,6 +77,7 @@ def register_blueprints(app: Flask) -> None:
     from app.blueprints.feedback import feedback_bp
     from app.blueprints.site import site_bp
     from app.blueprints.users import users_bp
+    from app.blueprints.analytics import bp as analytics_bp
 
     # API blueprints with /api prefix
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
@@ -86,6 +87,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(lexicon_bp, url_prefix="/api/admin/lexicons")
     app.register_blueprint(feedback_bp, url_prefix="/api/feedback")
     app.register_blueprint(users_bp, url_prefix="/api/users")
+    app.register_blueprint(analytics_bp)
 
     # Site blueprint for static pages and site-state
     app.register_blueprint(site_bp)
