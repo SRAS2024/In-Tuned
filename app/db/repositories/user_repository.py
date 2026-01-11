@@ -201,8 +201,11 @@ class UserRepository(BaseRepository):
             result = cur.fetchone()
             self.conn.commit()
             return result["failed_login_attempts"] if result else 0
-        except Exception:
+        except Exception as e:
             self.conn.rollback()
+            # If column doesn't exist, return 0 (no lockout)
+            if "column" in str(e).lower() and "does not exist" in str(e).lower():
+                return 0
             raise
         finally:
             cur.close()
@@ -220,8 +223,11 @@ class UserRepository(BaseRepository):
         try:
             cur.execute(query, (user_id,))
             self.conn.commit()
-        except Exception:
+        except Exception as e:
             self.conn.rollback()
+            # If column doesn't exist, silently ignore (no lockout feature)
+            if "column" in str(e).lower() and "does not exist" in str(e).lower():
+                return
             raise
         finally:
             cur.close()
@@ -240,7 +246,7 @@ class UserRepository(BaseRepository):
             if not result:
                 return False
 
-            attempts = result.get("failed_login_attempts", 0)
+            attempts = result.get("failed_login_attempts", 0) or 0
             last_failed = result.get("last_failed_login")
 
             if attempts < 5:  # Max attempts before lockout
@@ -252,6 +258,11 @@ class UserRepository(BaseRepository):
             # Check if lockout period has passed
             lockout_until = last_failed + timedelta(minutes=lockout_minutes)
             return datetime.now(last_failed.tzinfo) < lockout_until
+        except Exception as e:
+            # If columns don't exist, no lockout feature available
+            if "column" in str(e).lower() and "does not exist" in str(e).lower():
+                return False
+            raise
         finally:
             cur.close()
 
