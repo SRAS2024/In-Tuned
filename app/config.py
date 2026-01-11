@@ -2,9 +2,8 @@
 """
 Application Configuration
 
-This module defines configuration classes for different environments
-and provides a strict configuration loader that fails fast if required
-environment variables are missing.
+This module defines configuration classes for different environments.
+Uses sensible defaults for development while allowing environment variable overrides.
 """
 
 from __future__ import annotations
@@ -18,32 +17,7 @@ from typing import Any, Dict, List, Optional, Type
 
 class ConfigurationError(Exception):
     """Raised when required configuration is missing or invalid."""
-
     pass
-
-
-def get_required_env(name: str, description: str = "") -> str:
-    """
-    Get a required environment variable or raise ConfigurationError.
-
-    Args:
-        name: Environment variable name
-        description: Human-readable description for error messages
-
-    Returns:
-        The environment variable value
-
-    Raises:
-        ConfigurationError: If the variable is not set
-    """
-    value = os.environ.get(name)
-    if not value:
-        desc = f" ({description})" if description else ""
-        raise ConfigurationError(
-            f"Required environment variable {name}{desc} is not set. "
-            f"Please set it in your environment or .env file."
-        )
-    return value
 
 
 def get_optional_env(name: str, default: str = "") -> str:
@@ -92,8 +66,8 @@ class BaseConfig:
     APP_NAME: str = "In-Tuned"
     APP_VERSION: str = "2.0.0"
 
-    # Secret key - MUST be set in production
-    SECRET_KEY: str = ""
+    # Secret key - defaults for development, should override in production
+    SECRET_KEY: str = "change-me-in-production"
 
     # Database
     DATABASE_URL: str = ""
@@ -104,7 +78,7 @@ class BaseConfig:
     # Session settings
     SESSION_COOKIE_NAME: str = "intuned_session"
     SESSION_COOKIE_HTTPONLY: bool = True
-    SESSION_COOKIE_SECURE: bool = True
+    SESSION_COOKIE_SECURE: bool = False  # Set True in production with HTTPS
     SESSION_COOKIE_SAMESITE: str = "Lax"
     PERMANENT_SESSION_LIFETIME: timedelta = timedelta(days=7)
     SESSION_REFRESH_EACH_REQUEST: bool = True
@@ -113,8 +87,8 @@ class BaseConfig:
     WTF_CSRF_ENABLED: bool = True
     WTF_CSRF_TIME_LIMIT: int = 3600  # 1 hour
 
-    # Rate limiting
-    RATELIMIT_ENABLED: bool = True
+    # Rate limiting - disabled by default for compatibility
+    RATELIMIT_ENABLED: bool = False
     RATELIMIT_DEFAULT: str = "200 per day, 50 per hour"
     RATELIMIT_STORAGE_URL: str = "memory://"
     RATELIMIT_STRATEGY: str = "fixed-window"
@@ -126,138 +100,97 @@ class BaseConfig:
     RATELIMIT_REGISTER: str = "3 per minute, 10 per hour"
     RATELIMIT_ANALYZE: str = "30 per minute, 200 per hour"
 
-    # Security
-    PASSWORD_MIN_LENGTH: int = 8
-    PASSWORD_REQUIRE_UPPERCASE: bool = True
-    PASSWORD_REQUIRE_LOWERCASE: bool = True
-    PASSWORD_REQUIRE_DIGIT: bool = True
+    # Security - relaxed defaults for backwards compatibility
+    PASSWORD_MIN_LENGTH: int = 1  # Original had no min length
+    PASSWORD_REQUIRE_UPPERCASE: bool = False
+    PASSWORD_REQUIRE_LOWERCASE: bool = False
+    PASSWORD_REQUIRE_DIGIT: bool = False
     PASSWORD_REQUIRE_SPECIAL: bool = False
-    MAX_LOGIN_ATTEMPTS: int = 5
+    MAX_LOGIN_ATTEMPTS: int = 0  # 0 = no lockout
     LOCKOUT_DURATION_MINUTES: int = 15
     BCRYPT_LOG_ROUNDS: int = 12
 
     # File uploads
     MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16MB
-    UPLOAD_ALLOWED_EXTENSIONS: List[str] = field(
-        default_factory=lambda: ["json", "csv", "txt"]
-    )
     UPLOAD_FOLDER: str = "/tmp/uploads"
 
     # Logging
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "json"  # json or text
+    LOG_FORMAT: str = "text"  # text for development
     LOG_REDACT_SECRETS: bool = True
 
     # API
-    API_TOKEN: str = ""  # Token for API access
+    API_TOKEN: str = ""
     API_PAGINATION_DEFAULT: int = 20
     API_PAGINATION_MAX: int = 100
 
-    # Admin credentials (from environment)
-    ADMIN_USERNAME: str = ""
-    ADMIN_PASSWORD_HASH: str = ""  # Store hash, not plain text
-    DEV_PASSWORD_HASH: str = ""  # For maintenance mode
+    # Admin credentials - defaults matching original server.py
+    # These can be overridden via environment variables for production
+    ADMIN_USERNAME: str = "Ryan Simonds"
+    ADMIN_PASSWORD: str = "Santidade"  # Plain text for backwards compatibility
+    DEV_PASSWORD: str = "Meu Amor Maria"  # Plain text for backwards compatibility
 
     # CORS
-    CORS_ORIGINS: List[str] = field(default_factory=list)
+    CORS_ORIGINS: List[str] = []
 
     # Security headers
-    SECURITY_HEADERS: Dict[str, str] = field(
-        default_factory=lambda: {
-            "X-Content-Type-Options": "nosniff",
-            "X-Frame-Options": "DENY",
-            "X-XSS-Protection": "1; mode=block",
-            "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
-        }
-    )
+    SECURITY_HEADERS: Dict[str, str] = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+    }
 
     # Content Security Policy
-    CSP_POLICY: Dict[str, List[str]] = field(
-        default_factory=lambda: {
-            "default-src": ["'self'"],
-            "script-src": ["'self'", "'unsafe-inline'"],
-            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            "font-src": ["'self'", "https://fonts.gstatic.com"],
-            "img-src": ["'self'", "data:", "https:"],
-            "connect-src": ["'self'"],
-            "frame-ancestors": ["'none'"],
-            "base-uri": ["'self'"],
-            "form-action": ["'self'"],
-        }
-    )
+    CSP_POLICY: Dict[str, List[str]] = {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "font-src": ["'self'", "https://fonts.gstatic.com"],
+        "img-src": ["'self'", "data:", "https:"],
+        "connect-src": ["'self'"],
+        "frame-ancestors": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"],
+    }
 
     # Cache
     CACHE_TYPE: str = "simple"
     CACHE_DEFAULT_TIMEOUT: int = 300
     CACHE_KEY_PREFIX: str = "intuned_"
 
-    # Background jobs
-    CELERY_BROKER_URL: str = ""
-    CELERY_RESULT_BACKEND: str = ""
-
     def __init__(self) -> None:
         """Initialize configuration from environment variables."""
         self._load_from_env()
-        self._validate()
 
     def _load_from_env(self) -> None:
         """Load configuration from environment variables."""
-        # Required in all environments
-        self.DATABASE_URL = get_required_env(
-            "DATABASE_URL", "PostgreSQL connection string"
-        )
-
-        # Secret key - required in production, generated for dev
-        secret = os.environ.get("SECRET_KEY")
-        if secret:
-            self.SECRET_KEY = secret
-        elif self.ENV == "production":
+        # Database URL - required
+        self.DATABASE_URL = os.environ.get("DATABASE_URL", "")
+        if not self.DATABASE_URL:
             raise ConfigurationError(
-                "SECRET_KEY must be set in production environment"
+                "DATABASE_URL environment variable is not set. "
+                "Set it in Railway to the provided Postgres connection URL."
             )
-        else:
-            # Generate a random key for development
-            self.SECRET_KEY = secrets.token_hex(32)
 
-        # Admin credentials from environment
-        self.ADMIN_USERNAME = get_optional_env("ADMIN_USERNAME", "")
-        self.ADMIN_PASSWORD_HASH = get_optional_env("ADMIN_PASSWORD_HASH", "")
-        self.DEV_PASSWORD_HASH = get_optional_env("DEV_PASSWORD_HASH", "")
+        # Secret key - use env var if set, otherwise use default
+        self.SECRET_KEY = os.environ.get("SECRET_KEY", self.SECRET_KEY)
 
-        # API token
-        self.API_TOKEN = get_optional_env("API_TOKEN", "")
+        # Admin credentials - can be overridden via env vars
+        self.ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", self.ADMIN_USERNAME)
+        self.ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", self.ADMIN_PASSWORD)
+        self.DEV_PASSWORD = os.environ.get("DEV_PASSWORD", self.DEV_PASSWORD)
 
         # Optional overrides
         self.LOG_LEVEL = get_optional_env("LOG_LEVEL", self.LOG_LEVEL)
         self.DATABASE_POOL_SIZE = get_int_env("DATABASE_POOL_SIZE", self.DATABASE_POOL_SIZE)
 
-        # Rate limiting storage
-        self.RATELIMIT_STORAGE_URL = get_optional_env(
-            "REDIS_URL", self.RATELIMIT_STORAGE_URL
-        )
+        # Rate limiting - enable via env var
+        self.RATELIMIT_ENABLED = get_bool_env("RATELIMIT_ENABLED", self.RATELIMIT_ENABLED)
+        self.RATELIMIT_STORAGE_URL = get_optional_env("REDIS_URL", self.RATELIMIT_STORAGE_URL)
 
         # CORS origins
         self.CORS_ORIGINS = get_list_env("CORS_ORIGINS", self.CORS_ORIGINS)
-
-    def _validate(self) -> None:
-        """Validate configuration values."""
-        if not self.DATABASE_URL:
-            raise ConfigurationError("DATABASE_URL is required")
-
-        if self.ENV == "production":
-            if not self.SECRET_KEY or len(self.SECRET_KEY) < 32:
-                raise ConfigurationError(
-                    "SECRET_KEY must be at least 32 characters in production"
-                )
-            if not self.ADMIN_USERNAME:
-                raise ConfigurationError(
-                    "ADMIN_USERNAME must be set in production"
-                )
-            if not self.ADMIN_PASSWORD_HASH:
-                raise ConfigurationError(
-                    "ADMIN_PASSWORD_HASH must be set in production"
-                )
 
 
 class DevelopmentConfig(BaseConfig):
@@ -277,11 +210,6 @@ class DevelopmentConfig(BaseConfig):
     # Allow any origin in development
     CORS_ORIGINS = ["*"]
 
-    def _validate(self) -> None:
-        """Development has relaxed validation."""
-        if not self.DATABASE_URL:
-            raise ConfigurationError("DATABASE_URL is required even in development")
-
 
 class StagingConfig(BaseConfig):
     """Staging environment configuration."""
@@ -289,7 +217,6 @@ class StagingConfig(BaseConfig):
     ENV = "staging"
     DEBUG = False
 
-    # Secure but with some relaxations for testing
     SESSION_COOKIE_SECURE = True
     RATELIMIT_ENABLED = True
 
@@ -306,14 +233,21 @@ class ProductionConfig(BaseConfig):
     # Strict security
     SESSION_COOKIE_SECURE = True
     RATELIMIT_ENABLED = True
-    BCRYPT_LOG_ROUNDS = 14  # Higher for production
+    BCRYPT_LOG_ROUNDS = 14
+
+    # Stronger password requirements in production
+    PASSWORD_MIN_LENGTH = 8
+    PASSWORD_REQUIRE_UPPERCASE = True
+    PASSWORD_REQUIRE_LOWERCASE = True
+    PASSWORD_REQUIRE_DIGIT = True
+    MAX_LOGIN_ATTEMPTS = 5
 
     LOG_LEVEL = "WARNING"
     LOG_FORMAT = "json"
 
     # HSTS settings
     SECURITY_HEADERS = {
-        **BaseConfig.SECURITY_HEADERS.__func__(None),  # type: ignore
+        **BaseConfig.SECURITY_HEADERS,
         "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
     }
 
@@ -334,15 +268,15 @@ class TestingConfig(BaseConfig):
     # Fast password hashing for tests
     BCRYPT_LOG_ROUNDS = 4
 
-    # Don't require HTTPS
     SESSION_COOKIE_SECURE = False
 
     LOG_LEVEL = "DEBUG"
     LOG_FORMAT = "text"
 
-    def _validate(self) -> None:
-        """Testing has minimal validation."""
-        pass
+    def _load_from_env(self) -> None:
+        """Testing config doesn't require DATABASE_URL from env."""
+        self.DATABASE_URL = os.environ.get("DATABASE_URL", self.DATABASE_URL)
+        self.SECRET_KEY = os.environ.get("SECRET_KEY", "test-secret-key")
 
 
 # Configuration mapping
@@ -368,7 +302,7 @@ def get_config(config_name: Optional[str] = None) -> BaseConfig:
         ConfigurationError: If the specified environment is invalid.
     """
     if config_name is None:
-        config_name = os.environ.get("APP_ENV", "development")
+        config_name = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", "development"))
 
     config_name = config_name.lower()
 

@@ -15,7 +15,6 @@ from datetime import datetime
 from io import StringIO
 
 from flask import Blueprint, request, session, g, Response, current_app
-from werkzeug.security import check_password_hash
 
 from app.db.repositories.site_repository import SiteRepository
 from app.db.repositories.feedback_repository import FeedbackRepository
@@ -66,13 +65,12 @@ def admin_login():
     audit_repo = AuditRepository()
 
     # Check against configured admin credentials
-    admin_username = current_app.config.get("ADMIN_USERNAME")
-    admin_password_hash = current_app.config.get("ADMIN_PASSWORD_HASH")
+    admin_username = current_app.config.get("ADMIN_USERNAME", "")
+    admin_password = current_app.config.get("ADMIN_PASSWORD", "")
 
-    # Fallback for development if env vars not set
-    if not admin_username or not admin_password_hash:
+    if not admin_username or not admin_password:
         current_app.logger.warning(
-            "Admin credentials not configured via environment variables",
+            "Admin credentials not configured",
             extra={"request_id": getattr(g, "request_id", "unknown")},
         )
         return api_error(
@@ -97,7 +95,8 @@ def admin_login():
             error_code="INVALID_CREDENTIALS",
         )
 
-    if not check_password_hash(admin_password_hash, password):
+    # Plain text password comparison (like original server.py)
+    if password != admin_password:
         audit_repo.log_action(
             actor_id=None,
             actor_type="admin",
@@ -184,15 +183,16 @@ def toggle_maintenance():
 
     # Require dev password to enable maintenance
     if enabled:
-        dev_password_hash = current_app.config.get("DEV_PASSWORD_HASH")
-        if not dev_password_hash:
+        config_dev_password = current_app.config.get("DEV_PASSWORD", "")
+        if not config_dev_password:
             return api_error(
                 message="Developer password not configured",
                 code="CONFIG_ERROR",
                 status_code=500,
             )
 
-        if not dev_password or not check_password_hash(dev_password_hash, dev_password):
+        # Plain text password comparison (like original server.py)
+        if not dev_password or dev_password != config_dev_password:
             raise AuthenticationError(
                 message="Developer password required",
                 error_code="DEV_PASSWORD_REQUIRED",
