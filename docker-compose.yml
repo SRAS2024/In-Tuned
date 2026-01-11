@@ -1,0 +1,105 @@
+# docker-compose.yml
+# Development and testing environment for In-Tuned
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://intuned:intuned_secret@db:5432/intuned
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      - DEV_PASSWORD_HASH=${DEV_PASSWORD_HASH}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./app:/app/app:ro
+      - ./client:/app/client:ro
+      - ./detector:/app/detector:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=intuned
+      - POSTGRES_PASSWORD=intuned_secret
+      - POSTGRES_DB=intuned
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intuned -d intuned"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  # Development services
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: pytest tests/ -v --cov=app --cov-report=term-missing
+    environment:
+      - FLASK_ENV=testing
+      - DATABASE_URL=postgresql://intuned:intuned_secret@db:5432/intuned_test
+      - SECRET_KEY=test-secret-key
+      - ADMIN_USERNAME=testadmin
+      - ADMIN_PASSWORD_HASH=$2b$12$test.hash.for.testing
+      - DEV_PASSWORD_HASH=$2b$12$test.hash.for.testing
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - test
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: alembic upgrade head
+    environment:
+      - DATABASE_URL=postgresql://intuned:intuned_secret@db:5432/intuned
+      - FLASK_ENV=development
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - migrate
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: intuned-network
