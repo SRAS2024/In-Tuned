@@ -41,6 +41,10 @@ class BaseRepository(Generic[T]):
         """Get the database connection."""
         if self._conn is not None:
             return self._conn
+        # Lazily initialize connection if not already done
+        if not hasattr(g, "db") or g.db is None:
+            from app.db.connection import get_db_connection
+            g.db = get_db_connection()
         return g.db
 
     def cursor(self) -> psycopg.Cursor:

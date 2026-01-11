@@ -89,8 +89,12 @@ class AuditRepository(BaseRepository):
             result = cur.fetchone()
             self.conn.commit()
             return result
-        except Exception:
+        except Exception as e:
             self.conn.rollback()
+            # If audit_log table doesn't exist, silently ignore
+            error_str = str(e).lower()
+            if "relation" in error_str and "does not exist" in error_str:
+                return {"id": None, "created_at": None}
             raise
         finally:
             cur.close()
