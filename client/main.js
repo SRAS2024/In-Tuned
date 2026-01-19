@@ -2931,7 +2931,7 @@ window.addEventListener('offline', updateConnectionStatus);
 
 /* ---------- Initial setup ---------- */
 
-function initialSetup() {
+async function initialSetup() {
   initBars();
   buildLangMenuFor(langMenu);
   buildLangMenuFor(accountLangMenu);
@@ -2939,8 +2939,13 @@ function initialSetup() {
   renderBarsZero();
   wordCountAndLimit();
   applyGuestTheme();
-  loadSiteState();
-  fetchCurrentUser();
+
+  // Load site state and user data in parallel, waiting for both to complete
+  // This ensures the page renders correctly after data is loaded
+  await Promise.all([
+    loadSiteState(),
+    fetchCurrentUser()
+  ]);
 
   if (journalDetailAnalysis) {
     journalDetailAnalysis.style.fontFamily =
@@ -2951,4 +2956,8 @@ function initialSetup() {
   setupResponsiveHeader();
 }
 
-document.addEventListener("DOMContentLoaded", initialSetup);
+document.addEventListener("DOMContentLoaded", () => {
+  initialSetup().catch((err) => {
+    console.error("Failed to initialize application:", err);
+  });
+});
