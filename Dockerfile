@@ -1,8 +1,8 @@
 # Dockerfile
 # Multi-stage build for In-Tuned application
 
-# Stage 1: Build stage
-FROM python:3.11-slim as builder
+# Stage 1: Build stage - compile dependencies
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -12,13 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+# Copy requirements and build wheels
 COPY requirements.txt .
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
 
-# Stage 2: Production stage
-FROM python:3.11-slim as production
+# Stage 2: Production stage - runtime only
+FROM python:3.11-slim AS production
 
 # Create non-root user for security
 RUN groupadd -r intuned && useradd -r -g intuned intuned
@@ -31,12 +31,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels from builder stage
+# Copy wheels from builder stage and install
 COPY --from=builder /app/wheels /wheels
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache /wheels/* && rm -rf /wheels
 
 # Copy application code
 COPY --chown=intuned:intuned . .
+
+# Copy and set up entrypoint script
+COPY --chown=intuned:intuned entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -50,14 +54,14 @@ USER intuned
 # Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check - validates app is running and responding
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Validate WSGI application loads
-RUN python -c "from wsgi import application; print('WSGI application loads successfully')"
+# Use entrypoint for runtime validation and startup
+ENTRYPOINT ["/entrypoint.sh"]
 
-# Run with gunicorn
+# Default command - gunicorn with production settings
 CMD ["gunicorn", "wsgi:application", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "4", \

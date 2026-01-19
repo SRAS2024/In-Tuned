@@ -3,13 +3,14 @@
 Application Configuration
 
 This module defines configuration classes for different environments.
-Uses sensible defaults for development while allowing environment variable overrides.
+Configuration is loaded at runtime from environment variables.
+Validation is deferred to application startup (not import time).
 """
 
 from __future__ import annotations
 
 import os
-import secrets
+import sys
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Type
@@ -54,6 +55,18 @@ def get_list_env(name: str, default: Optional[List[str]] = None, separator: str 
     return [item.strip() for item in value.split(separator) if item.strip()]
 
 
+def normalize_database_url(url: str) -> str:
+    """
+    Normalize database URL for psycopg3 compatibility.
+
+    Railway and other PaaS providers often use postgres:// URLs,
+    but psycopg3 requires postgresql:// scheme.
+    """
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 class BaseConfig:
     """Base configuration with common settings."""
 
@@ -78,16 +91,16 @@ class BaseConfig:
     # Session settings
     SESSION_COOKIE_NAME: str = "intuned_session"
     SESSION_COOKIE_HTTPONLY: bool = True
-    SESSION_COOKIE_SECURE: bool = False  # Set True in production with HTTPS
+    SESSION_COOKIE_SECURE: bool = False
     SESSION_COOKIE_SAMESITE: str = "Lax"
     PERMANENT_SESSION_LIFETIME: timedelta = timedelta(days=7)
     SESSION_REFRESH_EACH_REQUEST: bool = True
 
     # CSRF protection
     WTF_CSRF_ENABLED: bool = True
-    WTF_CSRF_TIME_LIMIT: int = 3600  # 1 hour
+    WTF_CSRF_TIME_LIMIT: int = 3600
 
-    # Rate limiting - disabled by default for compatibility
+    # Rate limiting
     RATELIMIT_ENABLED: bool = False
     RATELIMIT_DEFAULT: str = "200 per day, 50 per hour"
     RATELIMIT_STORAGE_URL: str = "memory://"
@@ -100,23 +113,23 @@ class BaseConfig:
     RATELIMIT_REGISTER: str = "3 per minute, 10 per hour"
     RATELIMIT_ANALYZE: str = "30 per minute, 200 per hour"
 
-    # Security - relaxed defaults for backwards compatibility
-    PASSWORD_MIN_LENGTH: int = 1  # Original had no min length
+    # Security
+    PASSWORD_MIN_LENGTH: int = 1
     PASSWORD_REQUIRE_UPPERCASE: bool = False
     PASSWORD_REQUIRE_LOWERCASE: bool = False
     PASSWORD_REQUIRE_DIGIT: bool = False
     PASSWORD_REQUIRE_SPECIAL: bool = False
-    MAX_LOGIN_ATTEMPTS: int = 0  # 0 = no lockout
+    MAX_LOGIN_ATTEMPTS: int = 0
     LOCKOUT_DURATION_MINUTES: int = 15
     BCRYPT_LOG_ROUNDS: int = 12
 
     # File uploads
-    MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16MB
+    MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024
     UPLOAD_FOLDER: str = "/tmp/uploads"
 
     # Logging
     LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "text"  # text for development
+    LOG_FORMAT: str = "text"
     LOG_REDACT_SECRETS: bool = True
 
     # API
@@ -124,11 +137,10 @@ class BaseConfig:
     API_PAGINATION_DEFAULT: int = 20
     API_PAGINATION_MAX: int = 100
 
-    # Admin credentials - defaults matching original server.py
-    # These can be overridden via environment variables for production
+    # Admin credentials
     ADMIN_USERNAME: str = "Ryan Simonds"
-    ADMIN_PASSWORD: str = "Santidade"  # Plain text for backwards compatibility
-    DEV_PASSWORD: str = "Meu Amor Maria"  # Plain text for backwards compatibility
+    ADMIN_PASSWORD: str = "Santidade"
+    DEV_PASSWORD: str = "Meu Amor Maria"
 
     # CORS
     CORS_ORIGINS: List[str] = []
@@ -164,19 +176,32 @@ class BaseConfig:
         self._load_from_env()
 
     def _load_from_env(self) -> None:
-        """Load configuration from environment variables."""
-        # Database URL - required
-        self.DATABASE_URL = os.environ.get("DATABASE_URL", "")
-        if not self.DATABASE_URL:
-            if os.environ.get("FLASK_ENV") == "production":
-                raise ConfigurationError("DATABASE_URL required in production")
-            self.DATABASE_URL = "sqlite:///intuned_dev.db"
-            print("WARNING: Using SQLite for development")
+        """
+        Load configuration from environment variables.
 
-        # Secret key - use env var if set, otherwise use default
+        This method loads configuration without raising errors at import time.
+        Required variable validation is handled at runtime by the entrypoint script.
+        """
+        # Database URL - load from environment, normalize for psycopg3
+        raw_database_url = os.environ.get("DATABASE_URL", "")
+
+        if raw_database_url:
+            self.DATABASE_URL = normalize_database_url(raw_database_url)
+        else:
+            # For development, use SQLite as fallback
+            # Production requires DATABASE_URL (validated by entrypoint.sh at runtime)
+            if os.environ.get("FLASK_ENV") != "production":
+                self.DATABASE_URL = "sqlite:///intuned_dev.db"
+                print("INFO: Using SQLite database for development")
+            else:
+                # In production without DATABASE_URL, set empty string
+                # The entrypoint script will catch this and fail with a clear error
+                self.DATABASE_URL = ""
+
+        # Secret key
         self.SECRET_KEY = os.environ.get("SECRET_KEY", self.SECRET_KEY)
 
-        # Admin credentials - can be overridden via env vars
+        # Admin credentials
         self.ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", self.ADMIN_USERNAME)
         self.ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", self.ADMIN_PASSWORD)
         self.DEV_PASSWORD = os.environ.get("DEV_PASSWORD", self.DEV_PASSWORD)
@@ -185,12 +210,33 @@ class BaseConfig:
         self.LOG_LEVEL = get_optional_env("LOG_LEVEL", self.LOG_LEVEL)
         self.DATABASE_POOL_SIZE = get_int_env("DATABASE_POOL_SIZE", self.DATABASE_POOL_SIZE)
 
-        # Rate limiting - enable via env var
+        # Rate limiting
         self.RATELIMIT_ENABLED = get_bool_env("RATELIMIT_ENABLED", self.RATELIMIT_ENABLED)
         self.RATELIMIT_STORAGE_URL = get_optional_env("REDIS_URL", self.RATELIMIT_STORAGE_URL)
 
         # CORS origins
         self.CORS_ORIGINS = get_list_env("CORS_ORIGINS", self.CORS_ORIGINS)
+
+    def validate(self) -> None:
+        """
+        Validate that all required configuration is present.
+
+        This should be called at application startup (runtime), not at import time.
+        Raises ConfigurationError if required configuration is missing.
+        """
+        errors = []
+
+        if self.ENV == "production":
+            if not self.DATABASE_URL:
+                errors.append("DATABASE_URL is required in production")
+
+            if self.SECRET_KEY == "change-me-in-production":
+                errors.append("SECRET_KEY must be set to a secure value in production")
+
+        if errors:
+            raise ConfigurationError(
+                "Configuration validation failed:\n  - " + "\n  - ".join(errors)
+            )
 
 
 class DevelopmentConfig(BaseConfig):
@@ -199,15 +245,12 @@ class DevelopmentConfig(BaseConfig):
     ENV = "development"
     DEBUG = True
 
-    # Relaxed security for development
     SESSION_COOKIE_SECURE = False
     RATELIMIT_ENABLED = False
 
-    # More verbose logging
     LOG_LEVEL = "DEBUG"
     LOG_FORMAT = "text"
 
-    # Allow any origin in development
     CORS_ORIGINS = ["*"]
 
 
@@ -230,12 +273,10 @@ class ProductionConfig(BaseConfig):
     ENV = "production"
     DEBUG = False
 
-    # Strict security
     SESSION_COOKIE_SECURE = True
     RATELIMIT_ENABLED = True
     BCRYPT_LOG_ROUNDS = 14
 
-    # Stronger password requirements in production
     PASSWORD_MIN_LENGTH = 8
     PASSWORD_REQUIRE_UPPERCASE = True
     PASSWORD_REQUIRE_LOWERCASE = True
@@ -245,7 +286,6 @@ class ProductionConfig(BaseConfig):
     LOG_LEVEL = "WARNING"
     LOG_FORMAT = "json"
 
-    # HSTS settings
     SECURITY_HEADERS = {
         **BaseConfig.SECURITY_HEADERS,
         "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
@@ -259,23 +299,19 @@ class TestingConfig(BaseConfig):
     DEBUG = True
     TESTING = True
 
-    # Use test database
     DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://localhost/intuned_test")
 
-    # Disable rate limiting for tests
     RATELIMIT_ENABLED = False
-
-    # Fast password hashing for tests
     BCRYPT_LOG_ROUNDS = 4
-
     SESSION_COOKIE_SECURE = False
 
     LOG_LEVEL = "DEBUG"
     LOG_FORMAT = "text"
 
     def _load_from_env(self) -> None:
-        """Testing config doesn't require DATABASE_URL from env."""
-        self.DATABASE_URL = os.environ.get("DATABASE_URL", self.DATABASE_URL)
+        """Testing config has relaxed requirements."""
+        raw_url = os.environ.get("DATABASE_URL", self.DATABASE_URL)
+        self.DATABASE_URL = normalize_database_url(raw_url)
         self.SECRET_KEY = os.environ.get("SECRET_KEY", "test-secret-key")
 
 

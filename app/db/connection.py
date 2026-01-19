@@ -17,6 +17,8 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 from flask import current_app, g
 
+from app.config import normalize_database_url
+
 # Global connection pool
 _pool: Optional[ConnectionPool] = None
 
@@ -119,13 +121,11 @@ def get_connection() -> Generator[psycopg.Connection, None, None]:
     Use this for operations outside of a request context,
     such as CLI commands or background jobs.
     """
-    global _pool
-
-    # For direct usage without app context
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
+    raw_url = os.environ.get("DATABASE_URL")
+    if not raw_url:
         raise RuntimeError("DATABASE_URL environment variable is not set")
 
+    database_url = normalize_database_url(raw_url)
     conn = psycopg.connect(database_url, row_factory=dict_row)
     try:
         yield conn
