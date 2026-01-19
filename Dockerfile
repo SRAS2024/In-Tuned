@@ -54,6 +54,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
+# Validate WSGI application loads
+RUN python -c "from wsgi import application; print('WSGI application loads successfully')"
+
 # Run with gunicorn
 CMD ["gunicorn", "wsgi:application", \
      "--bind", "0.0.0.0:8000", \

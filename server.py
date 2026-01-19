@@ -30,25 +30,45 @@ from detector.external_lexicon import (
     VOCABULARY_WORDS_PT,
 )
 
+
+# ---------------------------------------------------------------------------
+# Input validation
+# ---------------------------------------------------------------------------
+
+def validate_text(text, max_words=250, field_name="text"):
+    if not isinstance(text, str):
+        raise ValueError(f"{field_name} must be a string")
+
+    text = text.strip()
+    if not text:
+        raise ValueError(f"{field_name} cannot be empty")
+
+    word_count = len(text.split())
+    if word_count > max_words:
+        raise ValueError(f"{field_name} exceeds maximum of {max_words} words")
+
+    return text
+
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
 
 # Admin credentials (for /admin portal and admin APIs)
-ADMIN_USERNAME = "Ryan Simonds"
-ADMIN_PASSWORD = "Santidade"
-DEV_PASSWORD = "Meu Amor Maria"
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "Ryan Simonds")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Santidade")
+DEV_PASSWORD = os.environ.get("DEV_PASSWORD", "Meu Amor Maria")
+
+if ADMIN_PASSWORD == "default-change-me":
+    print("WARNING: Using default ADMIN_PASSWORD. Set environment variable!")
 
 # Database URL (set this in Railway as an env var, typically using
 # the Postgres.DATABASE_URL value)
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL:
-  # For production you should set DATABASE_URL in the environment.
-  raise RuntimeError(
-    "DATABASE_URL environment variable is not set. "
-    "Set it in Railway to the provided Postgres connection URL."
-  )
+    DATABASE_URL = "sqlite:///intuned_dev.db"
+    print("WARNING: DATABASE_URL not set. Using SQLite for development.")
 
 # Create Flask app
 app = Flask(__name__, static_folder="client", static_url_path="")
@@ -56,21 +76,77 @@ app = Flask(__name__, static_folder="client", static_url_path="")
 # Secret key for signed sessions
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 
+# Session configuration
+from datetime import timedelta
+
+app.config.update(
+    SESSION_COOKIE_SECURE=os.environ.get("FLASK_ENV") == "production",
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+    SESSION_REFRESH_EACH_REQUEST=True
+)
+
+# CORS headers
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-App-Token'
+    return response
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({"status": "ok"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization, X-App-Token")
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+        return response
+
+# Request ID tracking
+import uuid
+from flask import g
+
+@app.before_request
+def add_request_id():
+    g.request_id = str(uuid.uuid4())
+
+@app.after_request
+def add_request_id_header(response):
+    response.headers['X-Request-ID'] = getattr(g, 'request_id', 'unknown')
+    return response
+
 
 # ---------------------------------------------------------------------------
 # Database helpers and schema
 # ---------------------------------------------------------------------------
 
 
-def get_db() -> psycopg.Connection:
-  """
-  Open a new database connection.
+from contextlib import contextmanager
 
-  For this app we keep it simple and open a connection per request.
-  Railway Postgres can handle this level of traffic.
-  """
-  conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
-  return conn
+@contextmanager
+def get_db_connection():
+    conn = None
+    try:
+        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        yield conn
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception as e:
+                app.logger.error(f"Error closing connection: {e}")
+
+def get_db() -> psycopg.Connection:
+    """
+    Open a new database connection.
+
+    For this app we keep it simple and open a connection per request.
+    Railway Postgres can handle this level of traffic.
+    """
+    conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    return conn
 
 
 def init_db() -> None:
@@ -256,6 +332,67 @@ def user_to_payload(row: Dict[str, Any]) -> Dict[str, Any]:
     "preferred_language": row.get("preferred_language") or "en",
     "preferred_theme": row.get("preferred_theme") or "dark",
   }
+
+
+# ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
+
+
+def error_response(message, status_code=400):
+    return jsonify({
+        "ok": False,
+        "error": {
+            "message": message,
+            "code": status_code
+        }
+    }), status_code
+
+@app.errorhandler(404)
+def not_found(error):
+    if request.path.startswith('/api/'):
+        return error_response("Endpoint not found", 404)
+    return app.send_static_file("index.html")
+
+@app.errorhandler(500)
+def internal_error(error):
+    app.logger.error(f"Internal error: {error}")
+    return error_response("Internal server error", 500)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unhandled exception: {e}", exc_info=True)
+    return error_response("An unexpected error occurred", 500)
+
+
+# ---------------------------------------------------------------------------
+# Health check endpoint
+# ---------------------------------------------------------------------------
+
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.fetchone()
+        cur.close()
+        conn.close()
+        db_status = "connected"
+        status = "healthy"
+        status_code = 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {e}")
+        db_status = "disconnected"
+        status = "unhealthy"
+        status_code = 503
+
+    return jsonify({
+        "status": status,
+        "database": db_status,
+        "version": "2.0.0"
+    }), status_code
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 # Makefile
 # Common development tasks for In-Tuned
 
-.PHONY: help install dev test lint format typecheck security clean docker-build docker-up docker-down migrate shell
+.PHONY: help install dev test lint format typecheck security clean docker-build docker-up docker-down migrate shell run prod health
 
 # Default target
 help:
@@ -38,6 +38,8 @@ help:
 	@echo "  make shell        Open Python shell with app context"
 	@echo "  make clean        Remove cache and build files"
 	@echo "  make run          Run development server"
+	@echo "  make prod         Run production server with gunicorn"
+	@echo "  make health       Check health endpoint"
 
 # Setup targets
 install:
@@ -115,6 +117,12 @@ shell:
 
 run:
 	FLASK_ENV=development FLASK_DEBUG=1 python -m flask --app wsgi:application run --reload --port 5000
+
+prod:
+	gunicorn wsgi:application --bind 0.0.0.0:8000 --workers 4
+
+health:
+	curl http://localhost:5000/api/health
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

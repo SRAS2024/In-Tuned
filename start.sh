@@ -12,4 +12,4 @@ fi
 echo "Starting Gunicorn server..."
 
 # Railway sets PORT in the environment, default to 5000 if not set
-exec gunicorn server:app --bind 0.0.0.0:${PORT:-5000}
+exec gunicorn wsgi:application --bind 0.0.0.0:${PORT:-5000}

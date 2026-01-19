@@ -329,22 +329,48 @@ async function apiFetchJSON(path, options = {}) {
     ...options
   };
 
-  const res = await fetch(path, opts);
-  let json;
   try {
-    json = await res.json();
-  } catch (e) {
-    json = null;
-  }
+    const res = await fetch(path, opts);
+    let json;
 
-  if (!res.ok) {
-    const message =
-      (json && (json.error || json.message)) ||
-      `Request failed with status ${res.status}`;
-    throw new Error(message);
-  }
+    try {
+      json = await res.json();
+    } catch (e) {
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`);
+      }
+      json = null;
+    }
 
-  return json || {};
+    if (!res.ok) {
+      let message = `Request failed with status ${res.status}`;
+
+      if (json) {
+        if (json.error) {
+          if (typeof json.error === 'object' && json.error.message) {
+            message = json.error.message;
+          } else if (typeof json.error === 'string') {
+            message = json.error;
+          }
+        } else if (json.message) {
+          message = json.message;
+        }
+      }
+
+      throw new Error(message);
+    }
+
+    return json || {};
+
+  } catch (error) {
+    if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw error;
+  }
 }
 
 /* ---------- DOM references ---------- */
@@ -1403,12 +1429,17 @@ if (analyzeBtn && textArea) {
   analyzeBtn.addEventListener("click", async () => {
     const text = textArea.value.trim();
     if (!text) {
-      setStatus(
-        t("statusEnterText") || "Please enter some text."
-      );
+      setStatus(t("statusEnterText") || "Please enter some text.", true);
       textArea.classList.add("input-error");
       resetToZero();
       lastAnalysisSnapshot = null;
+      return;
+    }
+
+    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+    if (wordCount > 250) {
+      setStatus(`Too many words (${wordCount}/250). Please shorten your text.`, true);
+      textArea.classList.add("input-error");
       return;
     }
 
@@ -1424,31 +1455,51 @@ if (analyzeBtn && textArea) {
       region: detectRegionFromNavigator()
     };
 
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-App-Token": "5000"
-        },
-        body: JSON.stringify(payload)
-      });
+    let retryCount = 0;
+    const maxRetries = 2;
 
-      const data = await res.json();
-      if (!res.ok) {
-        const msg =
-          (data && data.error) || "Request failed";
-        throw new Error(msg);
+    const attemptAnalysis = async () => {
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-App-Token": "5000"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          const msg = (data && (data.error?.message || data.error)) || "Request failed";
+          throw new Error(msg);
+        }
+
+        applyAnalysisFromApi(data, text);
+        setStatus("Analysis complete");
+
+      } catch (err) {
+        console.error("Analysis error:", err);
+
+        if (retryCount < maxRetries &&
+            (err.message.includes('Network error') || err.message.includes('Failed to fetch'))) {
+          retryCount++;
+          setStatus(`Connection issue. Retrying (${retryCount}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          return attemptAnalysis();
+        }
+
+        const msg = err && err.message ? err.message : "Unexpected error occurred";
+        setStatus(msg, true);
+        textArea.classList.add("input-error");
+        resetToZero();
+        lastAnalysisSnapshot = null;
       }
+    };
 
-      applyAnalysisFromApi(data, text);
-    } catch (err) {
-      const msg =
-        err && err.message ? err.message : "Unexpected error";
-      setStatus(msg, true);
-      textArea.classList.add("input-error");
-      resetToZero();
-      lastAnalysisSnapshot = null;
+    try {
+      await attemptAnalysis();
     } finally {
       if (analyzeBtn) analyzeBtn.disabled = false;
     }
@@ -2857,6 +2908,26 @@ function setupResponsiveHeader() {
   applyResponsiveHeaderLayout();
   window.addEventListener("resize", applyResponsiveHeaderLayout);
 }
+
+/* ---------- Connection Status Monitoring ---------- */
+
+let isOnline = navigator.onLine;
+
+function updateConnectionStatus() {
+  const wasOnline = isOnline;
+  isOnline = navigator.onLine;
+
+  if (!isOnline && wasOnline) {
+    setStatus("No internet connection. Please check your network.", true);
+  } else if (isOnline && !wasOnline) {
+    setStatus("Connection restored", false);
+    loadSiteState();
+    fetchCurrentUser();
+  }
+}
+
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
 
 /* ---------- Initial setup ---------- */
 

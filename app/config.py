@@ -168,10 +168,10 @@ class BaseConfig:
         # Database URL - required
         self.DATABASE_URL = os.environ.get("DATABASE_URL", "")
         if not self.DATABASE_URL:
-            raise ConfigurationError(
-                "DATABASE_URL environment variable is not set. "
-                "Set it in Railway to the provided Postgres connection URL."
-            )
+            if os.environ.get("FLASK_ENV") == "production":
+                raise ConfigurationError("DATABASE_URL required in production")
+            self.DATABASE_URL = "sqlite:///intuned_dev.db"
+            print("WARNING: Using SQLite for development")
 
         # Secret key - use env var if set, otherwise use default
         self.SECRET_KEY = os.environ.get("SECRET_KEY", self.SECRET_KEY)
