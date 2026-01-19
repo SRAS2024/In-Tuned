@@ -224,33 +224,78 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(400)
     def handle_bad_request(error):
         """Handle 400 Bad Request errors."""
+        # Try to get a more specific error message from the werkzeug exception
+        description = getattr(error, "description", None)
+
+        # Check if this is a CSRF error
+        error_str = str(error).lower()
+        if "csrf" in error_str:
+            return jsonify({
+                "ok": False,
+                "error": {
+                    "code": "CSRF_ERROR",
+                    "message": "CSRF validation failed. Please refresh the page and try again.",
+                    "details": {"reason": "csrf_token_missing_or_invalid"},
+                },
+            }), 400
+
+        # Check for common validation issues
+        if description:
+            return jsonify({
+                "ok": False,
+                "error": {
+                    "code": ErrorCode.INVALID_INPUT,
+                    "message": str(description),
+                },
+            }), 400
+
         return jsonify({
             "ok": False,
             "error": {
                 "code": ErrorCode.INVALID_INPUT,
-                "message": "Bad request",
+                "message": "Bad request - invalid or malformed request data",
             },
         }), 400
 
     @app.errorhandler(401)
     def handle_unauthorized(error):
         """Handle 401 Unauthorized errors."""
+        description = getattr(error, "description", None)
+        message = str(description) if description else "Authentication required"
+
         return jsonify({
             "ok": False,
             "error": {
                 "code": ErrorCode.AUTH_REQUIRED,
-                "message": "Authentication required",
+                "message": message,
             },
         }), 401
 
     @app.errorhandler(403)
     def handle_forbidden(error):
         """Handle 403 Forbidden errors."""
+        # Try to get more context about why access was denied
+        description = getattr(error, "description", None)
+        error_str = str(error).lower()
+
+        # Check if this is a CSRF error (Flask-WTF can return 403 for CSRF)
+        if "csrf" in error_str:
+            return jsonify({
+                "ok": False,
+                "error": {
+                    "code": "CSRF_ERROR",
+                    "message": "CSRF validation failed. Please refresh the page and try again.",
+                    "details": {"reason": "csrf_token_invalid"},
+                },
+            }), 403
+
+        message = str(description) if description else "Permission denied"
+
         return jsonify({
             "ok": False,
             "error": {
                 "code": ErrorCode.PERMISSION_DENIED,
-                "message": "Permission denied",
+                "message": message,
             },
         }), 403
 

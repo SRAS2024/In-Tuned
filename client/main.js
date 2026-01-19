@@ -1462,21 +1462,47 @@ if (analyzeBtn && textArea) {
       try {
         const res = await fetch("/api/analyze", {
           method: "POST",
+          credentials: "same-origin",
           headers: {
             "Content-Type": "application/json",
+            "Accept": "application/json",
             "X-App-Token": "5000"
           },
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          const msg = (data && (data.error?.message || data.error)) || "Request failed";
-          throw new Error(msg);
+        let responseData;
+        try {
+          responseData = await res.json();
+        } catch (parseErr) {
+          console.error("Failed to parse response JSON:", parseErr);
+          throw new Error("Invalid response from server");
         }
 
-        applyAnalysisFromApi(data, text);
+        if (!res.ok) {
+          // Extract error message from standardized error response
+          const errMsg = responseData?.error?.message
+            || responseData?.error
+            || responseData?.message
+            || `Request failed with status ${res.status}`;
+          const err = new Error(errMsg);
+          err.code = responseData?.error?.code || "UNKNOWN_ERROR";
+          err.status = res.status;
+          throw err;
+        }
+
+        // Handle both response shapes for safety:
+        // Shape 1: { ok: true, data: { analysis, results, coreMixture, ... } }
+        // Shape 2: { analysis, results, coreMixture, ... } (direct)
+        const analysisData = responseData.data || responseData;
+
+        // Validate we have the expected structure
+        if (!analysisData || typeof analysisData !== "object") {
+          console.error("Unexpected response structure:", responseData);
+          throw new Error("Invalid response structure from server");
+        }
+
+        applyAnalysisFromApi(analysisData, text);
         setStatus("Analysis complete");
 
       } catch (err) {

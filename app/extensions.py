@@ -25,6 +25,42 @@ def init_extensions(app: Flask) -> None:
     # Initialize CSRF protection
     csrf.init_app(app)
 
+    # Exempt JSON API routes from CSRF protection
+    # CSRF is designed for browser form submissions, not for JSON APIs
+    # JSON APIs are protected by same-origin policy and Content-Type headers
+    _setup_csrf_exemptions(app)
+
+
+def _setup_csrf_exemptions(app: Flask) -> None:
+    """
+    Configure CSRF exemptions for JSON API endpoints.
+
+    Best practice: Keep CSRF for browser form posts, exempt /api/* JSON routes.
+    JSON APIs are protected by:
+    - Same-origin policy (browser enforced)
+    - Content-Type: application/json requirement
+    - Session cookies with SameSite attribute
+    """
+    from app.blueprints.detector import detector_bp
+    from app.blueprints.auth import auth_bp
+    from app.blueprints.entries import entries_bp
+    from app.blueprints.feedback import feedback_bp
+    from app.blueprints.users import users_bp
+    from app.blueprints.admin import admin_bp
+    from app.blueprints.lexicon import lexicon_bp
+    from app.blueprints.analytics import bp as analytics_bp
+
+    # Exempt all API blueprints from CSRF
+    # These endpoints accept JSON and are protected by session cookies + SameSite
+    csrf.exempt(detector_bp)
+    csrf.exempt(auth_bp)
+    csrf.exempt(entries_bp)
+    csrf.exempt(feedback_bp)
+    csrf.exempt(users_bp)
+    csrf.exempt(admin_bp)
+    csrf.exempt(lexicon_bp)
+    csrf.exempt(analytics_bp)
+
     # Register database connection management
     init_db_connection(app)
 
