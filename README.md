@@ -76,6 +76,21 @@ In-Tuned is a Flask-based web application that helps users:
    - Web UI: http://localhost:5000
    - Admin panel: http://localhost:5000/admin
 
+### Important: Server Architecture
+
+This project uses the modular blueprint approach (wsgi:application).
+
+**Starting the server:**
+```bash
+# Development
+flask --app wsgi:application run --debug
+
+# Production
+gunicorn wsgi:application --bind 0.0.0.0:8000
+```
+
+**Note**: The legacy server.py file is deprecated. Use wsgi:application instead.
+
 ### Using Docker
 
 ```bash
