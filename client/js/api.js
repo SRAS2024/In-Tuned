@@ -135,8 +135,24 @@ const API = (function() {
 
   // Detector endpoints
   const detector = {
-    analyze: (text, language = 'en') =>
-      post('/api/analyze', { text, language })
+    /**
+     * Analyze text for emotional content
+     * @param {string} text - The text to analyze
+     * @param {string} locale - Language locale (en, es, pt)
+     * @param {string} region - Geographic region for hotline info
+     * @returns {Promise<Object>} Analysis data (unwrapped from { ok, data } wrapper)
+     */
+    analyze: async (text, locale = 'en', region = null) => {
+      const payload = { text, locale };
+      if (region) payload.region = region;
+
+      const response = await post('/api/analyze', payload);
+
+      // Handle both response shapes:
+      // Shape 1: { ok: true, data: {...} }
+      // Shape 2: { analysis: [...], results: {...}, ... }
+      return response.data || response;
+    }
   };
 
   // Site endpoints
