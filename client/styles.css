@@ -945,7 +945,19 @@ textarea.input-error {
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+
+  /* Allow scrolling when modal content is taller than the viewport */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+
+  /* Keep buttons reachable above iOS safe areas */
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: 1rem;
+
   z-index: 40;
 }
 .overlay.show {
@@ -959,6 +971,13 @@ textarea.input-error {
   border-radius: 18px;
   box-shadow: var(--shadow);
   padding: 1.35rem 1.35rem 1.1rem;
+
+  /* Make the modal itself scroll if needed */
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 @media (min-width: 1200px) {
   .modal {
@@ -1796,6 +1815,9 @@ textarea.input-error {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+
+  /* Keep this modal controlled by its internal scroll area */
+  overflow: hidden;
 }
 
 .feedbackViewHeader {
