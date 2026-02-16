@@ -54,13 +54,13 @@ def validate_text(text, max_words=250, field_name="text"):
 # Configuration
 # ---------------------------------------------------------------------------
 
-# Admin credentials (for /admin portal and admin APIs)
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "Ryan Simonds")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Santidade")
-DEV_PASSWORD = os.environ.get("DEV_PASSWORD", "Meu Amor Maria")
+# Admin credentials – read from environment variables only; no hardcoded defaults
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+DEV_PASSWORD = os.environ.get("DEV_PASSWORD", "")
 
-if ADMIN_PASSWORD == "default-change-me":
-    print("WARNING: Using default ADMIN_PASSWORD. Set environment variable!")
+if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+    print("WARNING: ADMIN_USERNAME and/or ADMIN_PASSWORD environment variables are not set. Admin login will be denied.")
 
 # Database URL (set this in Railway as an env var, typically using
 # the Postgres.DATABASE_URL value)
@@ -517,9 +517,13 @@ def api_admin_login() -> object:
   username = data.get("username") or ""
   password = data.get("password") or ""
 
+  if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+    print("WARNING: Admin login attempt but ADMIN_USERNAME/ADMIN_PASSWORD environment variables are not set.")
+    return jsonify({"ok": False, "error": "Admin authentication not configured"}), 500
+
   if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
     session["is_admin"] = True
-    return jsonify({"ok": True, "message": "Welcome, Ryan!"})
+    return jsonify({"ok": True, "message": "Welcome, Admin!"})
   session["is_admin"] = False
   return jsonify({"ok": False, "error": "Not authorized"}), 401
 
