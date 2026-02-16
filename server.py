@@ -352,6 +352,12 @@ def error_response(message, status_code=400):
 def not_found(error):
     if request.path.startswith('/api/'):
         return error_response("Endpoint not found", 404)
+    # If the path looks like a static file (has a file extension),
+    # return a real 404 so verification files, missing assets, etc.
+    # are not silently replaced by the SPA shell.
+    _, ext = os.path.splitext(request.path)
+    if ext:
+        return error_response("File not found", 404)
     return app.send_static_file("index.html")
 
 @app.errorhandler(500)

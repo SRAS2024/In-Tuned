@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+import os
+
 from flask import Flask, jsonify, request, g
 
 
@@ -312,7 +314,20 @@ def register_error_handlers(app: Flask) -> None:
                 },
             }), 404
 
-        # For non-API requests, serve the SPA
+        # If the path looks like a static file (has a file extension),
+        # return a real 404 so verification files, missing assets, etc.
+        # are not silently replaced by the SPA shell.
+        _, ext = os.path.splitext(request.path)
+        if ext:
+            return jsonify({
+                "ok": False,
+                "error": {
+                    "code": ErrorCode.NOT_FOUND,
+                    "message": "File not found",
+                },
+            }), 404
+
+        # For non-API, non-file requests, serve the SPA
         return app.send_static_file("index.html")
 
     @app.errorhandler(405)
