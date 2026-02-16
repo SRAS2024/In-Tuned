@@ -78,6 +78,7 @@ class BaseConfig:
     # Application
     APP_NAME: str = "In-Tuned"
     APP_VERSION: str = "2.0.0"
+    SITE_URL: str = ""
 
     # Secret key - defaults for development, should override in production
     SECRET_KEY: str = "change-me-in-production"
@@ -137,10 +138,10 @@ class BaseConfig:
     API_PAGINATION_DEFAULT: int = 20
     API_PAGINATION_MAX: int = 100
 
-    # Admin credentials
-    ADMIN_USERNAME: str = "Ryan Simonds"
-    ADMIN_PASSWORD: str = "Santidade"
-    DEV_PASSWORD: str = "Meu Amor Maria"
+    # Admin credentials – read exclusively from environment variables; no defaults
+    ADMIN_USERNAME: str = ""
+    ADMIN_PASSWORD: str = ""
+    DEV_PASSWORD: str = ""
 
     # CORS
     CORS_ORIGINS: List[str] = []
@@ -201,10 +202,13 @@ class BaseConfig:
         # Secret key
         self.SECRET_KEY = os.environ.get("SECRET_KEY", self.SECRET_KEY)
 
-        # Admin credentials
-        self.ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", self.ADMIN_USERNAME)
-        self.ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", self.ADMIN_PASSWORD)
-        self.DEV_PASSWORD = os.environ.get("DEV_PASSWORD", self.DEV_PASSWORD)
+        # Admin credentials – must come from environment, no fallback
+        self.ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "")
+        self.ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+        self.DEV_PASSWORD = os.environ.get("DEV_PASSWORD", "")
+
+        # Site URL
+        self.SITE_URL = get_optional_env("SITE_URL", self.SITE_URL)
 
         # Optional overrides
         self.LOG_LEVEL = get_optional_env("LOG_LEVEL", self.LOG_LEVEL)

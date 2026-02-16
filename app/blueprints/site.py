@@ -10,7 +10,9 @@ Handles site-wide functionality:
 
 from __future__ import annotations
 
-from flask import Blueprint, current_app, g
+from datetime import datetime, timezone
+
+from flask import Blueprint, current_app, g, Response, request
 
 from app.db.repositories.site_repository import SiteRepository
 from app.db.connection import check_database_health
@@ -85,4 +87,42 @@ def get_version():
             "version": current_app.config.get("APP_VERSION", "2.0.0"),
             "environment": current_app.config.get("ENV", "unknown"),
         }
+    )
+
+
+@site_bp.route("/sitemap.xml", methods=["GET"])
+def sitemap():
+    """
+    Generate an XML sitemap including all public, indexable pages.
+    Excludes all admin routes and API endpoints.
+    """
+    base_url = current_app.config.get(
+        "SITE_URL", request.url_root.rstrip("/")
+    )
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Public indexable pages only (no /admin, no /api/*)
+    public_pages = [
+        {"loc": "/", "changefreq": "daily", "priority": "1.0"},
+    ]
+
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+
+    for page in public_pages:
+        lines.append("  <url>")
+        lines.append(f"    <loc>{base_url}{page['loc']}</loc>")
+        lines.append(f"    <lastmod>{now}</lastmod>")
+        lines.append(f"    <changefreq>{page['changefreq']}</changefreq>")
+        lines.append(f"    <priority>{page['priority']}</priority>")
+        lines.append("  </url>")
+
+    lines.append("</urlset>")
+
+    return Response(
+        "\n".join(lines),
+        mimetype="application/xml",
+        headers={"Content-Type": "application/xml; charset=utf-8"},
     )
