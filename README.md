@@ -2,7 +2,7 @@
 
 **Multi-lingual emotion detection and journaling platform for enhanced self-awareness and mental well-being.**
 
-**Live Demo**: [https://intuned.up.railway.app](https://intuned.up.railway.app)
+**Live Site**: [https://intunedreflection.com](https://intunedreflection.com)
 
 ---
 
@@ -31,7 +31,7 @@ In-Tuned is a Flask-based web application that analyzes emotions in text across 
 
 The platform also includes built-in safety features that detect crisis-related language and surface region-specific helpline resources when needed.
 
-**Try it now**: [https://intuned.up.railway.app](https://intuned.up.railway.app)
+**Try it now**: [https://intunedreflection.com](https://intunedreflection.com)
 
 ---
 
@@ -409,7 +409,7 @@ make db-reset      # Reset database (DESTRUCTIVE)
 
 ## Deployment
 
-In-Tuned is deployed on [Railway](https://railway.app) at [https://intuned.up.railway.app](https://intuned.up.railway.app).
+In-Tuned is deployed on [Railway](https://railway.app) at [https://intunedreflection.com](https://intunedreflection.com).
 
 ### Production Checklist
 
