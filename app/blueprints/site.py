@@ -90,6 +90,29 @@ def get_version():
     )
 
 
+@site_bp.route("/robots.txt", methods=["GET"])
+def robots_txt():
+    """Serve a robots.txt that allows crawling of public pages."""
+    base_url = current_app.config.get(
+        "SITE_URL", request.url_root.rstrip("/")
+    )
+
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /admin",
+        "",
+        f"Sitemap: {base_url}/sitemap.xml",
+    ]
+
+    return Response(
+        "\n".join(lines),
+        mimetype="text/plain",
+        headers={"Content-Type": "text/plain; charset=utf-8"},
+    )
+
+
 @site_bp.route("/sitemap.xml", methods=["GET"])
 def sitemap():
     """
