@@ -630,6 +630,9 @@
             type="password"
             autocomplete="new-password"
           />
+          <span class="fieldHint">
+            At least 8 characters with uppercase, lowercase, and a number
+          </span>
 
           <label class="fieldLabel" for="registerConfirmPassword">
             Re enter password
@@ -1071,6 +1074,86 @@
             </button>
           </div>
         </form>
+
+        <div class="settingsDangerZone">
+          <button
+            id="openDeleteAccount"
+            type="button"
+            class="deleteAccountBtn"
+          >
+            Delete account
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete account confirmation overlay -->
+    <div
+      id="deleteAccountOverlay"
+      class="overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="deleteAccountTitle"
+    >
+      <div class="modal authModal">
+        <h2 id="deleteAccountTitle" class="deleteAccountTitle">
+          Delete account
+        </h2>
+        <p class="deleteAccountWarning">
+          This action is permanent. Your account and all associated data
+          including journal entries will be permanently deleted and cannot
+          be recovered.
+        </p>
+
+        <div class="deleteAccountForm">
+          <label class="fieldLabel" for="deleteAccountPassword">
+            Enter your password to confirm
+          </label>
+          <input
+            id="deleteAccountPassword"
+            class="fieldInput"
+            type="password"
+            autocomplete="current-password"
+          />
+
+          <label class="checkboxLabel">
+            <input
+              id="deleteConfirmSure"
+              type="checkbox"
+              class="checkboxInput"
+            />
+            <span>Are you sure you want to delete your account?</span>
+          </label>
+
+          <label class="checkboxLabel">
+            <input
+              id="deleteConfirmUnderstand"
+              type="checkbox"
+              class="checkboxInput"
+            />
+            <span>I understand all account data will be deleted</span>
+          </label>
+
+          <p id="deleteAccountError" class="errorText hidden"></p>
+
+          <div class="actionsRow">
+            <button
+              id="cancelDeleteAccount"
+              type="button"
+              class="ghost"
+            >
+              Cancel
+            </button>
+            <button
+              id="confirmDeleteAccount"
+              type="button"
+              class="btn dangerBtn"
+              disabled
+            >
+              Delete account
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
