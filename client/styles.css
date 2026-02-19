@@ -1282,6 +1282,13 @@ textarea.input-error {
   font-size: 0.86rem;
   color: #f97373;
 }
+.fieldHint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
 
 .authLinksRow {
   display: flex;
@@ -1346,6 +1353,88 @@ textarea.input-error {
 .accountSettingsLabel {
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+/* Delete account danger zone */
+
+.settingsDangerZone {
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
+}
+.deleteAccountBtn {
+  appearance: none;
+  border: none;
+  background: none;
+  color: #f97373;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  transition: color 0.15s;
+}
+.deleteAccountBtn:hover {
+  color: #ef4444;
+}
+.deleteAccountTitle {
+  color: #f97373;
+}
+.deleteAccountWarning {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+  line-height: 1.5;
+}
+.deleteAccountForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0.5rem 0;
+  line-height: 1.4;
+}
+.checkboxInput {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+  position: relative;
+  margin-top: 1px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.checkboxInput:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.checkboxInput:checked::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.deleteAccountForm .actionsRow {
+  margin-top: 1rem;
+}
+.btn.dangerBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
 }
 
 /* Journal overlay */

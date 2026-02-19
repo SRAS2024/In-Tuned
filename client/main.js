@@ -1154,6 +1154,16 @@ const accountSettingsError = $("accountSettingsError");
 const cancelAccountSettingsBtn = $("cancelAccountSettings");
 const saveAccountSettingsBtn = $("saveAccountSettings");
 
+/* Delete account overlay */
+const openDeleteAccountBtn = $("openDeleteAccount");
+const deleteAccountOverlay = $("deleteAccountOverlay");
+const deleteAccountPassword = $("deleteAccountPassword");
+const deleteConfirmSure = $("deleteConfirmSure");
+const deleteConfirmUnderstand = $("deleteConfirmUnderstand");
+const deleteAccountError = $("deleteAccountError");
+const cancelDeleteAccountBtn = $("cancelDeleteAccount");
+const confirmDeleteAccountBtn = $("confirmDeleteAccount");
+
 /* Journal overlay and controls */
 const addJournalButton = $("addJournalButton");
 const addJournalHint = $("addJournalHint");
@@ -2243,12 +2253,13 @@ async function loadSiteState() {
       method: "GET"
     });
 
-    const maintenance = !!data.maintenance_mode;
+    const siteState = data.data || data;
+    const maintenance = !!siteState.maintenance_mode;
     const message =
-      data.maintenance_message ||
+      siteState.maintenance_message ||
       t("maintenanceMessage") ||
       "Site is currently down due to maintenance. We will be back shortly.";
-    const notice = data.notice;
+    const notice = siteState.notice;
 
     if (maintenance) {
       if (maintenanceShell) {
@@ -2297,20 +2308,26 @@ function hideAllAuthOverlays() {
   if (authOverlayLogin) authOverlayLogin.classList.remove("show");
   if (authOverlayRegister) authOverlayRegister.classList.remove("show");
   if (authOverlayForgot) authOverlayForgot.classList.remove("show");
+  if (deleteAccountOverlay) deleteAccountOverlay.classList.remove("show");
+  if (accountSettingsOverlay) accountSettingsOverlay.classList.remove("show");
 }
 
 function openLoginOverlay() {
   hideAllAuthOverlays();
   if (authOverlayLogin) authOverlayLogin.classList.add("show");
+  if (loginIdentifierInput) loginIdentifierInput.value = "";
+  if (loginPasswordInput) loginPasswordInput.value = "";
   if (loginError) {
     loginError.textContent = "";
     loginError.classList.add("hidden");
+    loginError.style.color = "";
   }
 }
 
 function openRegisterOverlay() {
   hideAllAuthOverlays();
   if (authOverlayRegister) authOverlayRegister.classList.add("show");
+  if (registerForm) registerForm.reset();
   if (registerError) {
     registerError.textContent = "";
     registerError.classList.add("hidden");
@@ -2391,7 +2408,8 @@ async function fetchCurrentUser() {
     const data = await apiFetchJSON("/api/auth/me", {
       method: "GET"
     });
-    currentUser = data.user || null;
+    const payload = data.data || data;
+    currentUser = payload.user || null;
   } catch (e) {
     currentUser = null;
   }
@@ -2450,7 +2468,8 @@ if (loginForm) {
         method: "POST",
         body: JSON.stringify({ identifier, password })
       });
-      currentUser = data.user || null;
+      const loginPayload = data.data || data;
+      currentUser = loginPayload.user || null;
       hideAllAuthOverlays();
       applyUserState();
     } catch (err) {
@@ -2522,7 +2541,9 @@ if (registerForm) {
           password
         })
       });
-      currentUser = data.user || null;
+      const regPayload = data.data || data;
+      currentUser = regPayload.user || null;
+      if (registerForm) registerForm.reset();
       hideAllAuthOverlays();
       applyUserState();
     } catch (err) {
@@ -2634,6 +2655,14 @@ if (forgotForm) {
       });
       hideAllAuthOverlays();
       openLoginOverlay();
+      if (loginError) {
+        loginError.textContent = "Password reset successful. Please log in.";
+        loginError.classList.remove("hidden");
+        loginError.style.color = "var(--accent)";
+        setTimeout(() => {
+          loginError.style.color = "";
+        }, 5000);
+      }
     } catch (err) {
       if (forgotError) {
         forgotError.textContent =
@@ -2815,7 +2844,8 @@ if (accountSettingsForm) {
           preferred_theme
         })
       });
-      currentUser = data.user || currentUser;
+      const settingsPayload = data.data || data;
+      currentUser = settingsPayload.user || currentUser;
       applyUserTheme(currentUser.preferred_theme || null);
       setLocale(currentUser.preferred_language || currentLocale, {
         persist: false
@@ -2834,6 +2864,101 @@ if (accountSettingsForm) {
     } finally {
       if (saveAccountSettingsBtn)
         saveAccountSettingsBtn.disabled = false;
+    }
+  });
+}
+
+/* ---------- Delete account ---------- */
+
+function openDeleteAccountOverlay() {
+  closeAccountSettingsOverlay(false);
+  if (deleteAccountOverlay) deleteAccountOverlay.classList.add("show");
+  if (deleteAccountPassword) deleteAccountPassword.value = "";
+  if (deleteConfirmSure) deleteConfirmSure.checked = false;
+  if (deleteConfirmUnderstand) deleteConfirmUnderstand.checked = false;
+  if (deleteAccountError) {
+    deleteAccountError.textContent = "";
+    deleteAccountError.classList.add("hidden");
+  }
+  updateDeleteButtonState();
+}
+
+function closeDeleteAccountOverlay() {
+  if (deleteAccountOverlay) deleteAccountOverlay.classList.remove("show");
+}
+
+function updateDeleteButtonState() {
+  if (!confirmDeleteAccountBtn) return;
+  const passwordFilled = deleteAccountPassword && deleteAccountPassword.value.length > 0;
+  const sureChecked = deleteConfirmSure && deleteConfirmSure.checked;
+  const understandChecked = deleteConfirmUnderstand && deleteConfirmUnderstand.checked;
+  confirmDeleteAccountBtn.disabled = !(passwordFilled && sureChecked && understandChecked);
+}
+
+if (openDeleteAccountBtn) {
+  openDeleteAccountBtn.addEventListener("click", () => {
+    openDeleteAccountOverlay();
+  });
+}
+
+if (cancelDeleteAccountBtn) {
+  cancelDeleteAccountBtn.addEventListener("click", () => {
+    closeDeleteAccountOverlay();
+  });
+}
+
+if (deleteAccountOverlay) {
+  deleteAccountOverlay.addEventListener("click", (e) => {
+    if (e.target === deleteAccountOverlay) {
+      closeDeleteAccountOverlay();
+    }
+  });
+}
+
+if (deleteConfirmSure) {
+  deleteConfirmSure.addEventListener("change", updateDeleteButtonState);
+}
+if (deleteConfirmUnderstand) {
+  deleteConfirmUnderstand.addEventListener("change", updateDeleteButtonState);
+}
+if (deleteAccountPassword) {
+  deleteAccountPassword.addEventListener("input", updateDeleteButtonState);
+}
+
+if (confirmDeleteAccountBtn) {
+  confirmDeleteAccountBtn.addEventListener("click", async () => {
+    if (!currentUser) return;
+    const password = deleteAccountPassword ? deleteAccountPassword.value : "";
+
+    if (!password) {
+      if (deleteAccountError) {
+        deleteAccountError.textContent = "Password is required.";
+        deleteAccountError.classList.remove("hidden");
+      }
+      return;
+    }
+
+    confirmDeleteAccountBtn.disabled = true;
+
+    try {
+      await apiFetchJSON("/api/users/account", {
+        method: "DELETE",
+        body: JSON.stringify({
+          password: password,
+          confirmation: "DELETE"
+        })
+      });
+      currentUser = null;
+      closeDeleteAccountOverlay();
+      hideAllAuthOverlays();
+      applyUserState();
+    } catch (err) {
+      if (deleteAccountError) {
+        deleteAccountError.textContent =
+          err.message || "Unable to delete account.";
+        deleteAccountError.classList.remove("hidden");
+      }
+      updateDeleteButtonState();
     }
   });
 }
@@ -2889,7 +3014,7 @@ async function loadJournals() {
     const data = await apiFetchJSON("/api/journals", {
       method: "GET"
     });
-    journals = data.journals || [];
+    journals = data.data || data.journals || [];
     renderJournalLists();
   } catch (err) {
   }
@@ -2968,7 +3093,8 @@ async function openJournalDetail(journalId) {
     const data = await apiFetchJSON(`/api/journals/${journalId}`, {
       method: "GET"
     });
-    const journal = data.journal;
+    const journalPayload = data.data || data;
+    const journal = journalPayload.journal;
     currentJournal = journal;
     isEditingJournal = false;
     isCreatingJournal = false;
@@ -3104,7 +3230,8 @@ if (journalPinToggleButton) {
           body: JSON.stringify({ is_pinned: nextPinned })
         }
       );
-      currentJournal = data.journal || currentJournal;
+      const pinPayload = data.data || data;
+      currentJournal = pinPayload.journal || currentJournal;
       if (journalPinToggleButton) {
         journalPinToggleButton.textContent = currentJournal.is_pinned
           ? t("journalUnpin") || "Unpin"
@@ -3190,7 +3317,8 @@ if (saveJournalEditBtn) {
           })
         }
       );
-      currentJournal = data.journal || currentJournal;
+      const updatePayload = data.data || data;
+      currentJournal = updatePayload.journal || currentJournal;
       journalDetailText.disabled = true;
       isEditingJournal = false;
       isCreatingJournal = false;
