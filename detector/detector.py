@@ -591,6 +591,76 @@ _register_words(
     1.7,
 )
 
+# Implicit emotion words for opinion and perspective-based writing (EN)
+_register_words(
+    "en",
+    "sadness",
+    [
+        "disappeared", "vanished", "abandoned", "neglected",
+        "betrayed", "ignored", "forgotten", "rejected",
+        "excluded", "sidelined", "ditched", "ghosted",
+    ],
+    1.4,
+)
+_register_words(
+    "en",
+    "anger",
+    [
+        "disrespectful", "disrespected", "unfair", "unjust",
+        "selfish", "rude", "unacceptable", "manipulative",
+        "hypocritical", "hypocrite", "liar", "backstabber",
+        "ungrateful", "inconsiderate", "arrogant",
+    ],
+    1.6,
+)
+_register_words(
+    "en",
+    "sadness",
+    [
+        "unappreciated", "undervalued", "overlooked", "invisible",
+        "unseen", "unheard", "unwanted", "worthless",
+        "replaceable", "disposable",
+    ],
+    1.5,
+)
+_register_words(
+    "en",
+    "fear",
+    [
+        "uncertain", "insecure", "doubtful", "hesitant",
+        "uneasy", "vulnerable", "exposed", "helpless",
+    ],
+    1.3,
+)
+_register_words(
+    "en",
+    "joy",
+    [
+        "thankful", "appreciate", "appreciated", "appreciative",
+        "thanks", "thank", "supportive", "uplifting",
+        "encouraging", "empowering", "rewarding",
+    ],
+    1.3,
+)
+_register_words(
+    "en",
+    "surprise",
+    [
+        "unexpected", "unbelievable", "mindblowing", "speechless",
+        "stunned", "astonished", "baffled", "bewildered",
+    ],
+    1.5,
+)
+_register_words(
+    "en",
+    "disgust",
+    [
+        "pathetic", "shameful", "deplorable", "despicable",
+        "contempt", "contemptuous", "vile",
+    ],
+    1.5,
+)
+
 # Small EN affirmations for 1 to 2 word inputs (low weight)
 _register_words(
     "en",
@@ -1500,6 +1570,137 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "ela está em um lugar melhor": _vec(sadness=2.4, joy=1.4),
     "ela esta em um lugar melhor": _vec(sadness=2.4, joy=1.4),
     "sentimento agridoce": _vec(sadness=2.2, joy=1.4),
+    # Opinion-based and perspective phrases (English)
+    "it bothers me": _vec(anger=1.8, sadness=1.0),
+    "it bothers me that": _vec(anger=1.8, sadness=1.0),
+    "it bugs me": _vec(anger=1.5, sadness=0.8),
+    "it annoys me": _vec(anger=1.8, disgust=0.6),
+    "it frustrates me": _vec(anger=1.8, sadness=1.0),
+    "it hurts me": _vec(sadness=2.2, anger=0.6),
+    "it worries me": _vec(fear=2.0, sadness=0.8),
+    "it scares me": _vec(fear=2.2, sadness=0.6),
+    "it disgusts me": _vec(disgust=2.2, anger=0.8),
+    "it kills me": _vec(sadness=2.0, anger=0.8),
+    "it breaks my heart": _vec(sadness=2.8, passion=0.6),
+    "it makes me sick": _vec(disgust=2.0, anger=1.0),
+    "it makes me sad": _vec(sadness=2.2),
+    "it makes me happy": _vec(joy=2.2),
+    "it makes me angry": _vec(anger=2.2),
+    "it makes me nervous": _vec(fear=2.0, sadness=0.6),
+    "it makes me uncomfortable": _vec(fear=1.6, disgust=1.0),
+    "i can not stand": _vec(anger=2.0, disgust=1.2),
+    "i cant stand": _vec(anger=2.0, disgust=1.2),
+    "i can't stand": _vec(anger=2.0, disgust=1.2),
+    "i am sick of": _vec(anger=1.8, disgust=1.4),
+    "im sick of": _vec(anger=1.8, disgust=1.4),
+    "i am tired of": _vec(anger=1.4, sadness=1.6),
+    "im tired of": _vec(anger=1.4, sadness=1.6),
+    "i am so done with": _vec(anger=2.0, sadness=1.2, disgust=0.6),
+    "im so done with": _vec(anger=2.0, sadness=1.2, disgust=0.6),
+    "i do not understand why": _vec(anger=1.0, sadness=1.2, surprise=0.8),
+    "i dont understand why": _vec(anger=1.0, sadness=1.2, surprise=0.8),
+    "what really gets me": _vec(anger=1.8, sadness=0.6),
+    "what gets me is": _vec(anger=1.8, sadness=0.6),
+    "the part that hurts": _vec(sadness=2.2, anger=0.6),
+    "the worst part is": _vec(sadness=2.0, anger=1.0),
+    "the hardest part is": _vec(sadness=2.0, fear=0.6),
+    "i wish i could": _vec(sadness=1.8, passion=0.6),
+    "i wish i had": _vec(sadness=1.8),
+    "i wish things were different": _vec(sadness=2.2),
+    "if only": _vec(sadness=1.6, passion=0.4),
+    "it means a lot to me": _vec(joy=1.8, passion=1.0),
+    "it means the world to me": _vec(joy=2.0, passion=1.2),
+    "that meant a lot": _vec(joy=1.6, passion=0.8),
+    "i appreciate that": _vec(joy=1.6),
+    "i did not expect": _vec(surprise=2.0),
+    "i didnt expect": _vec(surprise=2.0),
+    "i never expected": _vec(surprise=2.2),
+    "it caught me off guard": _vec(surprise=2.0, fear=0.6),
+    "i was not ready for": _vec(surprise=1.8, fear=0.8),
+    # Indirect opinion expressions
+    "looking back": _vec(sadness=0.8),
+    "in hindsight": _vec(sadness=0.8),
+    "i should have": _vec(sadness=1.4),
+    "i shouldnt have": _vec(sadness=1.4),
+    "i shouldn't have": _vec(sadness=1.4),
+    "i could have done better": _vec(sadness=1.6),
+    "i let them down": _vec(sadness=2.0, anger=0.6),
+    "i let myself down": _vec(sadness=2.0, anger=0.8),
+    "they let me down": _vec(sadness=2.0, anger=1.0),
+    "i trusted them": _vec(sadness=1.8, anger=1.0),
+    "i thought they cared": _vec(sadness=2.0, anger=0.8),
+    "i thought we were friends": _vec(sadness=2.2, anger=0.8),
+    "i thought things would be different": _vec(sadness=2.0),
+    "nobody cares": _vec(sadness=2.4, anger=0.6),
+    "no one cares": _vec(sadness=2.4, anger=0.6),
+    "no one understands": _vec(sadness=2.2, anger=0.6),
+    "nobody understands": _vec(sadness=2.2, anger=0.6),
+    "no one listens": _vec(sadness=2.0, anger=1.0),
+    "nobody listens": _vec(sadness=2.0, anger=1.0),
+    # Spanish opinion/perspective phrases
+    "me molesta que": _vec(anger=1.8, sadness=0.8),
+    "me molesta": _vec(anger=1.6, sadness=0.6),
+    "me preocupa": _vec(fear=1.8, sadness=0.6),
+    "me preocupa que": _vec(fear=2.0, sadness=0.6),
+    "me da miedo que": _vec(fear=2.0),
+    "me da rabia que": _vec(anger=2.0),
+    "me duele que": _vec(sadness=2.2),
+    "me frustra": _vec(anger=1.6, sadness=1.0),
+    "lo peor es que": _vec(sadness=2.0, anger=0.8),
+    "lo que mas me duele": _vec(sadness=2.4),
+    "lo que mas me molesta": _vec(anger=2.0, sadness=0.6),
+    "no entiendo por que": _vec(anger=1.0, sadness=1.0, surprise=0.6),
+    "ojala pudiera": _vec(sadness=1.8, passion=0.6),
+    "nadie me entiende": _vec(sadness=2.2, anger=0.6),
+    "nadie me escucha": _vec(sadness=2.0, anger=1.0),
+    # Portuguese opinion/perspective phrases
+    "me incomoda que": _vec(anger=1.6, sadness=0.8),
+    "me incomoda": _vec(anger=1.4, sadness=0.6),
+    "me preocupa que": _vec(fear=2.0, sadness=0.6),
+    "me doi que": _vec(sadness=2.2),
+    "me doi": _vec(sadness=2.0),
+    "me frustra": _vec(anger=1.6, sadness=1.0),
+    "o pior e que": _vec(sadness=2.0, anger=0.8),
+    "o que mais me doi": _vec(sadness=2.4),
+    "o que mais me incomoda": _vec(anger=2.0, sadness=0.6),
+    "nao entendo por que": _vec(anger=1.0, sadness=1.0, surprise=0.6),
+    "ninguem me entende": _vec(sadness=2.2, anger=0.6),
+    "ninguem me ouve": _vec(sadness=2.0, anger=1.0),
+    "queria poder": _vec(sadness=1.6, passion=0.5),
+    # Indirect disappointment and broken expectation phrases
+    "never showed up": _vec(sadness=1.8, anger=1.2),
+    "didn't show up": _vec(sadness=1.6, anger=1.0),
+    "didnt show up": _vec(sadness=1.6, anger=1.0),
+    "didn't even try": _vec(anger=1.4, sadness=1.0),
+    "didnt even try": _vec(anger=1.4, sadness=1.0),
+    "didn't even care": _vec(anger=1.6, sadness=1.2),
+    "didnt even care": _vec(anger=1.6, sadness=1.2),
+    "didn't bother": _vec(anger=1.4, disgust=0.6),
+    "didnt bother": _vec(anger=1.4, disgust=0.6),
+    "left without saying": _vec(sadness=2.0, anger=0.8),
+    "without saying goodbye": _vec(sadness=2.2, anger=0.6),
+    "without even saying": _vec(sadness=2.0, anger=1.0),
+    "like i didn't matter": _vec(sadness=2.4, anger=0.6),
+    "like i didnt matter": _vec(sadness=2.4, anger=0.6),
+    "like i don't exist": _vec(sadness=2.4, anger=0.6),
+    "like i dont exist": _vec(sadness=2.4, anger=0.6),
+    "as if i don't matter": _vec(sadness=2.4, anger=0.6),
+    "as if i dont matter": _vec(sadness=2.4, anger=0.6),
+    "kept me waiting": _vec(anger=1.4, sadness=0.8),
+    "left me hanging": _vec(sadness=1.8, anger=1.0),
+    "turned their back": _vec(anger=1.6, sadness=1.4),
+    "turned his back": _vec(anger=1.6, sadness=1.4),
+    "turned her back": _vec(anger=1.6, sadness=1.4),
+    "used me": _vec(anger=1.8, sadness=1.2),
+    "took me for granted": _vec(anger=1.4, sadness=1.6),
+    "took advantage of me": _vec(anger=2.0, sadness=1.0),
+    "stabbed me in the back": _vec(anger=2.2, sadness=1.4),
+    "talked behind my back": _vec(anger=1.8, sadness=1.0, disgust=0.6),
+    "made me feel stupid": _vec(anger=1.4, sadness=1.8),
+    "made me feel small": _vec(sadness=2.0, anger=0.8),
+    "made me feel worthless": _vec(sadness=2.4, anger=0.6),
+    "made fun of me": _vec(anger=1.6, sadness=1.4),
+    "laughed at me": _vec(anger=1.4, sadness=1.6),
 }
 
 PHRASE_LEXICON_NORM: Dict[str, Dict[str, float]] = {}
@@ -1557,6 +1758,37 @@ RHETORICAL_PATTERNS: List[Tuple[re.Pattern, Dict[str, float], float]] = [
     # Spanish / Portuguese fixes
     (re.compile(r"\ben serio\?+", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
     (re.compile(r"\bfala serio\?+", re.IGNORECASE), _vec(anger=0.6, surprise=0.8), 0.4),
+    # Opinion-based rhetorical patterns
+    (
+        re.compile(r"\bthe (?:way|fact that) (?:you|he|she|they)\b", re.IGNORECASE),
+        _vec(anger=1.2, sadness=0.8),
+        0.5,
+    ),
+    (
+        re.compile(r"\bafter (?:everything|all) i (?:did|have done|gave)\b", re.IGNORECASE),
+        _vec(anger=1.4, sadness=1.4),
+        0.7,
+    ),
+    (
+        re.compile(r"\bof course (?:you|he|she|they|it) (?:did|would|didn't|didnt|never|don't|dont|can't|cant|won't|wont)\b", re.IGNORECASE),
+        _vec(anger=1.0, sadness=0.8, surprise=0.6),
+        0.6,
+    ),
+    (
+        re.compile(r"\bi should(?:n't| not) have to\b", re.IGNORECASE),
+        _vec(anger=1.4, sadness=0.6),
+        0.5,
+    ),
+    (
+        re.compile(r"\bi (?:can not|can't|cant) believe (?:you|he|she|they)\b", re.IGNORECASE),
+        _vec(anger=1.2, surprise=1.4, sadness=0.6),
+        0.6,
+    ),
+    (
+        re.compile(r"\btypical\b", re.IGNORECASE),
+        _vec(anger=0.8, sadness=0.6, disgust=0.4),
+        0.3,
+    ),
 ]
 
 # Metaphor and figurative language cues
@@ -1576,6 +1808,21 @@ METAPHOR_PATTERNS: List[Tuple[re.Pattern, Dict[str, float]]] = [
     (re.compile(r"\bestou me afogando\b", re.IGNORECASE), _vec(sadness=2.0, fear=1.0)),
     (re.compile(r"\bcarregando o mundo nas costas\b", re.IGNORECASE), _vec(sadness=2.3)),
     (re.compile(r"\bcom o coracao na mao\b", re.IGNORECASE), _vec(sadness=2.2, fear=1.0)),
+    # Indirect emotional expressions and perspective-based storytelling
+    (re.compile(r"\bstabbed (?:me )?in the back\b", re.IGNORECASE), _vec(anger=2.0, sadness=1.5)),
+    (re.compile(r"\b(?:left|leaves?) me hanging\b", re.IGNORECASE), _vec(sadness=1.8, anger=1.0)),
+    (re.compile(r"\b(?:threw|thrown) me under the bus\b", re.IGNORECASE), _vec(anger=2.2, sadness=1.2)),
+    (re.compile(r"\b(?:it|that) hit(?:s)? (?:me )?(?:different|hard)\b", re.IGNORECASE), _vec(sadness=1.8, surprise=0.8)),
+    (re.compile(r"\bhit(?:s)? close to home\b", re.IGNORECASE), _vec(sadness=1.8, fear=0.6)),
+    (re.compile(r"\b(?:can not|can't|cant) wrap my head around\b", re.IGNORECASE), _vec(surprise=1.6, anger=0.8)),
+    (re.compile(r"\blight at the end of the tunnel\b", re.IGNORECASE), _vec(joy=1.6, sadness=0.8)),
+    (re.compile(r"\bweight (?:off|lifted from) my (?:shoulders|chest)\b", re.IGNORECASE), _vec(joy=1.8, sadness=0.6)),
+    # Spanish figurative
+    (re.compile(r"\bme clav[oó] un pu[nñ]al por la espalda\b", re.IGNORECASE), _vec(anger=2.0, sadness=1.5)),
+    (re.compile(r"\bme dej[oó] colgad[oa]\b", re.IGNORECASE), _vec(sadness=1.8, anger=1.0)),
+    # Portuguese figurative
+    (re.compile(r"\bme deu uma facada nas costas\b", re.IGNORECASE), _vec(anger=2.0, sadness=1.5)),
+    (re.compile(r"\bme deixou na m[aã]o\b", re.IGNORECASE), _vec(sadness=1.8, anger=1.0)),
 ]
 
 
@@ -2209,6 +2456,50 @@ def compute_sarcasm_probability(
             ]
         ):
             score += 0.25
+
+    # Sarcastic "I like/love how" patterns: positive word + negative context
+    _sarcastic_like_patterns = [
+        re.compile(
+            r"\bi (?:like|love|enjoy) how (?:you|he|she|they|we|it) "
+            r"(?:just|always|never|only|still|suddenly|conveniently)",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\bi (?:like|love|enjoy) how .{3,40}(?:and then|but then|yet|only to|just to)",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\bi (?:like|love) (?:how|that|when) .{3,40}"
+            r"(?:ignore|ignored|forget|forgot|lied|lie|leave|left|ditch|ditched|betray|betrayed|blame|blamed)",
+            re.IGNORECASE,
+        ),
+        re.compile(r"\boh (?:great|wonderful|fantastic|perfect|lovely|nice|joy|brilliant)\b", re.IGNORECASE),
+        re.compile(r"\b(?:great|wonderful|fantastic|perfect|brilliant),? just (?:great|wonderful|fantastic|perfect|brilliant)\b", re.IGNORECASE),
+        re.compile(r"\bhow (?:nice|lovely|wonderful|great) of (?:you|him|her|them)\b", re.IGNORECASE),
+        re.compile(r"\bthanks for nothing\b", re.IGNORECASE),
+        re.compile(r"\bthanks a lot\b(?!.{0,15}(?:really|truly|genuinely|sincerely))", re.IGNORECASE),
+        re.compile(r"\bwhat a (?:surprise|shock|treat|delight|pleasure)\b", re.IGNORECASE),
+    ]
+    for pat in _sarcastic_like_patterns:
+        if pat.search(t_raw):
+            score += 0.45
+
+    # Contradiction detection: positive statement immediately followed by negative
+    _contradiction_patterns = [
+        re.compile(
+            r"\b(?:love|like|enjoy|appreciate) .{2,30}(?:but|except|although|however|yet) "
+            r".{2,30}(?:hate|can't stand|annoy|bother|frustrat|disappoint|upset|worst|terrible)",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(?:glad|happy|great|nice) .{0,20}(?:but|except|however) "
+            r".{2,30}(?:not|never|can't|won't|shouldn't|didn't)",
+            re.IGNORECASE,
+        ),
+    ]
+    for pat in _contradiction_patterns:
+        if pat.search(t_raw):
+            score += 0.3
 
     if mixture_hint:
         pos = mixture_hint.get("joy", 0.0) + mixture_hint.get("passion", 0.0)
@@ -3168,6 +3459,242 @@ def apply_narrative_distance(
 
 
 # =============================================================================
+# Context-aware phrase interpretation (I like, I love, I do not like, etc.)
+# =============================================================================
+
+# Compiled sarcastic "I like/love how" patterns for reuse
+_SARCASTIC_LIKE_RE = [
+    re.compile(
+        r"\bi (?:like|love|enjoy) how (?:you|he|she|they|we|it) "
+        r"(?:just|always|never|only|still|suddenly|conveniently)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bi (?:like|love|enjoy) how .{3,40}"
+        r"(?:and then|but then|yet|only to|just to)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bi (?:like|love) (?:how|that|when) .{3,40}"
+        r"(?:ignore|ignored|forget|forgot|lied|lie|leave|left|ditch|ditched"
+        r"|betray|betrayed|blame|blamed|pretend|pretended|act like|acted like)",
+        re.IGNORECASE,
+    ),
+]
+
+# Context markers that indicate a genuine positive usage of "like/love"
+_GENUINE_POSITIVE_MARKERS = re.compile(
+    r"\bi (?:really |truly |genuinely |actually |honestly )?(?:like|love|enjoy) "
+    r"(?:your |this |that |the |my |it |how (?:you made|you helped|beautiful|kind|nice|sweet|thoughtful))",
+    re.IGNORECASE,
+)
+
+# Negative context markers following "I like/love"
+_NEGATIVE_FOLLOW_CONTEXT = re.compile(
+    r"(?:never|always (?:ruin|mess|screw|break|ignore|forget|leave|lie|fight|complain)"
+    r"|can't even|don't even|won't even|didn't even|just ignore|just leave"
+    r"|walk away|give up|shut (?:me )?(?:out|down)|throw away|push (?:me )?away)",
+    re.IGNORECASE,
+)
+
+
+def apply_contextual_like_love(
+    intensity: Dict[str, float],
+    text: str,
+    sarcasm_prob: float,
+) -> Dict[str, float]:
+    """
+    Adjust intensity when 'I like', 'I love', or 'I do not like' phrases
+    are detected. Rather than auto-classifying these as joy/passion, interpret
+    them contextually.
+
+    - Sarcastic uses shift weight from joy/passion toward anger/sadness.
+    - Genuinely positive uses are left unchanged.
+    - Negated forms (I don't like, I do not like) are handled by the existing
+      negation scope, but we add a small contextual nudge.
+    - When sarcasm probability is high, positive emotion weight is shifted
+      toward negative emotions even without explicit "I like/love" phrases.
+    """
+    out = dict(intensity)
+    t_lower = text.lower()
+
+    # Check for sarcastic "I like how..." patterns
+    is_sarcastic_like = any(pat.search(t_lower) for pat in _SARCASTIC_LIKE_RE)
+
+    has_like_love = bool(re.search(r"\bi (?:like|love|enjoy)\b", t_lower))
+
+    if is_sarcastic_like or (sarcasm_prob > 0.4 and has_like_love):
+        # Shift joy/passion toward anger/sadness for sarcastic context
+        shift_amount = min(0.55, sarcasm_prob * 0.65)
+        joy_val = out.get("joy", 0.0)
+        passion_val = out.get("passion", 0.0)
+        if joy_val > 0 or passion_val > 0:
+            joy_shift = joy_val * shift_amount
+            passion_shift = passion_val * shift_amount
+            out["joy"] = max(0.0, joy_val - joy_shift)
+            out["passion"] = max(0.0, passion_val - passion_shift)
+            out["anger"] = out.get("anger", 0.0) + (joy_shift + passion_shift) * 0.6
+            out["sadness"] = out.get("sadness", 0.0) + (joy_shift + passion_shift) * 0.3
+            out["disgust"] = out.get("disgust", 0.0) + (joy_shift + passion_shift) * 0.1
+
+    # General sarcasm-aware shift: when sarcasm is high and positive
+    # emotions dominate, shift some weight to negative emotions
+    elif sarcasm_prob > 0.4:
+        joy_val = out.get("joy", 0.0)
+        passion_val = out.get("passion", 0.0)
+        total = sum(out.values())
+        pos_share = (joy_val + passion_val) / total if total > 0 else 0
+        if pos_share > 0.5:
+            shift_amount = min(0.4, sarcasm_prob * 0.5)
+            joy_shift = joy_val * shift_amount
+            passion_shift = passion_val * shift_amount
+            out["joy"] = max(0.0, joy_val - joy_shift)
+            out["passion"] = max(0.0, passion_val - passion_shift)
+            out["anger"] = out.get("anger", 0.0) + (joy_shift + passion_shift) * 0.55
+            out["sadness"] = out.get("sadness", 0.0) + (joy_shift + passion_shift) * 0.3
+            out["disgust"] = out.get("disgust", 0.0) + (joy_shift + passion_shift) * 0.15
+
+    return out
+
+
+# =============================================================================
+# Dampening and hesitation cue detection
+# =============================================================================
+
+
+def apply_dampening_cues(
+    intensity: Dict[str, float],
+    text: str,
+    ellipsis_count: int,
+    word_count_effective: int,
+) -> Dict[str, float]:
+    """
+    Detect and apply dampening cues that indicate hesitation, uncertainty,
+    restraint, or emotional complexity.
+
+    Cues include:
+    - Trailing ellipses ("...") that suggest hesitation or trailing off
+    - Multiple ellipses in text suggesting uncertainty throughout
+    - Phrases that hedge or soften emotional expression
+    """
+    out = dict(intensity)
+    total = sum(out.values())
+    if total <= 0:
+        return out
+
+    t_lower = text.lower().strip()
+    dampen_factor = 1.0
+
+    # Trailing ellipsis: text ends with "..." suggesting hesitation
+    if t_lower.endswith("...") or t_lower.endswith(".."):
+        # Trailing ellipsis reduces intensity by 10-20%
+        dampen_factor *= 0.85
+
+    # Multiple ellipses throughout text suggest pervasive uncertainty
+    if ellipsis_count >= 2:
+        dampen_factor *= max(0.75, 1.0 - 0.08 * ellipsis_count)
+
+    # Hesitation phrases that soften emotional expression
+    hesitation_phrases = [
+        r"\bi (?:guess|suppose|think)\b",
+        r"\bmaybe i\b",
+        r"\bi don'?t (?:really )?know\b",
+        r"\bi'?m not (?:really )?sure\b",
+        r"\bpart of me\b",
+        r"\bor (?:maybe|something|whatever)\b",
+        r"\bi mean\b",
+        r"\bit'?s (?:kind of|kinda|sort of|sorta)\b",
+        r"\bnot (?:gonna|going to) lie\b",
+    ]
+    hesitation_hits = 0
+    for pattern_str in hesitation_phrases:
+        if re.search(pattern_str, t_lower):
+            hesitation_hits += 1
+
+    if hesitation_hits > 0:
+        # Each hesitation marker reduces intensity slightly
+        hesitation_reduction = min(0.25, 0.08 * hesitation_hits)
+        dampen_factor *= (1.0 - hesitation_reduction)
+
+    # Trailing qualifiers that reduce certainty
+    trailing_qualifiers = [
+        r"(?:\.\.\.|\.\.)$",
+        r"\bi (?:guess|suppose|think)\.?$",
+        r"\bmaybe\.?$",
+        r"\bbut (?:idk|i don'?t know|whatever|still)\.?$",
+        r"\bor something\.?$",
+        r"\bwho knows\.?$",
+    ]
+    for pattern_str in trailing_qualifiers:
+        if re.search(pattern_str, t_lower):
+            dampen_factor *= 0.92
+
+    if dampen_factor < 1.0:
+        for e in EMOTIONS:
+            out[e] = max(0.0, out[e] * dampen_factor)
+
+    return out
+
+
+# =============================================================================
+# Broader nuance: indirect expression and communication style detection
+# =============================================================================
+
+
+def apply_communication_style_nuance(
+    intensity: Dict[str, float],
+    text: str,
+    sarcasm_prob: float,
+    ellipsis_count: int,
+    exclam_count: int,
+) -> Dict[str, float]:
+    """
+    Account for communication style nuances:
+    - Understated/restrained expression (low punctuation, hedging)
+    - Emphatic expression (heavy punctuation, caps)
+    - Mixed-signal writing where stated emotions contradict tone
+    - Perspective-based storytelling where the person describes events
+      but the emotional content is implicit in their framing
+    """
+    out = dict(intensity)
+    total = sum(out.values())
+    if total <= 0:
+        return out
+
+    t_lower = text.lower()
+
+    # Perspective-based storytelling detection:
+    # When someone describes events in third person or past tense with
+    # emotional framing, the feelings are still theirs even if implicit.
+    perspective_cues = [
+        (r"\bthe way (?:he|she|they|it) ", "anger", 0.6),
+        (r"\bi (?:watched|saw|noticed|observed|realized|found out)\b", "surprise", 0.4),
+        (r"\bi (?:just )?(?:sat|stood|stayed) there\b", "sadness", 0.5),
+        (r"\bi (?:had to|have to) (?:pretend|act like|hold it in|keep it together)\b", "sadness", 0.6),
+        (r"\bwhen (?:i|they|he|she) finally\b", "sadness", 0.3),
+        (r"\bafter (?:years|months|weeks|days) of\b", "sadness", 0.4),
+    ]
+    for pattern_str, target_emotion, boost in perspective_cues:
+        if re.search(pattern_str, t_lower):
+            out[target_emotion] = out.get(target_emotion, 0.0) + boost * total * 0.15
+
+    # Mixed signals: positive language + negative framing
+    # These indicate complexity rather than straightforward emotion
+    if sarcasm_prob > 0.3 and sarcasm_prob < 0.7:
+        # In the ambiguous sarcasm range, flatten extremes slightly
+        # to reflect the interpretive uncertainty
+        max_val = max(out.values())
+        if max_val > 0:
+            for e in EMOTIONS:
+                if out[e] == max_val:
+                    out[e] *= 0.92
+                elif out[e] > 0:
+                    out[e] *= 1.04
+
+    return out
+
+
+# =============================================================================
 # Emotion detector implementation
 # =============================================================================
 
@@ -3473,19 +4000,29 @@ class EmotionDetector:
                 local_emphasis_level += 1
 
             # Look at immediate punctuation tokens after this one
-            ex_local = 0
+            # Count multiple exclamation marks for graduated intensity:
+            # 1 "!" -> +1, 2 "!" -> +2, 3+ "!" -> +3
+            ex_local_count = 0
             q_local = 0
-            ell_local = 0
+            dot_local_count = 0
             k2 = i + 1
             while k2 < len(tokens) and tokens[k2] in {".", "!", "?"}:
                 if tokens[k2] == "!":
-                    ex_local = 1
+                    ex_local_count += 1
                 elif tokens[k2] == "?":
                     q_local = 1
                 elif tokens[k2] == ".":
-                    ell_local = 1
+                    dot_local_count += 1
                 k2 += 1
-            local_emphasis_level += ex_local + q_local + ell_local
+            # Graduated exclamation intensity: 1->+1, 2->+2, 3+->+3
+            ex_contribution = min(3, ex_local_count)
+            # Consecutive dots (3+) indicate ellipsis/hesitation, not emphasis.
+            # Only a single trailing dot (sentence end) counts as mild emphasis.
+            ell_local = 1 if dot_local_count == 1 else 0
+            # For ellipsis (3+ dots), apply dampening instead of emphasis
+            if dot_local_count >= 3:
+                alpha *= 0.8
+            local_emphasis_level += ex_contribution + q_local + ell_local
             local_emphasis_level = max(0, min(3, local_emphasis_level))
 
             if local_emphasis_level > 0:
@@ -3506,7 +4043,17 @@ class EmotionDetector:
         def norm(count: int, scale: float) -> float:
             return min(1.0, count / scale)
 
+        # Graduated exclamation intensity:
+        # 1 "!" = 0.33, 2 "!!" = 0.67, 3+ "!!!" = 1.0
+        # with extra weight for 2+ to distinguish from single
         ex_n = norm(exclam_count, 3)
+        # Bonus arousal for heavy exclamation use (2+ marks)
+        ex_heavy_bonus = 0.0
+        if exclam_count >= 3:
+            ex_heavy_bonus = 0.15
+        elif exclam_count >= 2:
+            ex_heavy_bonus = 0.08
+
         q_n = norm(question_count, 3)
         ellipsis_n = norm(ellipsis_count, 2)
         caps_n = norm(allcaps_count, 3)
@@ -3516,6 +4063,7 @@ class EmotionDetector:
 
         raw_arousal = (
             0.4 * ex_n
+            + ex_heavy_bonus
             + 0.3 * q_n
             + 0.15 * ellipsis_n
             + 0.3 * caps_n
@@ -3628,6 +4176,14 @@ class EmotionDetector:
             distance=narrative_distance,
         )
 
+        # Dampening and hesitation cues
+        intensity = apply_dampening_cues(
+            intensity,
+            text,
+            ellipsis_count=ellipsis_count,
+            word_count_effective=word_count_effective,
+        )
+
         # Context blending and short-text dominance smoothing
         intensity = blend_with_context(intensity, prev_mixture, decay=0.7)
         intensity = soft_cap_single_word_dominance(
@@ -3680,6 +4236,28 @@ class EmotionDetector:
             rhetorical_score=rhetorical_score,
             humor_score=humor_score,
         )
+
+        # Context-aware interpretation of "I like", "I love", etc.
+        intensity = apply_contextual_like_love(intensity, text, sarcasm_prob)
+
+        # Communication style nuance adjustments
+        intensity = apply_communication_style_nuance(
+            intensity, text, sarcasm_prob,
+            ellipsis_count=ellipsis_count,
+            exclam_count=exclam_count,
+        )
+
+        # Recompute final intensity and shares after adjustments
+        final_global_intensity = sum(intensity.values())
+        if final_global_intensity > 1.0:
+            scale = 1.0 / final_global_intensity
+            for e in EMOTIONS:
+                intensity[e] *= scale
+            final_global_intensity = 1.0
+        if final_global_intensity <= 0:
+            mixture_share = {e: 1.0 / len(EMOTIONS) for e in EMOTIONS}
+        else:
+            mixture_share = {e: intensity[e] / final_global_intensity for e in EMOTIONS}
 
         sorted_emotions = sorted(mixture_share.items(), key=lambda kv: kv[1], reverse=True)
         top_label, top_val = sorted_emotions[0]

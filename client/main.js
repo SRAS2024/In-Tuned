@@ -2543,9 +2543,13 @@ if (registerForm) {
       });
       const regPayload = data.data || data;
       currentUser = regPayload.user || null;
-      if (registerForm) registerForm.reset();
       hideAllAuthOverlays();
       applyUserState();
+      if (registerForm) registerForm.reset();
+      // Fallback: re-fetch user from session to guarantee state is correct
+      if (!currentUser || !currentUser.id) {
+        await fetchCurrentUser();
+      }
     } catch (err) {
       if (registerError) {
         registerError.textContent =
@@ -2654,6 +2658,9 @@ if (forgotForm) {
         })
       });
       hideAllAuthOverlays();
+      if (forgotForm) forgotForm.reset();
+      if (forgotStepIdentity) forgotStepIdentity.classList.remove("hidden");
+      if (forgotStepReset) forgotStepReset.classList.add("hidden");
       openLoginOverlay();
       if (loginError) {
         loginError.textContent = "Password reset successful. Please log in.";
