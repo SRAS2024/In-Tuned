@@ -2551,10 +2551,25 @@ if (registerForm) {
         await fetchCurrentUser();
       }
     } catch (err) {
-      if (registerError) {
-        registerError.textContent =
-          err.message || "Unable to create account.";
-        registerError.classList.remove("hidden");
+      // The server may have created the account and set the session cookie
+      // even when it returns an error (e.g. 500). Check if we're actually
+      // logged in before showing the error.
+      try {
+        await fetchCurrentUser();
+      } catch (_ignored) { /* fetchCurrentUser handles its own errors */ }
+
+      if (currentUser && currentUser.id) {
+        // Account was created successfully despite the error response.
+        // Close the overlay and update the UI.
+        hideAllAuthOverlays();
+        applyUserState();
+        if (registerForm) registerForm.reset();
+      } else {
+        if (registerError) {
+          registerError.textContent =
+            err.message || "Unable to create account.";
+          registerError.classList.remove("hidden");
+        }
       }
     } finally {
       if (submitRegisterBtn) submitRegisterBtn.disabled = false;
