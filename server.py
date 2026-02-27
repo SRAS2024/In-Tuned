@@ -129,7 +129,7 @@ from contextlib import contextmanager
 def get_db_connection():
     conn = None
     try:
-        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        conn = psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=10)
         yield conn
     finally:
         if conn:
@@ -145,7 +145,7 @@ def get_db() -> psycopg.Connection:
     For this app we keep it simple and open a connection per request.
     Railway Postgres can handle this level of traffic.
     """
-    conn = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+    conn = psycopg.connect(DATABASE_URL, row_factory=dict_row, connect_timeout=10)
     return conn
 
 
@@ -255,7 +255,11 @@ def init_db() -> None:
 
 
 # Initialize schema when module is imported
-init_db()
+try:
+    init_db()
+except Exception as _init_err:
+    print(f"WARNING: init_db() failed at startup: {_init_err}")
+    print("Tables will be created on the first successful database connection.")
 
 
 # ---------------------------------------------------------------------------
