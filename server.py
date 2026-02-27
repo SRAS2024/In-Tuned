@@ -1043,44 +1043,63 @@ def api_admin_add_custom_word() -> object:
 
 @app.route("/api/auth/register", methods=["POST"])
 def api_auth_register() -> object:
-  data = request.get_json(silent=True) or {}
-  first_name = (data.get("first_name") or "").strip()
-  last_name = (data.get("last_name") or "").strip()
-  username = (data.get("username") or "").strip()
-  email = (data.get("email") or "").strip().lower()
-  password = data.get("password") or ""
+  conn = None
+  try:
+    data = request.get_json(silent=True) or {}
+    first_name = (data.get("first_name") or "").strip()
+    last_name = (data.get("last_name") or "").strip()
+    username = (data.get("username") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
 
-  if not all([first_name, last_name, username, email, password]):
-    return jsonify({"error": "All fields are required"}), 400
+    if not all([first_name, last_name, username, email, password]):
+      return jsonify({"error": "All fields are required"}), 400
 
-  password_hash = generate_password_hash(password)
+    password_hash = generate_password_hash(password)
 
-  conn = get_db()
-  cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
 
-  # Check uniqueness
-  cur.execute("SELECT 1 FROM users WHERE username = %s OR email = %s;", (username, email))
-  exists = cur.fetchone()
-  if exists:
+    # Check uniqueness
+    cur.execute("SELECT 1 FROM users WHERE username = %s OR email = %s;", (username, email))
+    exists = cur.fetchone()
+    if exists:
+      cur.close()
+      conn.close()
+      conn = None
+      return jsonify({"error": "Username or email already in use"}), 400
+
+    cur.execute(
+      """
+      INSERT INTO users (first_name, last_name, username, email, password_hash)
+      VALUES (%s, %s, %s, %s, %s)
+      RETURNING id, first_name, last_name, username, email, preferred_language, preferred_theme;
+      """,
+      (first_name, last_name, username, email, password_hash),
+    )
+    row = cur.fetchone()
+    conn.commit()
     cur.close()
     conn.close()
-    return jsonify({"error": "Username or email already in use"}), 400
+    conn = None
 
-  cur.execute(
-    """
-    INSERT INTO users (first_name, last_name, username, email, password_hash)
-    VALUES (%s, %s, %s, %s, %s)
-    RETURNING *;
-    """,
-    (first_name, last_name, username, email, password_hash),
-  )
-  row = cur.fetchone()
-  conn.commit()
-  cur.close()
-  conn.close()
-
-  session["user_id"] = row["id"]
-  return jsonify({"ok": True, "user": user_to_payload(row)})
+    # Build payload from the row we just inserted
+    payload = user_to_payload(row)
+    session["user_id"] = payload["id"]
+    session.permanent = True
+    return jsonify({"ok": True, "user": payload})
+  except Exception as e:
+    if conn:
+      try:
+        conn.rollback()
+        conn.close()
+      except Exception:
+        pass
+    app.logger.error(f"Registration error: {e}", exc_info=True)
+    error_msg = str(e).lower()
+    if "unique" in error_msg or "duplicate" in error_msg:
+      return jsonify({"error": "Username or email already in use"}), 400
+    return jsonify({"error": "Registration failed. Please try again."}), 500
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -1092,26 +1111,38 @@ def api_auth_login() -> object:
   if not identifier or not password:
     return jsonify({"error": "Email or username and password are required"}), 400
 
-  conn = get_db()
-  cur = conn.cursor()
-  # Identifier can be email or username
-  cur.execute(
-    """
-    SELECT *
-    FROM users
-    WHERE lower(email) = %s OR lower(username) = %s;
-    """,
-    (identifier, identifier),
-  )
-  row = cur.fetchone()
-  cur.close()
-  conn.close()
+  conn = None
+  try:
+    conn = get_db()
+    cur = conn.cursor()
+    # Identifier can be email or username
+    cur.execute(
+      """
+      SELECT *
+      FROM users
+      WHERE lower(email) = %s OR lower(username) = %s;
+      """,
+      (identifier, identifier),
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    conn = None
 
-  if not row or not check_password_hash(row["password_hash"], password):
-    return jsonify({"error": "Invalid credentials"}), 401
+    if not row or not check_password_hash(row["password_hash"], password):
+      return jsonify({"error": "Invalid credentials"}), 401
 
-  session["user_id"] = row["id"]
-  return jsonify({"ok": True, "user": user_to_payload(row)})
+    session["user_id"] = row["id"]
+    session.permanent = True
+    return jsonify({"ok": True, "user": user_to_payload(row)})
+  except Exception as e:
+    if conn:
+      try:
+        conn.close()
+      except Exception:
+        pass
+    app.logger.error(f"Login error: {e}", exc_info=True)
+    return jsonify({"error": "Login failed. Please try again."}), 500
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -1126,18 +1157,29 @@ def api_auth_me() -> object:
   if uid is None:
     return jsonify({"user": None})
 
-  conn = get_db()
-  cur = conn.cursor()
-  cur.execute("SELECT * FROM users WHERE id = %s;", (uid,))
-  row = cur.fetchone()
-  cur.close()
-  conn.close()
+  conn = None
+  try:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE id = %s;", (uid,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    conn = None
 
-  if not row:
-    session.pop("user_id", None)
+    if not row:
+      session.pop("user_id", None)
+      return jsonify({"user": None})
+
+    return jsonify({"user": user_to_payload(row)})
+  except Exception as e:
+    if conn:
+      try:
+        conn.close()
+      except Exception:
+        pass
+    app.logger.error(f"Auth me error: {e}", exc_info=True)
     return jsonify({"user": None})
-
-  return jsonify({"user": user_to_payload(row)})
 
 
 @app.route("/api/auth/update-settings", methods=["POST"])
@@ -1152,25 +1194,37 @@ def api_auth_update_settings() -> object:
   preferred_language = data.get("preferred_language")
   preferred_theme = data.get("preferred_theme")
 
-  conn = get_db()
-  cur = conn.cursor()
-  cur.execute(
-    """
-    UPDATE users
-    SET preferred_language = COALESCE(%s, preferred_language),
-        preferred_theme = COALESCE(%s, preferred_theme),
-        updated_at = NOW()
-    WHERE id = %s
-    RETURNING *;
-    """,
-    (preferred_language, preferred_theme, uid),
-  )
-  row = cur.fetchone()
-  conn.commit()
-  cur.close()
-  conn.close()
+  conn = None
+  try:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+      """
+      UPDATE users
+      SET preferred_language = COALESCE(%s, preferred_language),
+          preferred_theme = COALESCE(%s, preferred_theme),
+          updated_at = NOW()
+      WHERE id = %s
+      RETURNING *;
+      """,
+      (preferred_language, preferred_theme, uid),
+    )
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    conn = None
 
-  return jsonify({"ok": True, "user": user_to_payload(row)})
+    return jsonify({"ok": True, "user": user_to_payload(row)})
+  except Exception as e:
+    if conn:
+      try:
+        conn.rollback()
+        conn.close()
+      except Exception:
+        pass
+    app.logger.error(f"Update settings error: {e}", exc_info=True)
+    return jsonify({"error": "Failed to update settings. Please try again."}), 500
 
 
 @app.route("/api/auth/reset-password", methods=["POST"])
@@ -1200,38 +1254,106 @@ def api_auth_reset_password() -> object:
   if new_password != confirm_password:
     return jsonify({"error": "Passwords do not match"}), 400
 
-  conn = get_db()
-  cur = conn.cursor()
-  cur.execute(
-    """
-    SELECT *
-    FROM users
-    WHERE lower(email) = %s
-      AND first_name = %s
-      AND last_name = %s;
-    """,
-    (email, first_name, last_name),
-  )
-  row = cur.fetchone()
-  if not row:
+  conn = None
+  try:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+      """
+      SELECT *
+      FROM users
+      WHERE lower(email) = %s
+        AND lower(first_name) = %s
+        AND lower(last_name) = %s;
+      """,
+      (email, first_name.lower(), last_name.lower()),
+    )
+    row = cur.fetchone()
+    if not row:
+      cur.close()
+      conn.close()
+      return jsonify({"error": "User not found with provided details"}), 404
+
+    password_hash = generate_password_hash(new_password)
+    cur.execute(
+      """
+      UPDATE users
+      SET password_hash = %s, updated_at = NOW()
+      WHERE id = %s;
+      """,
+      (password_hash, row["id"]),
+    )
+    conn.commit()
     cur.close()
     conn.close()
-    return jsonify({"error": "User not found with provided details"}), 404
+    conn = None
 
-  password_hash = generate_password_hash(new_password)
-  cur.execute(
-    """
-    UPDATE users
-    SET password_hash = %s, updated_at = NOW()
-    WHERE id = %s;
-    """,
-    (password_hash, row["id"]),
-  )
-  conn.commit()
-  cur.close()
-  conn.close()
+    return jsonify({"ok": True})
+  except Exception as e:
+    if conn:
+      try:
+        conn.rollback()
+        conn.close()
+      except Exception:
+        pass
+    app.logger.error(f"Password reset error: {e}", exc_info=True)
+    return jsonify({"error": "Password reset failed. Please try again."}), 500
 
-  return jsonify({"ok": True})
+
+@app.route("/api/users/account", methods=["DELETE"])
+def api_delete_account() -> object:
+  """Delete the current user's account after password verification."""
+  guard = require_login()
+  if guard is not None:
+    return guard
+
+  uid = current_user_id()
+  data = request.get_json(silent=True) or {}
+  password = data.get("password") or ""
+  confirmation = data.get("confirmation") or ""
+
+  if not password:
+    return jsonify({"error": "Password is required"}), 400
+
+  if confirmation != "DELETE":
+    return jsonify({"error": "Please confirm deletion"}), 400
+
+  conn = None
+  try:
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Verify password
+    cur.execute("SELECT * FROM users WHERE id = %s;", (uid,))
+    row = cur.fetchone()
+    if not row:
+      cur.close()
+      conn.close()
+      return jsonify({"error": "User not found"}), 404
+
+    if not check_password_hash(row["password_hash"], password):
+      cur.close()
+      conn.close()
+      return jsonify({"error": "Incorrect password"}), 401
+
+    # Delete user (CASCADE will handle related records)
+    cur.execute("DELETE FROM users WHERE id = %s;", (uid,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    conn = None
+
+    session.pop("user_id", None)
+    return jsonify({"ok": True})
+  except Exception as e:
+    if conn:
+      try:
+        conn.rollback()
+        conn.close()
+      except Exception:
+        pass
+    app.logger.error(f"Account deletion error: {e}", exc_info=True)
+    return jsonify({"error": "Failed to delete account. Please try again."}), 500
 
 
 # ---------------------------------------------------------------------------

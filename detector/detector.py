@@ -1701,6 +1701,100 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "made me feel worthless": _vec(sadness=2.4, anger=0.6),
     "made fun of me": _vec(anger=1.6, sadness=1.4),
     "laughed at me": _vec(anger=1.4, sadness=1.6),
+    # Genuine positive compliment / approval / appreciation phrases (English)
+    "i like your": _vec(joy=1.6, passion=0.4),
+    "i like the": _vec(joy=1.4),
+    "i like this": _vec(joy=1.4),
+    "i like that": _vec(joy=1.2),
+    "i like it": _vec(joy=1.4),
+    "i like how you": _vec(joy=1.6, passion=0.4),
+    "i really like": _vec(joy=2.0, passion=0.6),
+    "i really like your": _vec(joy=2.2, passion=0.6),
+    "i love your": _vec(joy=1.8, passion=1.0),
+    "i love the": _vec(joy=1.6, passion=0.8),
+    "i love this": _vec(joy=1.8, passion=0.8),
+    "i love that": _vec(joy=1.4, passion=0.6),
+    "i love it": _vec(joy=1.8, passion=0.8),
+    "i really love": _vec(joy=2.2, passion=1.2),
+    "i enjoy": _vec(joy=1.4),
+    "i really enjoy": _vec(joy=2.0, passion=0.4),
+    "i appreciate your": _vec(joy=1.6, passion=0.4),
+    "i admire your": _vec(joy=1.4, passion=0.8),
+    "i admire": _vec(joy=1.2, passion=0.6),
+    "that is so nice": _vec(joy=1.6),
+    "thats so nice": _vec(joy=1.6),
+    "that's so nice": _vec(joy=1.6),
+    "that is awesome": _vec(joy=2.0, surprise=0.6),
+    "thats awesome": _vec(joy=2.0, surprise=0.6),
+    "that's awesome": _vec(joy=2.0, surprise=0.6),
+    "that looks great": _vec(joy=1.6),
+    "that looks amazing": _vec(joy=2.0, surprise=0.6),
+    "you look great": _vec(joy=1.6, passion=0.4),
+    "you look amazing": _vec(joy=2.0, passion=0.6),
+    "looks good on you": _vec(joy=1.6),
+    "suits you": _vec(joy=1.4),
+    "looks good": _vec(joy=1.4),
+    "nice work": _vec(joy=1.4),
+    "good job": _vec(joy=1.6),
+    "great job": _vec(joy=2.0),
+    "well done": _vec(joy=1.6),
+    "you did great": _vec(joy=2.0),
+    "you did well": _vec(joy=1.6),
+    "i do not like": _vec(anger=2.2, sadness=1.6),
+    "i dont like": _vec(anger=2.2, sadness=1.6),
+    "i don't like": _vec(anger=2.2, sadness=1.6),
+    "i do not like your": _vec(anger=2.4, sadness=1.4),
+    "i dont like your": _vec(anger=2.4, sadness=1.4),
+    "i don't like your": _vec(anger=2.4, sadness=1.4),
+    "i do not like the": _vec(anger=2.2, sadness=1.4),
+    "i dont like the": _vec(anger=2.2, sadness=1.4),
+    "i don't like the": _vec(anger=2.2, sadness=1.4),
+    "i do not like how": _vec(anger=2.6, sadness=1.2),
+    "i dont like how": _vec(anger=2.6, sadness=1.2),
+    "i don't like how": _vec(anger=2.6, sadness=1.2),
+    # Spanish genuine positive compliment / approval phrases
+    "me gusta tu": _vec(joy=1.6, passion=0.4),
+    "me gusta como": _vec(joy=1.4, passion=0.4),
+    "me gusta mucho": _vec(joy=2.0, passion=0.6),
+    "me gusta": _vec(joy=1.4),
+    "me encanta tu": _vec(joy=1.8, passion=1.0),
+    "me encanta como": _vec(joy=1.6, passion=0.8),
+    "me encanta": _vec(joy=1.8, passion=0.8),
+    "que bonito": _vec(joy=1.6, passion=0.4),
+    "que lindo": _vec(joy=1.6, passion=0.4),
+    "que bien": _vec(joy=1.4),
+    "se ve bien": _vec(joy=1.4),
+    "se ve genial": _vec(joy=1.8),
+    "te queda bien": _vec(joy=1.6),
+    "buen trabajo": _vec(joy=1.6),
+    "bien hecho": _vec(joy=1.6),
+    "no me gusta": _vec(anger=2.2, sadness=1.6),
+    "no me gusta tu": _vec(anger=2.4, sadness=1.4),
+    "no me gusta como": _vec(anger=2.6, sadness=1.2),
+    # Portuguese genuine positive compliment / approval phrases
+    "eu gosto do seu": _vec(joy=1.6, passion=0.4),
+    "eu gosto da sua": _vec(joy=1.6, passion=0.4),
+    "eu gosto de": _vec(joy=1.4),
+    "eu gosto muito": _vec(joy=2.0, passion=0.6),
+    "gosto muito de": _vec(joy=2.0, passion=0.6),
+    "eu amo seu": _vec(joy=1.8, passion=1.0),
+    "eu amo sua": _vec(joy=1.8, passion=1.0),
+    "eu amo": _vec(joy=1.8, passion=0.8),
+    "adoro seu": _vec(joy=1.8, passion=0.8),
+    "adoro sua": _vec(joy=1.8, passion=0.8),
+    "adoro": _vec(joy=1.6, passion=0.6),
+    "que bonito": _vec(joy=1.6, passion=0.4),
+    "que lindo": _vec(joy=1.6, passion=0.4),
+    "ficou legal": _vec(joy=1.4),
+    "ficou otimo": _vec(joy=1.8),
+    "ficou incrivel": _vec(joy=2.0, surprise=0.4),
+    "fica bem em voce": _vec(joy=1.6),
+    "bom trabalho": _vec(joy=1.6),
+    "mandou bem": _vec(joy=1.8),
+    "nao gosto": _vec(anger=2.2, sadness=1.6),
+    "nao gosto de": _vec(anger=2.2, sadness=1.6),
+    "nao gosto do seu": _vec(anger=2.4, sadness=1.4),
+    "nao gosto da sua": _vec(anger=2.4, sadness=1.4),
 }
 
 PHRASE_LEXICON_NORM: Dict[str, Dict[str, float]] = {}
@@ -3484,8 +3578,17 @@ _SARCASTIC_LIKE_RE = [
 
 # Context markers that indicate a genuine positive usage of "like/love"
 _GENUINE_POSITIVE_MARKERS = re.compile(
+    r"(?:"
+    # English: I (really) like/love/enjoy your/this/that/the/it/how...
     r"\bi (?:really |truly |genuinely |actually |honestly )?(?:like|love|enjoy) "
-    r"(?:your |this |that |the |my |it |how (?:you made|you helped|beautiful|kind|nice|sweet|thoughtful))",
+    r"(?:your |this |that |the |my |it |how (?:you made|you helped|beautiful|kind|nice|sweet|thoughtful))"
+    r"|"
+    # Spanish: me gusta/encanta tu/como/esto/eso/el/la
+    r"\bme (?:gusta|encanta)(?: mucho)? (?:tu |como |esto |eso |el |la |su )"
+    r"|"
+    # Portuguese: eu gosto/adoro/amo do seu/da sua/de/como
+    r"\b(?:eu )?(?:gosto|adoro|amo)(?: muito)? (?:d[eo] (?:seu|sua|teu|tua)|como |isso |isto |d[aoe] )"
+    r")",
     re.IGNORECASE,
 )
 
@@ -3509,7 +3612,9 @@ def apply_contextual_like_love(
     them contextually.
 
     - Sarcastic uses shift weight from joy/passion toward anger/sadness.
-    - Genuinely positive uses are left unchanged.
+    - Genuinely positive uses get a joy/passion boost when the base intensity
+      is low (the phrase lexicon may already contribute, but this ensures
+      short compliments like 'I like your shoes' are not missed).
     - Negated forms (I don't like, I do not like) are handled by the existing
       negation scope, but we add a small contextual nudge.
     - When sarcasm probability is high, positive emotion weight is shifted
@@ -3522,8 +3627,13 @@ def apply_contextual_like_love(
     is_sarcastic_like = any(pat.search(t_lower) for pat in _SARCASTIC_LIKE_RE)
 
     has_like_love = bool(re.search(r"\bi (?:like|love|enjoy)\b", t_lower))
+    is_negated_like = bool(re.search(
+        r"\bi (?:don't|dont|do not|didn't|didnt|did not|never) (?:like|love|enjoy)\b",
+        t_lower,
+    ))
+    is_genuine_positive = bool(_GENUINE_POSITIVE_MARKERS.search(t_lower))
 
-    if is_sarcastic_like or (sarcasm_prob > 0.4 and has_like_love):
+    if is_sarcastic_like or (sarcasm_prob > 0.4 and has_like_love and not is_genuine_positive):
         # Shift joy/passion toward anger/sadness for sarcastic context
         shift_amount = min(0.55, sarcasm_prob * 0.65)
         joy_val = out.get("joy", 0.0)
@@ -3536,6 +3646,19 @@ def apply_contextual_like_love(
             out["anger"] = out.get("anger", 0.0) + (joy_shift + passion_shift) * 0.6
             out["sadness"] = out.get("sadness", 0.0) + (joy_shift + passion_shift) * 0.3
             out["disgust"] = out.get("disgust", 0.0) + (joy_shift + passion_shift) * 0.1
+
+    elif is_genuine_positive and sarcasm_prob < 0.3 and not is_negated_like:
+        # Genuine positive usage: ensure joy/passion have reasonable weight
+        # even when the token-level scoring found nothing (short sentences).
+        total = sum(out.values())
+        joy_val = out.get("joy", 0.0)
+        passion_val = out.get("passion", 0.0)
+        pos_share = (joy_val + passion_val) / total if total > 0 else 0
+        if pos_share < 0.3 or total < 0.5:
+            # Boost joy so genuine compliments always register
+            boost = 0.15 if total < 0.5 else 0.08
+            out["joy"] = out.get("joy", 0.0) + boost
+            out["passion"] = out.get("passion", 0.0) + boost * 0.3
 
     # General sarcasm-aware shift: when sarcasm is high and positive
     # emotions dominate, shift some weight to negative emotions
