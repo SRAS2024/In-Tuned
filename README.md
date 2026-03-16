@@ -79,7 +79,7 @@ The platform also includes built-in safety features that detect crisis-related l
 | **Migrations** | Alembic 1.13 |
 | **Frontend** | Vanilla JavaScript, HTML5, CSS3 |
 | **Caching** | Flask-Caching (in-memory, Redis, or filesystem) |
-| **Security** | bcrypt, Flask-WTF (CSRF), Flask-Limiter (rate limiting) |
+| **Security** | Werkzeug Security (password hashing), Flask-WTF (CSRF), Flask-Limiter (rate limiting) |
 | **Testing** | pytest, httpx, coverage |
 | **Code Quality** | Black, Ruff, mypy, Bandit |
 | **Containerization** | Docker, Docker Compose |
@@ -167,17 +167,16 @@ All configuration is managed through environment variables. See `.env.example` f
 | `DATABASE_URL` | PostgreSQL connection string |
 | `SECRET_KEY` | Flask session secret (min 32 chars) |
 | `ADMIN_USERNAME` | Admin panel username |
-| `ADMIN_PASSWORD_HASH` | Bcrypt hash of admin password |
-| `DEV_PASSWORD_HASH` | Bcrypt hash for dev/maintenance mode |
+| `ADMIN_PASSWORD` | Admin panel password |
+| `DEV_PASSWORD` | Dev/maintenance mode password |
 
 ### Optional Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FLASK_ENV` | `development` | Environment (`development` / `staging` / `production`) |
-| `RATELIMIT_ENABLED` | `true` | Enable rate limiting |
-| `SESSION_LIFETIME_MINUTES` | `60` | Session timeout |
-| `BCRYPT_LOG_ROUNDS` | `12` | Password hashing strength |
+| `APP_ENV` | `development` | Environment (`development` / `staging` / `production` / `testing`) |
+| `RATELIMIT_ENABLED` | `false` | Enable rate limiting (enabled by default in staging/production) |
+| `SESSION_LIFETIME` | `604800` | Session timeout in seconds (default: 7 days) |
 | `REDIS_URL` | — | Redis connection string for caching/rate limiting |
 | `RAPIDAPI_KEY` | — | API key for external dictionary expansion |
 | `SENTRY_DSN` | — | Sentry error tracking DSN |
@@ -206,11 +205,18 @@ In-Tuned/
 │   │   ├── feedback.py          # User feedback routes
 │   │   ├── analytics.py         # Usage statistics routes
 │   │   ├── site.py              # Site status routes
-│   │   └── users.py             # User management routes
+│   │   └── users.py             # User profile routes
 │   ├── db/                      # Database layer
 │   │   ├── connection.py        # Connection pooling
 │   │   ├── transaction.py       # Transaction management
 │   │   └── repositories/        # Data access objects
+│   │       ├── base.py          # Base repository
+│   │       ├── user_repository.py
+│   │       ├── journal_repository.py
+│   │       ├── site_repository.py
+│   │       ├── feedback_repository.py
+│   │       ├── audit_repository.py
+│   │       └── lexicon_repository.py
 │   ├── services/                # Business logic
 │   │   ├── detector_service.py  # Emotion detection orchestration
 │   │   └── lexicon_service.py   # External lexicon integration
@@ -236,7 +242,14 @@ In-Tuned/
 │   ├── admin.js                 # Admin panel logic
 │   ├── styles.css               # Main styles
 │   ├── css/                     # Additional stylesheets
+│   │   ├── analytics.css
+│   │   └── components.css
 │   └── js/                      # Additional JavaScript modules
+│       ├── api.js               # API client
+│       ├── ui.js                # UI helpers
+│       ├── validation.js        # Client-side validation
+│       ├── analytics.js         # Analytics UI
+│       └── export-import.js     # Data export/import
 ├── migrations/                  # Alembic database migrations
 ├── tests/                       # Test suite
 ├── docs/                        # Documentation
@@ -247,6 +260,8 @@ In-Tuned/
 ├── Makefile                     # Development tasks
 ├── pyproject.toml               # Project configuration
 ├── requirements.txt             # Python dependencies
+├── server.py                    # Monolithic server (legacy)
+├── main.py                      # Gunicorn/Railway entry point
 └── wsgi.py                      # WSGI entry point
 ```
 
@@ -263,6 +278,8 @@ In-Tuned/
 | `/api/auth/logout` | POST | End the current session |
 | `/api/auth/me` | GET | Get current user profile |
 | `/api/auth/update-settings` | POST | Update user preferences |
+| `/api/auth/reset-password` | POST | Reset password |
+| `/api/auth/change-password` | POST | Change current password |
 
 ### Journal Entries
 
@@ -274,6 +291,8 @@ In-Tuned/
 | `/api/journals/<id>` | PUT | Update an entry |
 | `/api/journals/<id>` | DELETE | Delete an entry |
 | `/api/journals/<id>/pin` | POST | Toggle pin status |
+| `/api/journals/stats` | GET | Get journal statistics |
+| `/api/journals/export` | GET | Export journal entries |
 
 ### Emotion Analysis
 
@@ -290,17 +309,57 @@ In-Tuned/
 }
 ```
 
+### User Profile
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/users/profile` | GET | Get user profile |
+| `/api/users/profile` | PUT | Update user profile |
+| `/api/users/email` | PUT | Update email address |
+| `/api/users/account` | DELETE | Delete user account |
+| `/api/users/stats` | GET | Get user statistics |
+| `/api/users/export` | GET | Export user data |
+
+### Feedback
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/feedback` | POST | Submit feedback on an analysis |
+
+### Analytics
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/analytics/emotions` | GET | Emotion distribution statistics |
+| `/api/analytics/activity` | GET | User activity data |
+| `/api/analytics/insights` | GET | Emotional insights |
+
 ### Admin
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/admin/login` | POST | Admin authentication |
-| `/api/admin/maintenance` | GET/POST | Maintenance mode control |
-| `/api/admin/notices` | GET/POST | System notices management |
+| `/api/admin/logout` | POST | Admin logout |
+| `/api/admin/site-state` | GET | Get admin site state |
+| `/api/admin/maintenance` | POST | Toggle maintenance mode |
+| `/api/admin/notices` | POST | Create a system notice |
+| `/api/admin/notices/<id>` | PATCH | Update a notice |
 | `/api/admin/feedback` | GET | View user feedback |
+| `/api/admin/feedback/download` | GET | Download feedback as CSV |
+| `/api/admin/feedback/delete` | DELETE | Delete feedback entries |
+| `/api/admin/audit-log` | GET | View audit log |
+| `/api/admin/users` | GET | List all users |
+| `/api/admin/users/<id>/disable` | POST | Disable a user account |
+| `/api/admin/users/<id>/enable` | POST | Enable a user account |
+| `/api/admin/stats` | GET | System statistics |
+| `/api/admin/lexicons` | GET | List lexicon files |
+| `/api/admin/lexicons/upload` | POST | Upload a lexicon file |
+| `/api/admin/lexicons/<id>` | DELETE | Delete a lexicon file |
+| `/api/admin/lexicons/stats` | GET | Lexicon statistics |
 | `/api/admin/lexicons/lookup` | POST | Look up word emotions |
 | `/api/admin/lexicons/expand` | POST | Expand lexicon via external APIs |
 | `/api/admin/lexicons/add-word` | POST | Add word to lexicon |
+| `/api/admin/lexicons/add-custom` | POST | Add custom word to lexicon |
 
 ### Site
 
@@ -308,6 +367,7 @@ In-Tuned/
 |----------|--------|-------------|
 | `/api/health` | GET | Health check |
 | `/api/site-state` | GET | Site status, maintenance mode, notices |
+| `/api/version` | GET | Application version |
 
 ### Response Format
 
@@ -452,7 +512,7 @@ docker run -d \
 
 ## Security
 
-- **Password Hashing**: bcrypt with configurable rounds (12 default, 14 in production)
+- **Password Hashing**: Werkzeug Security (generate_password_hash / check_password_hash)
 - **CSRF Protection**: Tokens on all state-changing endpoints
 - **Rate Limiting**: Configurable per-endpoint limits (e.g., 5 logins/min, 30 analyses/min)
 - **Session Security**: HttpOnly, SameSite=Lax cookies with configurable timeout
