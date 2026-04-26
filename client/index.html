@@ -176,14 +176,6 @@
         </div>
       </header>
 
-      <!-- Notice banner under logo -->
-      <div
-        id="noticeBanner"
-        class="noticeBanner"
-        role="status"
-        aria-live="polite"
-      ></div>
-
       <!-- Maintenance shell: shown when site is in maintenance mode -->
       <div
         id="maintenanceShell"
@@ -227,6 +219,18 @@
           A simple space to notice what you are feeling across seven core
           emotions.
         </p>
+
+        <!--
+          Notice banner: positioned below the title and top navigation
+          (header) and above all interactive content. The header (title,
+          login, help, settings, language) always remains above this notice.
+        -->
+        <div
+          id="noticeBanner"
+          class="noticeBanner hidden"
+          role="status"
+          aria-live="polite"
+        ></div>
 
         <section class="grid" aria-label="Emotion analysis layout">
           <div class="card">
