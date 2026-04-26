@@ -1795,6 +1795,194 @@ PHRASE_LEXICON: Dict[str, Dict[str, float]] = {
     "nao gosto de": _vec(anger=2.2, sadness=1.6),
     "nao gosto do seu": _vec(anger=2.4, sadness=1.4),
     "nao gosto da sua": _vec(anger=2.4, sadness=1.4),
+    # =========================================================================
+    # Cynicism, disillusionment, and existential disbelief (English).
+    # These outweigh isolated "love" mentions so a sentence about love being
+    # dead does not get scored as passion or joy.
+    # =========================================================================
+    "love is dead": _vec(sadness=2.8, anger=1.4, disgust=0.6),
+    "love does not exist": _vec(sadness=2.8, anger=1.4),
+    "love doesnt exist": _vec(sadness=2.8, anger=1.4),
+    "love doesn't exist": _vec(sadness=2.8, anger=1.4),
+    "love is a lie": _vec(sadness=2.6, anger=1.6, disgust=0.8),
+    "love is fake": _vec(sadness=2.4, anger=1.4, disgust=0.8),
+    "love is meaningless": _vec(sadness=2.6, anger=1.2),
+    "love means nothing": _vec(sadness=2.6, anger=1.2),
+    "commitment is dead": _vec(sadness=2.4, anger=1.4),
+    "commitment is meaningless": _vec(sadness=2.4, anger=1.2),
+    "commitment means nothing": _vec(sadness=2.4, anger=1.2),
+    "no one stays": _vec(sadness=2.6, anger=0.8),
+    "everyone leaves": _vec(sadness=2.6, anger=0.8),
+    "they always leave": _vec(sadness=2.4, anger=1.0),
+    "people always walk away": _vec(sadness=2.4, anger=1.0),
+    "you walked away": _vec(sadness=2.4, anger=1.4),
+    "they walked away": _vec(sadness=2.2, anger=1.2),
+    "walked away from me": _vec(sadness=2.4, anger=1.2),
+    "walked away without": _vec(sadness=2.6, anger=1.4),
+    "walking away": _vec(sadness=1.8, anger=0.8),
+    "feel like a fool": _vec(sadness=2.4, anger=1.0, disgust=0.6),
+    "feel like such a fool": _vec(sadness=2.6, anger=1.2, disgust=0.6),
+    "i was a fool": _vec(sadness=2.4, anger=1.0, disgust=0.6),
+    "such a fool": _vec(sadness=2.0, anger=0.8, disgust=0.4),
+    "what a fool": _vec(sadness=2.0, anger=0.8, disgust=0.4),
+    "fool for ever": _vec(sadness=2.2, anger=1.0),
+    "fool for believing": _vec(sadness=2.4, anger=1.0, disgust=0.6),
+    "fool for loving": _vec(sadness=2.6, anger=1.0, disgust=0.4),
+    "fool for trusting": _vec(sadness=2.4, anger=1.0, disgust=0.4),
+    "i gave you everything": _vec(sadness=2.6, anger=1.6),
+    "gave them everything": _vec(sadness=2.4, anger=1.4),
+    "gave my everything": _vec(sadness=2.4, anger=1.4),
+    "treated me like nothing": _vec(sadness=2.4, anger=2.0, disgust=0.8),
+    "treated me like trash": _vec(sadness=2.0, anger=2.4, disgust=1.4),
+    "treated me like dirt": _vec(sadness=2.0, anger=2.4, disgust=1.2),
+    "thrown away": _vec(sadness=2.0, anger=1.4),
+    "tossed aside": _vec(sadness=2.0, anger=1.4),
+    "discarded me": _vec(sadness=2.4, anger=1.6, disgust=0.6),
+    # Torment / inner suffering
+    "i am tormented": _vec(sadness=2.4, fear=1.4, anger=0.6),
+    "torment": _vec(sadness=1.8, fear=1.0, anger=0.4),
+    "tormented": _vec(sadness=1.8, fear=1.2, anger=0.4),
+    "haunted by": _vec(sadness=2.0, fear=1.4),
+    "haunts me": _vec(sadness=2.0, fear=1.4),
+    "the darkness": _vec(sadness=1.6, fear=1.0),
+    "drowning in darkness": _vec(sadness=2.4, fear=1.4),
+    "engulfed in darkness": _vec(sadness=2.4, fear=1.4),
+    "aching soul": _vec(sadness=2.4, passion=0.4),
+    "soul is broken": _vec(sadness=2.6, anger=0.6),
+    "soul aches": _vec(sadness=2.4),
+    "my soul is tired": _vec(sadness=2.4, fear=0.4),
+    "my heart is tired": _vec(sadness=2.4),
+    # Grief and existential pain
+    "grief consumes me": _vec(sadness=2.8, fear=0.6),
+    "drowning in grief": _vec(sadness=2.8, fear=0.6),
+    "existential pain": _vec(sadness=2.4, fear=1.2),
+    "what is the point": _vec(sadness=2.0, anger=0.6, fear=0.4),
+    "whats the point": _vec(sadness=2.0, anger=0.6, fear=0.4),
+    "what's the point": _vec(sadness=2.0, anger=0.6, fear=0.4),
+    "no meaning": _vec(sadness=2.0, fear=0.6),
+    "lost all meaning": _vec(sadness=2.2, fear=0.6),
+    "feels meaningless": _vec(sadness=2.0, fear=0.4),
+    # Betrayal
+    "you betrayed me": _vec(anger=2.4, sadness=2.0, disgust=1.0),
+    "they betrayed me": _vec(anger=2.4, sadness=2.0, disgust=1.0),
+    "betrayed by": _vec(anger=2.0, sadness=1.6, disgust=0.8),
+    "stabbed in the back": _vec(anger=2.4, sadness=1.4, disgust=0.6),
+    "after everything i did": _vec(anger=1.6, sadness=2.0),
+    "after everything i gave": _vec(anger=1.6, sadness=2.0),
+    "lied to me": _vec(anger=2.0, sadness=1.4, disgust=1.0),
+    # Resilience and hope mixed with pain (preserve mixed feelings)
+    "still i rise": _vec(joy=1.4, passion=1.4, sadness=0.8),
+    "still standing": _vec(joy=1.2, passion=0.8, sadness=0.6),
+    "i will keep going": _vec(joy=1.0, passion=0.8, sadness=0.6, fear=0.4),
+    "keep the faith": _vec(joy=1.2, passion=1.0, sadness=0.4),
+    "broken but beautiful": _vec(joy=1.4, sadness=1.4, passion=0.6),
+    "pain and beauty": _vec(joy=1.0, sadness=1.4, passion=0.6),
+    "beauty in the broken": _vec(joy=1.2, sadness=1.4, passion=0.6),
+    "light in the dark": _vec(joy=1.4, sadness=1.0, passion=0.4),
+    "after the storm": _vec(joy=1.2, sadness=0.8, passion=0.4),
+    "scarred but whole": _vec(joy=1.0, sadness=1.4, passion=0.6),
+    # Religious / spiritual reflection (small spread, not pure passion)
+    "god is good": _vec(joy=1.6, passion=0.8),
+    "praise god": _vec(joy=1.8, passion=1.0),
+    "praise the lord": _vec(joy=1.8, passion=1.0),
+    "thank you god": _vec(joy=1.8, passion=0.8),
+    "thank you lord": _vec(joy=1.8, passion=0.8),
+    "by his grace": _vec(joy=1.4, passion=0.8),
+    "grace of god": _vec(joy=1.4, passion=0.8),
+    "blessed beyond measure": _vec(joy=2.0, passion=0.8),
+    "amen": _vec(joy=0.6, passion=0.6),
+    "with faith": _vec(joy=0.6, passion=0.6),
+    "lord help me": _vec(sadness=1.6, fear=1.0, passion=0.6),
+    "god help me": _vec(sadness=1.6, fear=1.0, passion=0.6),
+    "i pray for": _vec(passion=0.8, fear=0.4, joy=0.4),
+    "in your name": _vec(passion=0.6, joy=0.4),
+    # =========================================================================
+    # Cynicism, disillusionment (Spanish)
+    # =========================================================================
+    "el amor no existe": _vec(sadness=2.8, anger=1.4),
+    "el amor esta muerto": _vec(sadness=2.6, anger=1.4),
+    "el amor está muerto": _vec(sadness=2.6, anger=1.4),
+    "el amor es mentira": _vec(sadness=2.6, anger=1.6, disgust=0.8),
+    "el amor es una mentira": _vec(sadness=2.6, anger=1.6, disgust=0.8),
+    "el compromiso no existe": _vec(sadness=2.4, anger=1.4),
+    "todos se van": _vec(sadness=2.6, anger=0.8),
+    "siempre se van": _vec(sadness=2.4, anger=0.8),
+    "te fuiste sin": _vec(sadness=2.4, anger=1.2),
+    "te fuiste": _vec(sadness=1.8, anger=0.8),
+    "me siento un tonto": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "me siento una tonta": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "me siento un idiota": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "fui un tonto": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "fui una tonta": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "te lo di todo": _vec(sadness=2.4, anger=1.6),
+    "lo di todo": _vec(sadness=2.2, anger=1.4),
+    "me trataste como nada": _vec(sadness=2.4, anger=2.0, disgust=0.8),
+    "me usaste": _vec(anger=2.0, sadness=1.6, disgust=0.8),
+    "me traicionaste": _vec(anger=2.4, sadness=2.0, disgust=1.0),
+    "me dejaste tirado": _vec(sadness=2.0, anger=1.4),
+    "me dejaste tirada": _vec(sadness=2.0, anger=1.4),
+    "tormento": _vec(sadness=1.8, fear=1.0, anger=0.4),
+    "atormentado": _vec(sadness=2.0, fear=1.2, anger=0.4),
+    "atormentada": _vec(sadness=2.0, fear=1.2, anger=0.4),
+    "perdi la fe": _vec(sadness=2.2, anger=0.6, fear=0.6),
+    "perdí la fe": _vec(sadness=2.2, anger=0.6, fear=0.6),
+    "no tiene sentido": _vec(sadness=2.0, anger=0.6, fear=0.4),
+    "que sentido tiene": _vec(sadness=2.0, anger=0.4, fear=0.4),
+    "qué sentido tiene": _vec(sadness=2.0, anger=0.4, fear=0.4),
+    "gracias a dios": _vec(joy=1.6, passion=0.6),
+    "alabado sea dios": _vec(joy=1.8, passion=1.0),
+    "dios es bueno": _vec(joy=1.6, passion=0.8),
+    "dios mio ayudame": _vec(sadness=1.6, fear=1.0, passion=0.6),
+    "dios mío ayúdame": _vec(sadness=1.6, fear=1.0, passion=0.6),
+    "que dios me ayude": _vec(sadness=1.4, fear=1.0, passion=0.4),
+    "bendecida soy": _vec(joy=1.8, passion=0.6),
+    "bendecido soy": _vec(joy=1.8, passion=0.6),
+    "soy bendecida": _vec(joy=1.8, passion=0.6),
+    "soy bendecido": _vec(joy=1.8, passion=0.6),
+    # =========================================================================
+    # Cynicism, disillusionment (Portuguese)
+    # =========================================================================
+    "o amor nao existe": _vec(sadness=2.8, anger=1.4),
+    "o amor não existe": _vec(sadness=2.8, anger=1.4),
+    "o amor esta morto": _vec(sadness=2.6, anger=1.4),
+    "o amor está morto": _vec(sadness=2.6, anger=1.4),
+    "o amor e mentira": _vec(sadness=2.6, anger=1.6, disgust=0.8),
+    "o amor é mentira": _vec(sadness=2.6, anger=1.6, disgust=0.8),
+    "o compromisso nao existe": _vec(sadness=2.4, anger=1.4),
+    "todos vao embora": _vec(sadness=2.6, anger=0.8),
+    "todos vão embora": _vec(sadness=2.6, anger=0.8),
+    "sempre vao embora": _vec(sadness=2.4, anger=0.8),
+    "sempre vão embora": _vec(sadness=2.4, anger=0.8),
+    "voce foi embora": _vec(sadness=1.8, anger=1.0),
+    "você foi embora": _vec(sadness=1.8, anger=1.0),
+    "me sinto um tolo": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "me sinto uma tola": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "fui um tolo": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "fui uma tola": _vec(sadness=2.2, anger=0.8, disgust=0.4),
+    "te dei tudo": _vec(sadness=2.4, anger=1.6),
+    "dei tudo": _vec(sadness=2.0, anger=1.2),
+    "me tratou como nada": _vec(sadness=2.4, anger=2.0, disgust=0.8),
+    "me usou": _vec(anger=2.0, sadness=1.6, disgust=0.8),
+    "me traiu": _vec(anger=2.4, sadness=2.0, disgust=1.0),
+    "me jogou fora": _vec(sadness=2.0, anger=1.4, disgust=0.6),
+    "atormentado": _vec(sadness=2.0, fear=1.2, anger=0.4),
+    "atormentada": _vec(sadness=2.0, fear=1.2, anger=0.4),
+    "perdi a fe": _vec(sadness=2.2, anger=0.6, fear=0.6),
+    "perdi a fé": _vec(sadness=2.2, anger=0.6, fear=0.6),
+    "nao tem sentido": _vec(sadness=2.0, anger=0.6, fear=0.4),
+    "não tem sentido": _vec(sadness=2.0, anger=0.6, fear=0.4),
+    "qual o sentido": _vec(sadness=2.0, anger=0.4, fear=0.4),
+    "graças a deus": _vec(joy=1.6, passion=0.6),
+    "gracas a deus": _vec(joy=1.6, passion=0.6),
+    "deus e bom": _vec(joy=1.6, passion=0.8),
+    "deus é bom": _vec(joy=1.6, passion=0.8),
+    "louvado seja deus": _vec(joy=1.8, passion=1.0),
+    "deus me ajude": _vec(sadness=1.4, fear=1.0, passion=0.4),
+    "que deus me ajude": _vec(sadness=1.4, fear=1.0, passion=0.4),
+    "abencoado": _vec(joy=1.6, passion=0.4),
+    "abençoado": _vec(joy=1.6, passion=0.4),
+    "abencoada": _vec(joy=1.6, passion=0.4),
+    "abençoada": _vec(joy=1.6, passion=0.4),
 }
 
 PHRASE_LEXICON_NORM: Dict[str, Dict[str, float]] = {}
@@ -2618,21 +2806,55 @@ def choose_emoji(
     sarcasm_prob: float,
     global_intensity: float,
     max_emotion_intensity: float,
+    darkness: float = 0.0,
 ) -> str:
+    """
+    Pick an emoji that matches the dominant emotion AND the broader tone.
+
+    `darkness` is a 0..1 hint that the text contains suffering, torment,
+    cynicism, betrayal, or grief. When darkness is meaningful we never
+    return cheerful or romantic emojis like 😍 / 🥰 / 😄 even if a single
+    emotion is technically dominant, because the surrounding text is dark.
+    """
     # Neutral override for very low signal
     if global_intensity < 0.05 and max_emotion_intensity < 0.03:
         return "😐"
 
+    sad = mixture.get("sadness", 0.0)
+    joy = mixture.get("joy", 0.0)
+    pas = mixture.get("passion", 0.0)
+    ang = mixture.get("anger", 0.0)
+    dis = mixture.get("disgust", 0.0)
+    fea = mixture.get("fear", 0.0)
+    sur = mixture.get("surprise", 0.0)
+    neg_share = sad + ang + dis + fea
+    pos_share = joy + pas
+
     base = BASE_EMOJI.get(emotion, "😐")
 
-    if emotion == "joy" and sarcasm_prob > 0.55:
+    # Sarcasm on positive emotions reads as ironic
+    if emotion in ("joy", "passion") and sarcasm_prob > 0.55:
         return "🙃"
 
+    # Suppress cheerful / romantic emojis in dark contexts
+    dark_strong = darkness >= 0.45 or (darkness >= 0.25 and neg_share > pos_share)
+    if dark_strong:
+        if emotion == "passion":
+            if sad >= 0.15 or ang >= 0.15:
+                return "💔"
+            return "🥺"
+        if emotion == "joy":
+            # Joy in a dark context is bittersweet, not bright
+            if sad >= 0.10 or ang >= 0.10:
+                return "🥲"
+            return "😔"
+
+    # High arousal escalations
     if arousal > 0.6:
         if emotion in ("fear", "surprise"):
             return AROUSAL_EMOJI["fear"]
         if emotion == "anger":
-            if mixture.get("disgust", 0.0) > 0.25:
+            if dis > 0.25:
                 return "😤"
             return AROUSAL_EMOJI["anger"]
         if emotion == "sadness":
@@ -2640,13 +2862,515 @@ def choose_emoji(
         if emotion == "disgust":
             return AROUSAL_EMOJI["disgust"]
 
-    if emotion == "passion" and mixture.get("joy", 0.0) > 0.25:
+    # Mixed-feeling emojis preserve the complexity of the text
+    if emotion == "joy" and sad >= 0.20:
+        return "🥲"  # bittersweet joy
+    if emotion == "sadness" and joy >= 0.20:
+        return "🥲"
+    if emotion == "passion" and sad >= 0.25 and pas >= 0.20:
+        return "💔"
+    if emotion == "passion" and ang >= 0.25:
+        return "😞"
+    if emotion == "passion" and joy > 0.25 and sad < 0.15 and ang < 0.10:
         return "🥰"
 
-    if emotion == "anger" and mixture.get("disgust", 0.0) > 0.25:
+    # Anger + disgust = contempt
+    if emotion == "anger" and dis > 0.25:
         return "😤"
 
+    # Sadness + fear = dread / overwhelmed
+    if emotion == "sadness" and fea > 0.25:
+        return "😞"
+
     return base
+
+
+def estimate_darkness(text_norm: str, mixture: Dict[str, float]) -> float:
+    """
+    Heuristic 0..1 score for how dark / cynical / tormented the text is.
+    Used to keep the displayed emoji honest about tone, not just dominant
+    emotion.
+    """
+    if not text_norm:
+        return 0.0
+
+    cues = (
+        "love is dead",
+        "love does not exist",
+        "love doesnt exist",
+        "love is meaningless",
+        "love means nothing",
+        "love is a lie",
+        "love is fake",
+        "commitment is",
+        "no one stays",
+        "everyone leaves",
+        "walked away",
+        "walking away",
+        "walk away",
+        "feel like a fool",
+        "feel like such a fool",
+        "fool for ever",
+        "fool for believing",
+        "fool for loving",
+        "fool for trusting",
+        "treated me like nothing",
+        "treated me like trash",
+        "treated me like dirt",
+        "thrown away",
+        "tossed aside",
+        "i gave you everything",
+        "after everything i did",
+        "after everything i gave",
+        "betrayed",
+        "stabbed in the back",
+        "lied to me",
+        "torment",
+        "tormented",
+        "haunts me",
+        "haunted by",
+        "the darkness",
+        "drowning in",
+        "soul is broken",
+        "soul aches",
+        "aching soul",
+        "what is the point",
+        "whats the point",
+        "no meaning",
+        "lost all meaning",
+        "feels meaningless",
+        "heart aches",
+        "broken heart",
+        "el amor no existe",
+        "el amor esta muerto",
+        "el amor está muerto",
+        "el amor es mentira",
+        "todos se van",
+        "te fuiste",
+        "fui un tonto",
+        "fui una tonta",
+        "me trataste como nada",
+        "me traicionaste",
+        "atormentado",
+        "atormentada",
+        "perdi la fe",
+        "perdí la fe",
+        "no tiene sentido",
+        "o amor nao existe",
+        "o amor não existe",
+        "o amor esta morto",
+        "o amor está morto",
+        "todos vao embora",
+        "todos vão embora",
+        "voce foi embora",
+        "você foi embora",
+        "fui um tolo",
+        "fui uma tola",
+        "me tratou como nada",
+        "me traiu",
+        "me jogou fora",
+        "perdi a fe",
+        "perdi a fé",
+        "nao tem sentido",
+        "não tem sentido",
+    )
+    hits = 0
+    for c in cues:
+        if c in text_norm:
+            hits += 1
+            if hits >= 6:
+                break
+
+    sad = mixture.get("sadness", 0.0)
+    ang = mixture.get("anger", 0.0)
+    dis = mixture.get("disgust", 0.0)
+    fea = mixture.get("fear", 0.0)
+    neg_share = sad + ang + dis + fea
+
+    cue_score = min(1.0, hits / 3.0)
+    neg_score = min(1.0, neg_share * 1.4)
+    return min(1.0, 0.7 * cue_score + 0.3 * neg_score)
+
+
+def apply_cynicism_passion_guard(
+    intensity: Dict[str, float],
+    text_norm: str,
+) -> Dict[str, float]:
+    """
+    Prevent isolated affectionate words like "love" from being scored as
+    passion when the surrounding language is cynical, disillusioned, or
+    heartbreak-based. We shift weight from passion (and joy) toward sadness,
+    anger, and disgust based on how many cynicism cues appear.
+    """
+    out = dict(intensity)
+
+    cynic_phrases = (
+        "love is dead",
+        "love does not exist",
+        "love doesnt exist",
+        "love is meaningless",
+        "love means nothing",
+        "love is a lie",
+        "love is fake",
+        "commitment is dead",
+        "commitment is meaningless",
+        "commitment means nothing",
+        "no one stays",
+        "everyone leaves",
+        "they always leave",
+        "people always walk away",
+        "walked away from me",
+        "walked away without",
+        "feel like a fool",
+        "feel like such a fool",
+        "fool for ever",
+        "fool for believing",
+        "fool for loving",
+        "fool for trusting",
+        "i gave you everything",
+        "treated me like nothing",
+        "after everything i did",
+        "after everything i gave",
+        "betrayed",
+        "stabbed in the back",
+        "el amor no existe",
+        "el amor esta muerto",
+        "el amor está muerto",
+        "el amor es mentira",
+        "el compromiso no existe",
+        "todos se van",
+        "siempre se van",
+        "fui un tonto",
+        "fui una tonta",
+        "me siento un tonto",
+        "me siento una tonta",
+        "te lo di todo",
+        "me trataste como nada",
+        "me traicionaste",
+        "o amor nao existe",
+        "o amor não existe",
+        "o amor esta morto",
+        "o amor está morto",
+        "o amor e mentira",
+        "o amor é mentira",
+        "todos vao embora",
+        "todos vão embora",
+        "fui um tolo",
+        "fui uma tola",
+        "me sinto um tolo",
+        "me sinto uma tola",
+        "te dei tudo",
+        "me tratou como nada",
+        "me traiu",
+    )
+    hits = 0
+    for p in cynic_phrases:
+        if p in text_norm:
+            hits += 1
+
+    if hits <= 0:
+        return out
+
+    # The more cynicism cues we see, the harder we shift positive weight off
+    # passion and joy. Cap at a meaningful but not total reset so genuine
+    # affection inside ambivalent text still survives.
+    shift = min(0.8, 0.35 + 0.2 * hits)
+    pas_before = out.get("passion", 0.0)
+    joy_before = out.get("joy", 0.0)
+
+    pas_taken = pas_before * shift
+    joy_taken = joy_before * (shift * 0.6)
+
+    out["passion"] = max(0.0, pas_before - pas_taken)
+    out["joy"] = max(0.0, joy_before - joy_taken)
+
+    redirected = pas_taken + joy_taken
+    if redirected > 0.0:
+        # Distribute mostly to sadness, then anger, then a bit of disgust.
+        out["sadness"] = out.get("sadness", 0.0) + redirected * 0.55
+        out["anger"] = out.get("anger", 0.0) + redirected * 0.30
+        out["disgust"] = out.get("disgust", 0.0) + redirected * 0.15
+
+    return out
+
+
+def apply_mixed_feelings_preservation(
+    intensity: Dict[str, float],
+    text_norm: str,
+) -> Dict[str, float]:
+    """
+    When the text genuinely blends suffering, faith, hope, gratitude,
+    darkness, love, and resilience, do not flatten the result into a
+    single dominant Passion or Joy.
+
+    If we see resilience / faith / gratitude cues alongside pain cues,
+    keep the existing distribution but make sure both sides survive
+    instead of one suppressing the other.
+    """
+    out = dict(intensity)
+
+    pain_cues = (
+        "pain", "ache", "aches", "aching", "broken", "hurts",
+        "grief", "torment", "darkness", "dark", "scarred", "wound",
+        "wounds", "shattered", "burdened", "weary", "weight",
+        "sorrow", "tears", "cry", "crying", "loss", "lost",
+        "dolor", "duele", "rota", "roto", "luto", "ferida",
+        "feridas", "magoa", "magoado", "magoada", "tristeza",
+    )
+    hope_cues = (
+        "faith", "hope", "hopeful", "grateful", "thankful", "blessed",
+        "still", "rise", "risen", "rising", "stronger", "survive",
+        "survived", "endure", "endured", "resilient", "carry on",
+        "keep going", "love", "loved", "loving", "beauty", "beautiful",
+        "light", "grace", "praise", "amen", "god", "lord",
+        "fe", "fé", "esperanza", "esperança", "gracias", "graças",
+        "bendecida", "bendecido", "abencoado", "abençoado",
+        "abencoada", "abençoada", "deus", "dios", "amor",
+        "luz",
+    )
+
+    pain_hits = 0
+    for w in pain_cues:
+        if w in text_norm:
+            pain_hits += 1
+            if pain_hits >= 4:
+                break
+
+    hope_hits = 0
+    for w in hope_cues:
+        if w in text_norm:
+            hope_hits += 1
+            if hope_hits >= 4:
+                break
+
+    if pain_hits < 2 or hope_hits < 2:
+        return out
+
+    # Both sides are present. Make sure neither side collapses below a
+    # noticeable share when the total is meaningful.
+    total = sum(out.values())
+    if total <= 0.05:
+        return out
+
+    pos_share = out.get("joy", 0.0) + out.get("passion", 0.0)
+    neg_share = (
+        out.get("sadness", 0.0)
+        + out.get("anger", 0.0)
+        + out.get("disgust", 0.0)
+        + out.get("fear", 0.0)
+    )
+
+    # If positive completely dominates, give some back to sadness.
+    if pos_share > 0.65 * total and neg_share < 0.20 * total:
+        donate = (pos_share - 0.55 * total) * 0.5
+        # Take from whichever positive emotion is bigger
+        if out.get("passion", 0.0) >= out.get("joy", 0.0):
+            out["passion"] = max(0.0, out["passion"] - donate)
+        else:
+            out["joy"] = max(0.0, out["joy"] - donate)
+        out["sadness"] = out.get("sadness", 0.0) + donate * 0.7
+        out["fear"] = out.get("fear", 0.0) + donate * 0.3
+
+    # If negative completely dominates, give some back to joy/passion.
+    elif neg_share > 0.75 * total and pos_share < 0.10 * total:
+        donate = (neg_share - 0.65 * total) * 0.4
+        # Take from sadness primarily
+        sad = out.get("sadness", 0.0)
+        if sad > donate:
+            out["sadness"] = sad - donate
+        else:
+            out["sadness"] = 0.0
+            donate = sad
+        out["joy"] = out.get("joy", 0.0) + donate * 0.6
+        out["passion"] = out.get("passion", 0.0) + donate * 0.4
+
+    return out
+
+
+# =============================================================================
+# Feedback-based learning
+# =============================================================================
+# A lightweight runtime store of learned adjustments. The web layer can
+# call `record_feedback_adjustment` whenever a user reports that an emotion
+# was over- or under-scored. Adjustments are scoped to characteristic words
+# from the text, so the next time similar text comes through we nudge the
+# scoring in the corrected direction.
+
+FEEDBACK_ADJUSTMENTS: Dict[str, Dict[str, float]] = {}
+_FEEDBACK_TOKEN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ']{4,}", re.UNICODE)
+
+
+def _feedback_keywords(text_norm: str, max_keywords: int = 6) -> List[str]:
+    """
+    Extract the most distinctive content words from a piece of feedback text
+    to use as adjustment keys. Filters out function words.
+    """
+    if not text_norm:
+        return []
+    stopwords = {
+        # English
+        "this", "that", "with", "from", "have", "your", "their", "there",
+        "where", "what", "when", "while", "would", "could", "should",
+        "about", "really", "still", "just", "even", "much", "very",
+        "they", "them", "were", "been", "being", "into", "than", "then",
+        "more", "most", "some", "such", "also", "only",
+        # Spanish
+        "esto", "esta", "este", "estos", "estas", "para", "porque",
+        "tambien", "también", "pero", "como", "mucho", "muy", "ahora",
+        "siempre", "nunca", "nada", "todo", "tienen", "tiene",
+        # Portuguese
+        "isso", "isto", "essa", "esse", "esses", "essas", "para", "porque",
+        "tambem", "também", "mas", "como", "muito", "muita", "agora",
+        "sempre", "nunca", "nada", "tudo", "tem", "ter",
+    }
+    seen: set = set()
+    out: List[str] = []
+    for m in _FEEDBACK_TOKEN_RE.findall(text_norm):
+        w = m.lower()
+        if w in stopwords or w in seen:
+            continue
+        seen.add(w)
+        out.append(w)
+        if len(out) >= max_keywords:
+            break
+    return out
+
+
+def record_feedback_adjustment(
+    entry_text: str,
+    emotion: str,
+    direction: str,
+    strength: float = 1.0,
+) -> None:
+    """
+    Persist a small in-memory bias from user feedback.
+
+    Args:
+        entry_text: original analyzed text.
+        emotion: one of EMOTIONS.
+        direction: "up" if the user wants this emotion higher, "down" if they
+            want it lower (e.g. "sadness does not fit" -> direction="down").
+        strength: 0..1 multiplier to scale the adjustment intensity.
+    """
+    if emotion not in EMOTIONS:
+        return
+    delta = 0.08 * max(0.0, min(1.5, strength))
+    if direction == "down":
+        delta = -delta
+    text_norm = normalize_for_phrase(entry_text or "")
+    keys = _feedback_keywords(text_norm)
+    for k in keys:
+        bucket = FEEDBACK_ADJUSTMENTS.setdefault(k, {e: 0.0 for e in EMOTIONS})
+        bucket[emotion] = max(-0.4, min(0.4, bucket.get(emotion, 0.0) + delta))
+
+
+def apply_feedback_adjustments(
+    intensity: Dict[str, float],
+    text_norm: str,
+) -> Dict[str, float]:
+    """
+    Nudge intensity using whatever feedback adjustments have been recorded
+    so far. The nudge is multiplicative (1 + delta), bounded so feedback
+    cannot dominate the underlying signal.
+    """
+    if not FEEDBACK_ADJUSTMENTS or not text_norm:
+        return intensity
+
+    deltas: Dict[str, float] = {e: 0.0 for e in EMOTIONS}
+    matches = 0
+    for keyword, bucket in FEEDBACK_ADJUSTMENTS.items():
+        if keyword in text_norm:
+            matches += 1
+            for e in EMOTIONS:
+                deltas[e] += bucket.get(e, 0.0)
+    if matches == 0:
+        return intensity
+
+    out = dict(intensity)
+    for e in EMOTIONS:
+        d = deltas[e] / max(1, matches)
+        out[e] = max(0.0, out.get(e, 0.0) * (1.0 + d))
+    return out
+
+
+def apply_passion_separation(
+    intensity: Dict[str, float],
+    text_norm: str,
+    arousal: float,
+) -> Dict[str, float]:
+    """
+    Keep Passion from being a catch-all bucket for emotionally intense text.
+
+    Passion should reflect *love / attachment / desire* specifically. If the
+    text is intense but the affection cues are weak compared to anger /
+    sadness / awe / spiritual reflection, we move some weight off passion
+    onto whichever emotion is the more honest fit.
+    """
+    out = dict(intensity)
+    pas = out.get("passion", 0.0)
+    if pas <= 0.06:
+        return out
+
+    affection_cues = (
+        "i love you", "te amo", "te quiero", "te adoro", "amo voce",
+        "amo você", "in love", "my love", "mi amor", "meu amor",
+        "soulmate", "darling", "sweetheart", "babe", "baby",
+        "sweetie", "honey", "dear", "querido", "querida",
+        "mi vida", "minha vida", "mi cielito", "mi corazón",
+        "you are everything to me", "everything to me",
+        "i adore you", "adoro voce", "adoro você",
+        "te quiero mucho", "te amo mucho", "te amo muito",
+        "❤", "💖", "💗", "🥰", "😍",
+    )
+    other_intense_cues = (
+        "rage", "fury", "furious", "betrayed", "betrayal",
+        "broken", "broken heart", "shattered", "torment",
+        "tormented", "grief", "mourning", "agony", "anguish",
+        "awe", "in awe", "speechless", "stunned", "wow",
+        "praise", "praising", "worship", "holy", "sacred",
+        "glory", "blessed", "amen", "god is good",
+        "rabia", "furioso", "furiosa", "duelo", "luto", "agonia",
+        "raiva", "fúria", "furia", "louvor", "louvado",
+        "atormentado", "atormentada",
+    )
+
+    affection_hits = 0
+    for w in affection_cues:
+        if w in text_norm:
+            affection_hits += 1
+
+    other_hits = 0
+    for w in other_intense_cues:
+        if w in text_norm:
+            other_hits += 1
+
+    # If the text is intense but barely contains affection cues while it
+    # contains other intense cues, move passion weight toward those.
+    if affection_hits == 0 and other_hits >= 1:
+        give = pas * min(0.7, 0.35 + 0.15 * other_hits)
+        out["passion"] = max(0.0, pas - give)
+
+        # Pick the strongest "other" candidate to receive the weight.
+        candidates = ("sadness", "anger", "fear", "disgust", "surprise", "joy")
+        ranked = sorted(
+            ((c, out.get(c, 0.0)) for c in candidates),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )
+        # Spread mostly to the top candidate, a bit to the second.
+        if ranked:
+            top = ranked[0][0]
+            out[top] = out.get(top, 0.0) + give * 0.7
+            if len(ranked) > 1:
+                second = ranked[1][0]
+                out[second] = out.get(second, 0.0) + give * 0.3
+            else:
+                out[top] = out.get(top, 0.0) + give * 0.3
+    elif affection_hits == 0 and other_hits == 0 and arousal < 0.3:
+        # Pure intensity-with-no-affection: gently dampen passion
+        out["passion"] = pas * 0.75
+
+    return out
 
 
 # =============================================================================
@@ -4370,6 +5094,21 @@ class EmotionDetector:
             exclam_count=exclam_count,
         )
 
+        # Cynicism / heartbreak guard: prevents isolated "love" mentions
+        # in disillusioned text from being scored as Passion or Joy.
+        intensity = apply_cynicism_passion_guard(intensity, text_phrase_norm)
+
+        # Keep Passion from absorbing every emotionally intense passage.
+        intensity = apply_passion_separation(intensity, text_phrase_norm, A)
+
+        # Preserve mixed feelings (pain + beauty) so the result is not
+        # collapsed into a single dominant Joy or Passion bucket.
+        intensity = apply_mixed_feelings_preservation(intensity, text_phrase_norm)
+
+        # Apply user-feedback driven nudges if the trainer has any patterns
+        # learned from prior feedback submissions.
+        intensity = apply_feedback_adjustments(intensity, text_phrase_norm)
+
         # Recompute final intensity and shares after adjustments
         final_global_intensity = sum(intensity.values())
         if final_global_intensity > 1.0:
@@ -4409,9 +5148,15 @@ class EmotionDetector:
             blend_bias = {
                 ("anger", "sadness"): "sadness",
                 ("anger", "disgust"): "anger",
-                ("joy", "passion"): "passion",
+                ("joy", "passion"): "joy" if mixture_share.get("passion", 0.0) < 0.30 else "passion",
                 ("fear", "surprise"): "fear",
                 ("joy", "surprise"): "joy",
+                # Pain + love: keep the pain label so the read is honest.
+                ("passion", "sadness"): "sadness",
+                ("anger", "passion"): "anger",
+                ("disgust", "passion"): "disgust",
+                ("fear", "passion"): "fear",
+                ("passion", "surprise"): "surprise",
             }
             current_label = blend_bias.get((a, b), dominant_label)
         else:
@@ -4423,11 +5168,15 @@ class EmotionDetector:
 
         max_emotion_intensity = max(intensity.values()) if intensity else 0.0
 
+        darkness = estimate_darkness(text_phrase_norm, mixture_share)
+
         dominant_emoji = choose_emoji(
-            dominant_label, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity
+            dominant_label, mixture_share, A, sarcasm_prob,
+            final_global_intensity, max_emotion_intensity, darkness=darkness,
         )
         current_emoji = choose_emoji(
-            current_label, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity
+            current_label, mixture_share, A, sarcasm_prob,
+            final_global_intensity, max_emotion_intensity, darkness=darkness,
         )
 
         emotions_detail: Dict[str, EmotionResult] = {}
@@ -4437,7 +5186,10 @@ class EmotionDetector:
             # Never report a hard 100, keep at most 99.9 so nobody is
             # "perfectly" any single emotion.
             percent = min(99.9, raw_percent)
-            emoji = choose_emoji(e, mixture_share, A, sarcasm_prob, final_global_intensity, max_emotion_intensity)
+            emoji = choose_emoji(
+                e, mixture_share, A, sarcasm_prob,
+                final_global_intensity, max_emotion_intensity, darkness=darkness,
+            )
             emotions_detail[e] = EmotionResult(
                 label=e,
                 emoji=emoji,
@@ -4614,6 +5366,8 @@ class EmotionDetector:
             "neutral": neutral_flag,
             "max_emotion_intensity": round(max_emotion_intensity, 4),
             "emotion_levels": emotion_levels,
+            "darkness": round(darkness, 3),
+            "feedback_patterns_active": len(FEEDBACK_ADJUSTMENTS),
         }
 
         return DetectorOutput(
